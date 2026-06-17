@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
-import { searchAnime, getTopAnime } from '../lib/api'
+import { searchAnime } from '../lib/api'
 
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
 const FORMATS = ['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC']

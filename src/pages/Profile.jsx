@@ -5,7 +5,6 @@ import { useWatchlist } from '../hooks/useWatchlist'
 import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useHistory } from '../hooks/useHistory'
 import { useMangaHistory } from '../hooks/useMangaHistory'
-import { useToast } from '../components/Toast'
 
 export default function Profile() {
   const { user, isReady, logout } = useAuth()
@@ -13,7 +12,6 @@ export default function Profile() {
   const { favorites } = useAnimeFavorites()
   const { history } = useHistory()
   const { mangaHistory } = useMangaHistory()
-  const toast = useToast()
 
   const [section, setSection] = useState('watchlist')
 
