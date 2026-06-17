@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
         'Access-Control-Allow-Origin': '*',
       },
     })
-  } catch {
-    return new Response(JSON.stringify({ error: 'Proxy failed' }), {
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Proxy failed', detail: e.message }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

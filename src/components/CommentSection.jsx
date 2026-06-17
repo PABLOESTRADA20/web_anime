@@ -78,7 +78,7 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
 
 export default function CommentSection({ anilistId, mediaType = 'anime' }) {
   const { user } = useAuth()
-  const { comments, loading, addComment, deleteComment, toggleLike } = useComments(anilistId, mediaType)
+  const { comments, loading, error, addComment, deleteComment, toggleLike } = useComments(anilistId, mediaType)
   const [content, setContent] = useState('')
   const [rating, setRating] = useState(0)
   const [sending, setSending] = useState(false)
@@ -148,6 +148,9 @@ export default function CommentSection({ anilistId, mediaType = 'anime' }) {
         </div>
       )}
 
+      {error && (
+        <p className="text-red-400 text-xs mb-3">{error}</p>
+      )}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (

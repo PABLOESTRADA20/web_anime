@@ -1,5 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 
+const PUBLIC_PROXY_URL = Deno.env.get('PUBLIC_PROXY_URL') || 'https://szcpihgltvewnlrzydpe.supabase.co/functions/v1/m3u8-proxy'
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -39,7 +41,6 @@ Deno.serve(async (req) => {
 
     let body = await res.text()
     const baseUrl = new URL(target)
-    const proxyBase = `${reqUrl.origin}${reqUrl.pathname}`
     const refSuffix = referer ? `&referer=${encodeURIComponent(referer)}` : ''
 
     function proxyUrl(raw) {
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
       const absolute = trimmed.startsWith('http://') || trimmed.startsWith('https://')
         ? trimmed
         : new URL(trimmed, baseUrl).href
-      return `${proxyBase}?url=${encodeURIComponent(absolute)}${refSuffix}`
+      return `${PUBLIC_PROXY_URL}?url=${encodeURIComponent(absolute)}${refSuffix}`
     }
 
     const lines = body.split('\n')
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
           const resolved = uri.startsWith('http://') || uri.startsWith('https://')
             ? uri
             : new URL(uri, baseUrl).href
-          return `URI="${proxyBase}?url=${encodeURIComponent(resolved)}${refSuffix}"`
+          return `URI="${PUBLIC_PROXY_URL}?url=${encodeURIComponent(resolved)}${refSuffix}"`
         })
       }
       if (line.startsWith('#EXT-X-STREAM-INF:')) {
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
         const absolute = trimmed.startsWith('http://') || trimmed.startsWith('https://')
           ? trimmed
           : new URL(trimmed, baseUrl).href
-        return `${proxyBase}?url=${encodeURIComponent(absolute)}${refSuffix}`
+        return `${PUBLIC_PROXY_URL}?url=${encodeURIComponent(absolute)}${refSuffix}`
       }
       return line
     })

@@ -34,14 +34,18 @@ export default function Search() {
       setHasSearched(false)
       return
     }
+    const ac = new AbortController()
     setLoading(true)
     setPage(1)
     setHasSearched(true)
-    searchAnime(query, 1, filters).then((res) => {
+    searchAnime(query, 1, filters, ac.signal).then((res) => {
       setResults(res?.data || [])
       setHasNext(res?.hasNextPage || false)
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch((e) => {
+      if (e.name !== 'AbortError') setLoading(false)
+    })
+    return () => ac.abort()
   }, [query, filters])
 
   async function loadMore() {

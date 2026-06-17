@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useWatchlist } from '../hooks/useWatchlist'
@@ -34,12 +34,12 @@ export default function Profile() {
     )
   }
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { key: 'watchlist', label: 'Mi lista', count: watchlist.length },
     { key: 'favorites', label: 'Favoritos', count: favorites.length },
     { key: 'history', label: 'Historial anime', count: history.length },
     { key: 'manga', label: 'Historial manga', count: mangaHistory.length },
-  ]
+  ], [watchlist.length, favorites.length, history.length, mangaHistory.length])
 
   return (
     <div className="max-w-3xl mx-auto">

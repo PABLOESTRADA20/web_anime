@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .env
+run_migration.cjs
 
 # Editor directories and files
 .vscode/*

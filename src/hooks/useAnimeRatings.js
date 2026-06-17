@@ -11,15 +11,17 @@ export function useAnimeRatings() {
   const fetchRating = useCallback(async (anilistId) => {
     const currentUser = userRef.current
     if (!currentUser || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('anime_ratings')
-      .select('rating')
-      .eq('user_id', currentUser.id)
-      .eq('anilist_id', anilistId)
-      .maybeSingle()
-    if (data) {
-      setRatings((prev) => ({ ...prev, [anilistId]: data.rating }))
-    }
+    try {
+      const { data } = await supabase
+        .from('anime_ratings')
+        .select('rating')
+        .eq('user_id', currentUser.id)
+        .eq('anilist_id', anilistId)
+        .maybeSingle()
+      if (data) {
+        setRatings((prev) => ({ ...prev, [anilistId]: data.rating }))
+      }
+    } catch { /* ignore */ }
   }, [])
 
   async function setRating(anilistId, rating) {

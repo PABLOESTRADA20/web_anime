@@ -43,51 +43,64 @@ export function useComments(anilistId, mediaType = 'anime') {
 
   async function addComment(content, rating = null, parentId = null) {
     if (!user || !isSupabaseReady()) return
-    const { data, error: err } = await supabase
-      .from('comments')
-      .insert({
-        user_id: user.id,
-        anilist_id: parseInt(anilistId, 10),
-        media_type: mediaType,
-        content,
-        rating,
-        parent_id: parentId,
-      })
-      .select()
-      .single()
+    try {
+      const { data, error: err } = await supabase
+        .from('comments')
+        .insert({
+          user_id: user.id,
+          anilist_id: parseInt(anilistId, 10),
+          media_type: mediaType,
+          content,
+          rating,
+          parent_id: parentId,
+        })
+        .select()
+        .single()
 
-    if (err) throw err
-    await fetchComments()
-    return data
+      if (err) throw err
+      await fetchComments()
+      return data
+    } catch (e) {
+      setError(e.message)
+      throw e
+    }
   }
 
   async function deleteComment(commentId) {
     if (!user || !isSupabaseReady()) return
-    const { error: err } = await supabase
-      .from('comments')
-      .delete()
-      .eq('id', commentId)
-      .eq('user_id', user.id)
+    try {
+      const { error: err } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('user_id', user.id)
 
-    if (err) throw err
-    await fetchComments()
+      if (err) throw err
+      await fetchComments()
+    } catch (e) {
+      setError(e.message)
+    }
   }
 
   async function toggleLike(commentId) {
     if (!user || !isSupabaseReady()) return
-    const { data: existing } = await supabase
-      .from('comment_likes')
-      .select('id')
-      .eq('comment_id', commentId)
-      .eq('user_id', user.id)
-      .single()
+    try {
+      const { data: existing } = await supabase
+        .from('comment_likes')
+        .select('id')
+        .eq('comment_id', commentId)
+        .eq('user_id', user.id)
+        .single()
 
-    if (existing) {
-      await supabase.from('comment_likes').delete().eq('id', existing.id)
-    } else {
-      await supabase.from('comment_likes').insert({ user_id: user.id, comment_id: commentId })
+      if (existing) {
+        await supabase.from('comment_likes').delete().eq('id', existing.id)
+      } else {
+        await supabase.from('comment_likes').insert({ user_id: user.id, comment_id: commentId })
+      }
+      await fetchComments()
+    } catch (e) {
+      setError(e.message)
     }
-    await fetchComments()
   }
 
   return { comments, loading, error, addComment, deleteComment, toggleLike, refresh: fetchComments }

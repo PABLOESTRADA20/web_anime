@@ -31,7 +31,7 @@ export function useAnimeFavorites() {
     } else {
       await supabase.from('anime_favorites').insert({ user_id: user.id, anilist_id: anilistId, title, image })
     }
-    fetch()
+    await fetch()
   }
 
   function isFavorite(anilistId) {

@@ -36,7 +36,7 @@ export function useWatchlist() {
         image,
       })
     }
-    fetchWatchlist()
+    await fetchWatchlist()
   }
 
   function isInWatchlist(anilistId) {

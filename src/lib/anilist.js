@@ -236,8 +236,9 @@ const GET_SEASONAL = `
     }
   }`
 
-async function gql(query, variables = {}) {
+async function gql(query, variables = {}, signal) {
   const res = await fetch(ANILIST_API, {
+    signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ query, variables }),
@@ -279,14 +280,14 @@ export async function getTopManga(category = 'TRENDING', page = 1, perPage = 20)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function searchAnime(query, page = 1, perPage = 20, filters = {}) {
+export async function searchAnime(query, page = 1, perPage = 20, filters = {}, signal) {
   const vars = { page, perPage }
   if (query) vars.search = query
   if (filters.genre) vars.genre = filters.genre
   if (filters.year) vars.year = filters.year
   if (filters.format) vars.format = filters.format
   if (filters.minScore) vars.minScore = filters.minScore
-  const data = await gql(SEARCH_ANIME, vars)
+  const data = await gql(SEARCH_ANIME, vars, signal)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 

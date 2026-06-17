@@ -26,13 +26,14 @@ function normalizeList(items) {
   return (items || []).map(normalizeAnime)
 }
 
-export async function searchAnime(query, page = 1, filters = {}) {
+export async function searchAnime(query, page = 1, filters = {}, signal) {
   try {
     const res = query
-      ? await anilistSearch(query, page, 20, filters)
+      ? await anilistSearch(query, page, 20, filters, signal)
       : await anilistBrowse(page, 24, filters)
     return { data: normalizeList(res.data), hasNextPage: res.hasNextPage }
-  } catch {
+  } catch (e) {
+    if (e.name === 'AbortError') throw e
     const res = await prvSearch(query || 'popular', page)
     return { data: normalizeList(res.data), hasNextPage: res?.hasNextPage }
   }

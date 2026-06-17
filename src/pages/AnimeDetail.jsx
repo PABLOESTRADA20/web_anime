@@ -34,12 +34,14 @@ export default function AnimeDetail() {
   const [showTrailer, setShowTrailer] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     Promise.all([
       getAnimeInfo(id),
       getAnimeEpisodes(id).catch(() => ({ providerEpisodes: [], dubEpisodes: [], provider: null })),
       getAnimeCharacters(id).catch(() => ({ data: [] })),
     ]).then(([infoRes, epRes, charRes]) => {
+      if (cancelled) return
       const data = infoRes?.data || infoRes
       setAnime(data)
       setEpisodes(epRes?.providerEpisodes || [])
@@ -47,9 +49,10 @@ export default function AnimeDetail() {
       setCurrentProvider(epRes?.provider || null)
       setCharacters(charRes?.data || [])
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => { if (!cancelled) setLoading(false) })
 
     if (user) fetchRating(parseInt(id, 10))
+    return () => { cancelled = true }
   }, [id, user])
 
   async function handleWatchlist() {

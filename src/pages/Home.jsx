@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Hero from '../components/Hero'
@@ -43,7 +43,7 @@ export default function Home() {
       .catch(() => setRecentLoading(false))
   }, [])
 
-  const recentHistory = history.slice(0, 8)
+  const recentHistory = useMemo(() => history.slice(0, 8), [history])
 
   return (
     <motion.div
