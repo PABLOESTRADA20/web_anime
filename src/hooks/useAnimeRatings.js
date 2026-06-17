@@ -5,7 +5,7 @@ import { useAuth } from './useAuth'
 export function useAnimeRatings() {
   const { user } = useAuth()
   const userRef = useRef(user)
-  userRef.current = user
+  useEffect(() => { userRef.current = user }, [user])
   const [ratings, setRatings] = useState({})
 
   const fetchRating = useCallback(async (anilistId) => {
