@@ -27,7 +27,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/szcpihgltvewnlrzydpe\.supabase\.co\/.*/i,
+            urlPattern: new RegExp('^' + (process.env.VITE_SUPABASE_URL || 'https://szcpihgltvewnlrzydpe.supabase.co').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/.*', 'i'),
             handler: 'NetworkFirst',
             options: { cacheName: 'supabase-api' },
           },
