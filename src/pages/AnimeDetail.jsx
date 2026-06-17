@@ -200,7 +200,7 @@ export default function AnimeDetail() {
             {trailer && (
               <button
                 onClick={() => setShowTrailer(true)}
-                className="px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border border-white/10 bg-surface text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                className="px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border border-white/10 bg-surface text-text-secondary hover:text-neon-cyan hover:bg-surface-hover"
               >
                 ▶ Tráiler
               </button>
@@ -213,7 +213,7 @@ export default function AnimeDetail() {
                   className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border ${
                     inList
                       ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
-                      : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:bg-surface-hover'
+                      : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                   }`}
                 >
                   {inList ? '❤️ En lista' : '🤍 Agregar'}
@@ -223,7 +223,7 @@ export default function AnimeDetail() {
                   className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border ${
                     inFav
                       ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20'
-                      : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:bg-surface-hover'
+                      : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                   }`}
                 >
                   {inFav ? '⭐ Favorito' : '☆ Favorito'}

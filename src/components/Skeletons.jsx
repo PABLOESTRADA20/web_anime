@@ -1,7 +1,10 @@
 export function AnimeCardSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden bg-surface animate-pulse">
-      <div className="aspect-[3/4] bg-surface-hover" />
+    <div className="rounded-2xl overflow-hidden bg-surface">
+      <div className="aspect-[3/4] relative overflow-hidden">
+        <div className="absolute inset-0" style={{background: 'linear-gradient(90deg, transparent 0%, rgba(0,240,255,0.05) 50%, transparent 100%)', backgroundSize: '200% 100%', animation: 'shimmer 2s infinite'}} />
+        <div className="absolute inset-0 bg-surface-hover" />
+      </div>
       <div className="p-3 space-y-2">
         <div className="h-3 bg-surface-hover rounded w-3/4" />
         <div className="h-3 bg-surface-hover rounded w-1/2" />

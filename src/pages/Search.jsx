@@ -91,7 +91,7 @@ export default function Search() {
               <Link
                 key={g}
                 to={`/search?q=${g.toLowerCase()}`}
-                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-hover text-text-secondary hover:text-text-primary text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-hover text-text-secondary hover:text-neon-cyan text-sm font-medium transition-colors"
               >
                 {g}
               </Link>
@@ -129,7 +129,7 @@ export default function Search() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-            hasAny ? 'bg-primary text-white border-primary' : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary'
+            hasAny ? 'bg-primary text-white border-primary' : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan'
           }`}
         >
           Filtros {hasAny ? `(${filterCount})` : ''}
@@ -242,7 +242,7 @@ export default function Search() {
               <button
                 onClick={loadMore}
                 disabled={loading}
-                className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary
+                className="px-6 py-2.5 bg-surface hover:bg-surface-hover hover:text-neon-cyan
                            rounded-xl font-medium text-sm transition-colors border border-white/10
                            disabled:opacity-50"
               >

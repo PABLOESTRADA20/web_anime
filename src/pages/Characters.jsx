@@ -50,7 +50,7 @@ export default function Characters() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar personaje..."
-            className="flex-1 px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-primary/50 transition-colors"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
           />
           <button
             type="submit"

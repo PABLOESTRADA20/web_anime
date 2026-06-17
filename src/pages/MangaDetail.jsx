@@ -138,7 +138,7 @@ export default function MangaDetail() {
                 className={`px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border ${
                   isFavorite(parseInt(id, 10))
                     ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
-                    : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:bg-surface-hover'
+                    : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                 }`}
               >
                 {isFavorite(parseInt(id, 10)) ? '❤️ Favorito' : '🤍 Favorito'}

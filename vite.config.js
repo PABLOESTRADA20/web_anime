@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'AnimeVerse',
         short_name: 'AnimeVerse',
         description: 'Anime and manga streaming app',
-        theme_color: '#0e0b14',
-        background_color: '#0e0b14',
+        theme_color: '#0A0A0F',
+        background_color: '#0A0A0F',
         display: 'standalone',
         start_url: '/',
         icons: [

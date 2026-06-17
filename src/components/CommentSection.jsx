@@ -59,7 +59,7 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Escribe una respuesta..."
-            className="flex-1 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-xs placeholder:text-text-secondary/50 focus:outline-none focus:border-primary/50 transition-colors"
+            className="flex-1 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-xs placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
           />
           <button type="submit" className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium">Enviar</button>
         </form>
@@ -113,7 +113,7 @@ export default function CommentSection({ anilistId, mediaType = 'anime' }) {
             placeholder="Escribe un comentario..."
             rows={3}
             maxLength={2000}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-primary/50 transition-colors resize-none"
+            className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors resize-none"
           />
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">

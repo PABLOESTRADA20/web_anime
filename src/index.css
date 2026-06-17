@@ -1,14 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-background: oklch(0.13 0.01 280);
-  --color-surface: oklch(0.18 0.02 280);
-  --color-surface-hover: oklch(0.22 0.02 280);
-  --color-primary: oklch(0.7 0.2 330);
-  --color-primary-hover: oklch(0.8 0.2 330);
-  --color-text-primary: oklch(0.93 0.01 280);
-  --color-text-secondary: oklch(0.65 0.02 280);
-  --color-accent: oklch(0.6 0.18 250);
+  --color-background: oklch(0.04 0.005 280);
+  --color-surface: oklch(0.10 0.01 280);
+  --color-surface-hover: oklch(0.15 0.015 275);
+  --color-primary: oklch(0.65 0.25 330);
+  --color-primary-hover: oklch(0.75 0.22 330);
+  --color-neon-cyan: oklch(0.75 0.18 210);
+  --color-text-primary: oklch(0.95 0.01 280);
+  --color-text-secondary: oklch(0.55 0.03 275);
+  --color-accent: oklch(0.65 0.22 310);
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 :root {
@@ -21,6 +26,7 @@
   --color-surface-hover: oklch(0.88 0.015 280);
   --color-primary: oklch(0.55 0.22 330);
   --color-primary-hover: oklch(0.6 0.22 330);
+  --color-neon-cyan: oklch(0.55 0.16 210);
   --color-text-primary: oklch(0.15 0.015 280);
   --color-text-secondary: oklch(0.45 0.015 280);
   --color-accent: oklch(0.5 0.18 250);
@@ -29,18 +35,34 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-surface-hover) transparent;
+  scrollbar-color: var(--color-primary) transparent;
 }
 
 body {
   margin: 0;
   background: var(--color-background);
   color: var(--color-text-primary);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   transition: background-color 0.3s, color 0.3s;
 }
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes neonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }

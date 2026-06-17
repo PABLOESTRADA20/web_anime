@@ -32,15 +32,15 @@ export default function Navbar() {
   ]
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-white/5">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-primary/20">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
-        <Link to="/" className="text-xl font-bold text-primary shrink-0">
-          ✦ AnimeVerse
+        <Link to="/" className="text-xl font-heading font-bold text-primary shrink-0 tracking-wider" style={{textShadow: '0 0 20px rgba(255,0,110,0.4)'}}>
+          AnimeVerse
         </Link>
 
         <div className="hidden sm:flex items-center gap-5 text-sm text-text-secondary ml-6">
           {links.map((l) => (
-            <Link key={l.to} to={l.to} className="hover:text-text-primary transition-colors">{l.label}</Link>
+            <Link key={l.to} to={l.to} className="hover:text-neon-cyan transition-colors">{l.label}</Link>
           ))}
         </div>
 
@@ -50,7 +50,7 @@ export default function Navbar() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar anime..."
             className="w-full px-4 py-2 rounded-xl bg-surface border border-white/10 text-sm
-                       placeholder:text-text-secondary/50 focus:outline-none focus:border-primary/50
+                       placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70
                        transition-colors"
           />
         </form>
@@ -59,10 +59,18 @@ export default function Navbar() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="text-lg text-text-secondary hover:text-text-primary transition-colors p-1"
+            className="text-text-secondary hover:text-neon-cyan transition-colors p-1"
             aria-label="Cambiar tema"
           >
-            {dark ? '☀️' : '🌙'}
+            {dark ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
           </button>
 
           {isReady && (
@@ -89,7 +97,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link to="/login" className="text-sm text-primary hover:underline">
+              <Link to="/login" className="text-sm text-primary hover:text-neon-cyan transition-colors">
                 Entrar
               </Link>
             )
@@ -132,7 +140,7 @@ export default function Navbar() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar anime..."
               className="w-full px-4 py-2 rounded-xl bg-surface border border-white/10 text-sm
-                         placeholder:text-text-secondary/50 focus:outline-none focus:border-primary/50
+                         placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70
                          transition-colors"
             />
           </form>
@@ -146,7 +154,7 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="sm:hidden overflow-hidden border-t border-white/5"
+            className="sm:hidden overflow-hidden border-t border-primary/20"
           >
             <div className="px-4 py-3 space-y-2">
               {links.map((l) => (
@@ -154,7 +162,7 @@ export default function Navbar() {
                   key={l.to}
                   to={l.to}
                   onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-colors"
+                  className="block px-3 py-2 rounded-lg text-sm text-text-secondary hover:text-neon-cyan hover:bg-surface-hover transition-colors"
                 >
                   {l.label}
                 </Link>
