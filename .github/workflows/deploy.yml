@@ -26,10 +26,11 @@ jobs:
           VITE_ANIVEXA_URL: ${{ secrets.VITE_ANIVEXA_URL || 'https://anivexa-api.vercel.app' }}
           VITE_CONSUMET_URL: ${{ secrets.VITE_CONSUMET_URL || 'https://consumet-api-production-3333.up.railway.app' }}
 
+      - name: Install wrangler
+        run: npm install wrangler@latest
+
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 8f8f9db043d3a2032fff18ab18ade54d
-          command: pages deploy dist --project-name anime-app --branch main
-          wranglerVersion: "4"
+        run: |
+          API_TOKEN=$(echo "${{ secrets.CLOUDFLARE_API_TOKEN }}" | tr -d '[:space:]')
+          echo "Token length: ${#API_TOKEN}"
+          CLOUDFLARE_API_TOKEN="$API_TOKEN" npx wrangler pages deploy dist --project-name anime-app --branch main 2>&1
