@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: oklch(0.13 0.01 280);
+  --color-surface: oklch(0.18 0.02 280);
+  --color-surface-hover: oklch(0.22 0.02 280);
+  --color-primary: oklch(0.7 0.2 330);
+  --color-primary-hover: oklch(0.8 0.2 330);
+  --color-text-primary: oklch(0.93 0.01 280);
+  --color-text-secondary: oklch(0.65 0.02 280);
+  --color-accent: oklch(0.6 0.18 250);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+:root.light {
+  --color-background: oklch(0.97 0.005 280);
+  --color-surface: oklch(0.93 0.01 280);
+  --color-surface-hover: oklch(0.88 0.015 280);
+  --color-primary: oklch(0.55 0.22 330);
+  --color-primary-hover: oklch(0.6 0.22 330);
+  --color-text-primary: oklch(0.15 0.015 280);
+  --color-text-secondary: oklch(0.45 0.015 280);
+  --color-accent: oklch(0.5 0.18 250);
+  color-scheme: light;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-hover) transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
