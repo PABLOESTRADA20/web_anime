@@ -82,8 +82,26 @@ export async function getAnimeEpisodes(anilistId) {
   return { providerEpisodes: [], dubEpisodes: [], provider: null }
 }
 
+async function tryAnivexaProvider(provider, anilistId, epNum, audio, signal) {
+  const data = await anivexaGetWatch(anilistId, provider, epNum, audio, signal)
+  const { sources, subtitles } = normalizeStreams(data)
+  if (sources.length > 0) {
+    return { sources, subtitles, provider, backend: 'anivexa' }
+  }
+  throw new Error(`${provider}: sin fuentes disponibles`)
+}
+
+async function tryConsumetProvider(provider, anilistId, epNum, signal) {
+  const { sources, subtitles } = await getConsumetWatch(anilistId, epNum, provider, signal)
+  if (sources?.length > 0) {
+    return { sources, subtitles: subtitles || [], provider, backend: 'consumet' }
+  }
+  throw new Error(`${provider}: sin fuentes disponibles`)
+}
+
 export async function getWatchWithFallback(anilistId, preferredProvider, epNum, audio = 'sub') {
   const isConsumet = CONSUMET_PROVIDERS.includes(preferredProvider)
+  const errors = []
 
   if (!isConsumet) {
     const startIdx = PROVIDER_PRIORITY.indexOf(preferredProvider)
@@ -91,29 +109,52 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
       ? [...PROVIDER_PRIORITY.slice(startIdx), ...PROVIDER_PRIORITY.slice(0, startIdx)]
       : PROVIDER_PRIORITY
 
-    for (const provider of ordered) {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    const attempts = ordered.map(async (provider) => {
       try {
-        const data = await anivexaGetWatch(anilistId, provider, epNum, audio)
-        const { sources, subtitles } = normalizeStreams(data)
-        if (sources.length > 0) {
-          return { sources, subtitles, provider, backend: 'anivexa' }
-        }
-      } catch {}
+        const result = await tryAnivexaProvider(provider, anilistId, epNum, audio, signal)
+        controller.abort()
+        return result
+      } catch (e) {
+        errors.push({ provider, backend: 'anivexa', message: e.message })
+        throw e
+      }
+    })
+
+    try {
+      return await Promise.any(attempts)
+    } catch {
+      // all anivexa providers failed, continue to consumet
     }
   }
 
   if (isConsumetConfigured()) {
-    for (const provider of CONSUMET_PROVIDERS) {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    const attempts = CONSUMET_PROVIDERS.map(async (provider) => {
       try {
-        const { sources, subtitles } = await getConsumetWatch(anilistId, epNum, provider)
-        if (sources?.length > 0) {
-          return { sources, subtitles: subtitles || [], provider, backend: 'consumet' }
-        }
-      } catch {}
+        const result = await tryConsumetProvider(provider, anilistId, epNum, signal)
+        controller.abort()
+        return result
+      } catch (e) {
+        errors.push({ provider, backend: 'consumet', message: e.message })
+        throw e
+      }
+    })
+
+    try {
+      return await Promise.any(attempts)
+    } catch {
+      // all consumet providers failed
     }
   }
 
-  throw new Error('No se pudo cargar video de ningún proveedor.')
+  const err = new Error('No se pudo cargar video de ningún proveedor.')
+  err.providerErrors = errors
+  throw err
 }
 
 export { getEpisodeServers, getAnimepaheSources }

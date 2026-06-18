@@ -1,17 +1,24 @@
 const BASE = import.meta.env.VITE_ANIVEXA_URL || 'https://anivexa-api.vercel.app'
+const FETCH_TIMEOUT = 10000
 
-async function fetchJSON(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Anivexa error ${res.status}`)
-  return res.json()
+async function fetchJSON(url, signal) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
+  try {
+    const res = await fetch(url, { signal: signal || controller.signal })
+    if (!res.ok) throw new Error(`Anivexa error ${res.status}`)
+    return await res.json()
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
-export async function getEpisodes(anilistId) {
-  return fetchJSON(`${BASE}/episodes/${anilistId}`)
+export async function getEpisodes(anilistId, signal) {
+  return fetchJSON(`${BASE}/episodes/${anilistId}`, signal)
 }
 
-export async function getWatch(anilistId, provider, epNum, audio = 'sub') {
-  return fetchJSON(`${BASE}/watch/${provider}/${anilistId}/${audio}/${provider}-${epNum}`)
+export async function getWatch(anilistId, provider, epNum, audio = 'sub', signal) {
+  return fetchJSON(`${BASE}/watch/${provider}/${anilistId}/${audio}/${provider}-${epNum}`, signal)
 }
 
 export const PROVIDER_PRIORITY = ['anikoto', 'reanime', 'allmanga', 'animegg', 'anineko', 'anidbapp', 'animepahe']
@@ -49,28 +56,61 @@ export function normalizeStreams(watchData) {
     streams = ssub.streams
       .filter(s => s.type === 'hls' || s.type === 'mp4')
       .map(s => ({ ...s, url: s.url, quality: s.quality || 'auto', server: s.server }))
-    subtitles = ssub.subtitles || []
+    subtitles = ssub.subtitles || ssub.subs || ssub.tracks || []
   } else if (watchData.streams) {
     streams = watchData.streams
       .filter(s => s.type === 'hls' || s.type === 'hls-redirect' || s.type === 'mp4' || s.url?.includes('.m3u8'))
       .filter(s => s.isActive !== false)
       .map(s => ({ ...s, quality: s.quality || 'auto' }))
-    subtitles = watchData.subtitles || []
+    subtitles = watchData.subtitles || watchData.subs || watchData.tracks || watchData.captions || []
   } else if (watchData.sources) {
     streams = watchData.sources.filter(s => s.extractedUrl || s.url?.includes('.m3u8')).map(s => ({
       url: s.extractedUrl || s.url,
       quality: s.name || 'auto',
       referer: s.headers?.Referer || '',
     }))
-    subtitles = watchData.subtitles || []
+    subtitles = watchData.subtitles || watchData.subs || watchData.tracks || watchData.captions || []
   }
 
-  subtitles = subtitles.map(s => ({
-    ...s,
-    file: s.file || s.url || '',
-    label: s.label || s.language || s.lang || `Track ${s.index || 0}`,
-    language: s.language || '',
-  }))
+  subtitles = subtitles.map(s => {
+    const lang = s.language || s.lang || s.srclang || ''
+    const label = s.label || s.name || lang || `Track ${s.index || 0}`
+    return {
+      ...s,
+      file: s.file || s.url || s.src || '',
+      label,
+      language: lang,
+    }
+  })
 
   return { sources: streams, subtitles }
+}
+
+let providerHealthCache = null
+let providerHealthCacheTime = 0
+const HEALTH_CACHE_TTL = 30000
+
+export async function pingProviders(anilistId, signal) {
+  const now = Date.now()
+  if (providerHealthCache && now - providerHealthCacheTime < HEALTH_CACHE_TTL) {
+    return providerHealthCache
+  }
+  const results = []
+  for (const p of PROVIDER_PRIORITY) {
+    try {
+      const data = await getWatch(anilistId, p, 1, 'sub', signal)
+      const { sources } = normalizeStreams(data)
+      results.push({ provider: p, alive: sources.length > 0 })
+    } catch {
+      results.push({ provider: p, alive: false })
+    }
+  }
+  providerHealthCache = results
+  providerHealthCacheTime = now
+  return results
+}
+
+export function clearProviderHealthCache() {
+  providerHealthCache = null
+  providerHealthCacheTime = 0
 }

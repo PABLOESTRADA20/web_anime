@@ -1,27 +1,43 @@
+function normalizeLabel(sub) {
+  return (sub.label || sub.language || sub.srclang || sub.name || '').toLowerCase()
+}
+
+function labelIncludes(sub, patterns) {
+  const text = normalizeLabel(sub)
+  return patterns.some(p => text.includes(p) || text === p)
+}
+
+const ES_PATTERNS = ['spanish', 'es', 'spa', 'español', 'espanol', 'castellano', 'latino', 'mexican', 'subtitulos', 'sub-es']
+const EN_PATTERNS = ['english', 'en', 'inglés', 'eng']
+const JA_PATTERNS = ['japanese', 'ja', 'japonés', '日本', '日本語']
+const FR_PATTERNS = ['french', 'fr', 'français']
+const PT_PATTERNS = ['portuguese', 'pt', 'português', 'brazilian']
+const AR_PATTERNS = ['arabic', 'ar']
+const KO_PATTERNS = ['korean', 'ko']
+const ZH_PATTERNS = ['chinese', 'zh', '中文']
+
 export function subtitleLangLabel(sub) {
-  const label = (sub.label || sub.language || '').toLowerCase()
-  if (label.includes('spanish') || label === 'es' || label === 'spa' || label.includes('español') || label.includes('castellano') || label.includes('latino') || label.includes('mexican')) return 'Español'
-  if (label.includes('english') || label === 'en' || label === 'inglés') return 'English'
-  if (label.includes('japanese') || label === 'ja' || label.includes('japonés') || label.includes('日本')) return '日本語'
-  if (label.includes('french') || label === 'fr' || label.includes('français')) return 'Français'
-  if (label.includes('portuguese') || label === 'pt' || label.includes('português')) return 'Português'
-  if (label.includes('arabic') || label === 'ar') return 'العربية'
-  if (label.includes('korean') || label === 'ko') return '한국어'
-  if (label.includes('chinese') || label === 'zh') return '中文'
+  if (labelIncludes(sub, ES_PATTERNS)) return 'Español'
+  if (labelIncludes(sub, EN_PATTERNS)) return 'English'
+  if (labelIncludes(sub, JA_PATTERNS)) return '日本語'
+  if (labelIncludes(sub, FR_PATTERNS)) return 'Français'
+  if (labelIncludes(sub, PT_PATTERNS)) return 'Português'
+  if (labelIncludes(sub, AR_PATTERNS)) return 'العربية'
+  if (labelIncludes(sub, KO_PATTERNS)) return '한국어'
+  if (labelIncludes(sub, ZH_PATTERNS)) return '中文'
   return sub.label || sub.language || `Track ${sub.index || 0}`
 }
 
 export function subtitleSrcLang(sub) {
   if (sub.language) return sub.language
-  const label = (sub.label || '').toLowerCase()
-  if (label.includes('spanish') || label.includes('español') || label.includes('castellano') || label.includes('latino') || label === 'spa') return 'es'
-  if (label.includes('english') || label.includes('inglés')) return 'en'
-  if (label.includes('japanese') || label.includes('japonés')) return 'ja'
-  if (label.includes('french')) return 'fr'
-  if (label.includes('portuguese')) return 'pt'
-  if (label.includes('arabic')) return 'ar'
-  if (label.includes('korean')) return 'ko'
-  if (label.includes('chinese')) return 'zh'
+  if (labelIncludes(sub, ES_PATTERNS)) return 'es'
+  if (labelIncludes(sub, EN_PATTERNS)) return 'en'
+  if (labelIncludes(sub, JA_PATTERNS)) return 'ja'
+  if (labelIncludes(sub, FR_PATTERNS)) return 'fr'
+  if (labelIncludes(sub, PT_PATTERNS)) return 'pt'
+  if (labelIncludes(sub, AR_PATTERNS)) return 'ar'
+  if (labelIncludes(sub, KO_PATTERNS)) return 'ko'
+  if (labelIncludes(sub, ZH_PATTERNS)) return 'zh'
   return 'en'
 }
 
@@ -30,10 +46,23 @@ export function isCloudflareBlock(text) {
 }
 
 export function isSpanishSub(sub) {
-  const language = (sub.language || '').toLowerCase()
-  const label = (sub.label || '').toLowerCase()
-  return language === 'es' || language === 'spa' ||
-    label.includes('spanish') || label.includes('español') ||
-    label.includes('castellano') || label.includes('latino') ||
-    label === 'spa'
+  const language = (sub.language || sub.srclang || '').toLowerCase()
+  const file = (sub.file || sub.url || sub.src || '').toLowerCase()
+
+  if (language === 'es' || language === 'spa') return true
+  if (labelIncludes(sub, ES_PATTERNS)) return true
+
+  const filePatterns = ['es.', 'spanish.', 'espanol.', 'español.', 'latino.', 'sub.es', '_es.']
+  if (filePatterns.some(p => file.includes(p))) return true
+
+  return false
+}
+
+export function getSubtitleInfo(sub) {
+  return {
+    label: subtitleLangLabel(sub),
+    srcLang: subtitleSrcLang(sub),
+    isSpanish: isSpanishSub(sub),
+    file: sub.file || sub.url || sub.src || '',
+  }
 }

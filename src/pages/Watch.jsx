@@ -106,6 +106,7 @@ export default function Watch() {
   const [selectedUrl, setSelectedUrl] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [providerErrors, setProviderErrors] = useState([])
   const [episodesData, setEpisodesData] = useState(null)
   const [episodesLoading, setEpisodesLoading] = useState(false)
   const [activeSubtitle, setActiveSubtitle] = useState(-1)
@@ -132,13 +133,16 @@ export default function Watch() {
       return
     }
 
+    let cancelled = false
     setLoading(true)
     setError(null)
+    setProviderErrors([])
     setSources([])
     setSubtitles([])
 
     getWatchWithFallback(anilistId, provider, epNum, audio)
       .then((result) => {
+        if (cancelled) return
         setProviderUsed(result.provider)
         setBackendUsed(result.backend)
         setSources(result.sources)
@@ -146,12 +150,16 @@ export default function Watch() {
         setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
         setLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
+        if (cancelled) return
         setProviderUsed(null)
         setBackendUsed(null)
+        setProviderErrors(err.providerErrors || [])
         setError('No se pudo cargar video de ningún proveedor.')
         setLoading(false)
       })
+
+    return () => { cancelled = true }
   }, [anilistId, provider, epNum, audio])
 
   useEffect(() => {
@@ -211,7 +219,9 @@ export default function Watch() {
               blobs[i] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }))
               return
             }
-          } catch {}
+          } catch {
+            // retry with direct url
+          }
         }
       }))
 
@@ -463,7 +473,27 @@ export default function Watch() {
         ) : error ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-3 px-4">
             <p className="text-text-secondary text-sm text-center">{error}</p>
-            <Link to="/" className="px-4 py-2 bg-primary text-white rounded-xl text-sm">Volver al inicio</Link>
+            {providerErrors.length > 0 && (
+              <details className="text-[10px] text-text-secondary/60 max-w-xs text-center">
+                <summary className="cursor-pointer hover:text-text-secondary transition-colors">
+                  Detalles de errores ({providerErrors.length})
+                </summary>
+                <ul className="mt-1 space-y-0.5">
+                  {providerErrors.map((e, i) => (
+                    <li key={i}>{providerDisplayName(e.provider)} ({e.backend}): {e.message}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <div className="flex flex-wrap gap-2 mt-1">
+              <Link to="/" className="px-4 py-2 bg-primary text-white rounded-xl text-sm">Volver al inicio</Link>
+              <button
+                onClick={() => switchProvider(provider === 'anikoto' ? 'reanime' : 'anikoto')}
+                className="px-4 py-2 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors"
+              >
+                Intentar otro proveedor
+              </button>
+            </div>
           </div>
         ) : (
           <video
