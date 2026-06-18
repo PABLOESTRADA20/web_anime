@@ -1,6 +1,7 @@
-import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList } from './anivexa.js'
+import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList, normalizeStreams, PROVIDER_PRIORITY } from './anivexa.js'
 import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo } from './anilist.js'
 import { getAnimeEpisodes as kenjitsuGetEpisodes, getEpisodeServers, getAnimepaheSources, searchAnime as prvSearch, getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
+import { isConsumetConfigured, CONSUMET_PROVIDERS, getConsumetWatch } from './consumet.js'
 
 function normalizeAnime(item) {
   if (!item) return item
@@ -81,9 +82,38 @@ export async function getAnimeEpisodes(anilistId) {
   return { providerEpisodes: [], dubEpisodes: [], provider: null }
 }
 
-export async function getWatchUrl(anilistId, provider, epNum, audio = 'sub') {
-  const data = await anivexaGetWatch(anilistId, provider, epNum, audio)
-  return data
+export async function getWatchWithFallback(anilistId, preferredProvider, epNum, audio = 'sub') {
+  const isConsumet = CONSUMET_PROVIDERS.includes(preferredProvider)
+
+  if (!isConsumet) {
+    const startIdx = PROVIDER_PRIORITY.indexOf(preferredProvider)
+    const ordered = startIdx >= 0
+      ? [...PROVIDER_PRIORITY.slice(startIdx), ...PROVIDER_PRIORITY.slice(0, startIdx)]
+      : PROVIDER_PRIORITY
+
+    for (const provider of ordered) {
+      try {
+        const data = await anivexaGetWatch(anilistId, provider, epNum, audio)
+        const { sources, subtitles } = normalizeStreams(data)
+        if (sources.length > 0) {
+          return { sources, subtitles, provider, backend: 'anivexa' }
+        }
+      } catch {}
+    }
+  }
+
+  if (isConsumetConfigured()) {
+    for (const provider of CONSUMET_PROVIDERS) {
+      try {
+        const { sources, subtitles } = await getConsumetWatch(anilistId, epNum, provider)
+        if (sources?.length > 0) {
+          return { sources, subtitles: subtitles || [], provider, backend: 'consumet' }
+        }
+      } catch {}
+    }
+  }
+
+  throw new Error('No se pudo cargar video de ningún proveedor.')
 }
 
 export { getEpisodeServers, getAnimepaheSources }

@@ -14,7 +14,7 @@ export async function getWatch(anilistId, provider, epNum, audio = 'sub') {
   return fetchJSON(`${BASE}/watch/${provider}/${anilistId}/${audio}/${provider}-${epNum}`)
 }
 
-const PROVIDER_PRIORITY = ['anikoto', 'reanime', 'allmanga', 'animegg', 'anineko', 'anidbapp', 'animepahe']
+export const PROVIDER_PRIORITY = ['anikoto', 'reanime', 'allmanga', 'animegg', 'anineko', 'anidbapp', 'animepahe']
 
 export function getBestProvider(data) {
   for (const p of PROVIDER_PRIORITY) {
@@ -64,6 +64,13 @@ export function normalizeStreams(watchData) {
     }))
     subtitles = watchData.subtitles || []
   }
+
+  subtitles = subtitles.map(s => ({
+    ...s,
+    file: s.file || s.url || '',
+    label: s.label || s.language || s.lang || `Track ${s.index || 0}`,
+    language: s.language || '',
+  }))
 
   return { sources: streams, subtitles }
 }

@@ -44,3 +44,10 @@ export async function getConsumetSources(episodeId) {
     })),
   }
 }
+
+export async function getConsumetWatch(anilistId, epNum, provider = 'gogoanime') {
+  const episodes = await getConsumetEpisodes(anilistId, provider)
+  const episode = episodes.find(ep => ep.episodeNumber === epNum)
+  if (!episode) throw new Error(`Episodio ${epNum} no encontrado en ${provider}`)
+  return getConsumetSources(episode.episodeId)
+}

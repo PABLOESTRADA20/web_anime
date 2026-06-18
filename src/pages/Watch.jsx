@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Hls from 'hls.js'
-import { getWatch, getEpisodes, normalizeStreams, parseEpisodeId, getEpisodeList } from '../lib/anivexa'
+import { getEpisodes, parseEpisodeId, getEpisodeList } from '../lib/anivexa'
+import { getWatchWithFallback } from '../lib/api'
 import { useHistory } from '../hooks/useHistory'
 
 function useHls(videoRef, url) {
@@ -64,6 +65,12 @@ const PROVIDER_NAMES = {
   animepahe: 'AnimePahe',
 }
 
+const CONSUMET_NAMES = {
+  gogoanime: 'Gogoanime',
+  zoro: 'Zoro',
+  animekai: 'AnimeKai',
+}
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
 const CORS_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/cors-proxy?url=` : null
@@ -107,6 +114,10 @@ function subtitleSrcLang(sub) {
   return 'en'
 }
 
+function providerDisplayName(p) {
+  return PROVIDER_NAMES[p] || CONSUMET_NAMES[p] || p
+}
+
 export default function Watch() {
   const { '*': episodeId } = useParams()
   const [searchParams] = useSearchParams()
@@ -122,6 +133,10 @@ export default function Watch() {
   const [episodesData, setEpisodesData] = useState(null)
   const [episodesLoading, setEpisodesLoading] = useState(false)
   const [activeSubtitle, setActiveSubtitle] = useState(-1)
+  const [subtitleSrc, setSubtitleSrc] = useState({})
+  const subtitleBlobsRef = useRef({})
+  const [providerUsed, setProviderUsed] = useState(null)
+  const [backendUsed, setBackendUsed] = useState(null)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
@@ -146,20 +161,19 @@ export default function Watch() {
     setSources([])
     setSubtitles([])
 
-    getWatch(anilistId, provider, epNum, audio)
-      .then((data) => {
-        const { sources: srcs, subtitles: subs } = normalizeStreams(data)
-        if (srcs.length > 0) {
-          setSources(srcs)
-          setSubtitles(subs.map(s => ({ ...s, file: proxySubUrl(s.file) })))
-          setSelectedUrl(proxyUrl(srcs[0].url, srcs[0].referer))
-        } else {
-          setError('No hay fuentes de video disponibles para este episodio.')
-        }
+    getWatchWithFallback(anilistId, provider, epNum, audio)
+      .then((result) => {
+        setProviderUsed(result.provider)
+        setBackendUsed(result.backend)
+        setSources(result.sources)
+        setSubtitles(result.subtitles)
+        setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
         setLoading(false)
       })
       .catch(() => {
-        setError(`Error al cargar video desde ${PROVIDER_NAMES[provider] || provider}.`)
+        setProviderUsed(null)
+        setBackendUsed(null)
+        setError('No se pudo cargar video de ningún proveedor.')
         setLoading(false)
       })
   }, [anilistId, provider, epNum, audio])
@@ -201,6 +215,55 @@ export default function Watch() {
       return () => video.textTracks.removeEventListener('addtrack', handler)
     }
   }, [activeSubtitle, subtitles])
+
+  function isCloudflareBlock(text) {
+    return text.includes('cf-browser-verification') || text.includes('__cf_chl_') || text.includes('Just a moment')
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    Object.values(subtitleBlobsRef.current).forEach(u => URL.revokeObjectURL(u))
+    subtitleBlobsRef.current = {}
+    setSubtitleSrc({})
+
+    async function loadAll() {
+      const blobs = {}
+      await Promise.all(subtitles.map(async (sub, i) => {
+        if (!sub.file) return
+        const urls = [proxySubUrl(sub.file), sub.file].filter(Boolean)
+        for (const url of urls) {
+          try {
+            const res = await fetch(url)
+            const text = await res.text()
+            if (text && !isCloudflareBlock(text)) {
+              blobs[i] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }))
+              return
+            }
+          } catch {}
+        }
+      }))
+
+      if (cancelled) {
+        Object.values(blobs).forEach(u => URL.revokeObjectURL(u))
+        return
+      }
+
+      subtitleBlobsRef.current = blobs
+      setSubtitleSrc(blobs)
+    }
+
+    if (subtitles.length > 0) loadAll()
+
+    return () => { cancelled = true }
+  }, [subtitles])
+
+  useEffect(() => {
+    return () => {
+      Object.values(subtitleBlobsRef.current).forEach(u => URL.revokeObjectURL(u))
+      subtitleBlobsRef.current = {}
+    }
+  }, [])
 
   useEffect(() => {
     if (anilistId) {
@@ -386,8 +449,31 @@ export default function Watch() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+      {providerUsed && providerUsed !== provider && (
+        <p className="text-[10px] text-text-secondary mb-2 text-center">
+          Sirviendo vía <span className="text-primary font-medium">{providerDisplayName(providerUsed)}</span> ({backendUsed}) como respaldo
+        </p>
+      )}
+
+      <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
         {Object.entries(PROVIDER_NAMES).map(([p, name]) => (
+          <button
+            key={p}
+            onClick={() => switchProvider(p)}
+            disabled={loading}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              provider === p
+                ? 'bg-primary text-white'
+                : 'bg-surface text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono">Consumet</span>
+        {Object.entries(CONSUMET_NAMES).map(([p, name]) => (
           <button
             key={p}
             onClick={() => switchProvider(p)}
@@ -426,7 +512,7 @@ export default function Watch() {
               <track
                 key={i}
                 kind="subtitles"
-                src={sub.file}
+                src={subtitleSrc[i] || sub.file}
                 srcLang={subtitleSrcLang(sub)}
                 label={subtitleLangLabel(sub)}
                 default={i === defaultSubIdx}
