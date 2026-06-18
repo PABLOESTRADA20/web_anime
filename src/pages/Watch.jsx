@@ -80,6 +80,33 @@ function proxySubUrl(url) {
   return CORS_PROXY + encodeURIComponent(url)
 }
 
+function subtitleLangLabel(sub) {
+  const label = (sub.label || sub.language || '').toLowerCase()
+  if (label.includes('english') || label === 'en' || label === 'inglés') return 'English'
+  if (label.includes('spanish') || label === 'es' || label.includes('español') || label.includes('castellano')) return 'Español'
+  if (label.includes('japanese') || label === 'ja' || label.includes('japonés') || label.includes('日本')) return '日本語'
+  if (label.includes('french') || label === 'fr' || label.includes('français')) return 'Français'
+  if (label.includes('portuguese') || label === 'pt' || label.includes('português')) return 'Português'
+  if (label.includes('arabic') || label === 'ar') return 'العربية'
+  if (label.includes('korean') || label === 'ko') return '한국어'
+  if (label.includes('chinese') || label === 'zh') return '中文'
+  return sub.label || sub.language || `Track ${sub.index || 0}`
+}
+
+function subtitleSrcLang(sub) {
+  if (sub.language) return sub.language
+  const label = (sub.label || '').toLowerCase()
+  if (label.includes('spanish') || label.includes('español')) return 'es'
+  if (label.includes('english') || label.includes('inglés')) return 'en'
+  if (label.includes('japanese') || label.includes('japonés')) return 'ja'
+  if (label.includes('french')) return 'fr'
+  if (label.includes('portuguese')) return 'pt'
+  if (label.includes('arabic')) return 'ar'
+  if (label.includes('korean')) return 'ko'
+  if (label.includes('chinese')) return 'zh'
+  return 'en'
+}
+
 export default function Watch() {
   const { '*': episodeId } = useParams()
   const [searchParams] = useSearchParams()
@@ -94,6 +121,7 @@ export default function Watch() {
   const [error, setError] = useState(null)
   const [episodesData, setEpisodesData] = useState(null)
   const [episodesLoading, setEpisodesLoading] = useState(false)
+  const [activeSubtitle, setActiveSubtitle] = useState(-1)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
@@ -137,6 +165,44 @@ export default function Watch() {
   }, [anilistId, provider, epNum, audio])
 
   useEffect(() => {
+    if (subtitles.length === 0) {
+      setActiveSubtitle(-1)
+      return
+    }
+    const esIndex = subtitles.findIndex(s =>
+      s.language === 'es' ||
+      s.label?.toLowerCase().includes('spanish') ||
+      s.label?.toLowerCase().includes('español') ||
+      s.label?.toLowerCase().includes('castellano')
+    )
+    setActiveSubtitle(esIndex >= 0 ? esIndex : 0)
+  }, [subtitles])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || subtitles.length === 0) return
+
+    function apply() {
+      for (let i = 0; i < video.textTracks.length; i++) {
+        video.textTracks[i].mode = activeSubtitle >= 0 && i === activeSubtitle ? 'showing' : 'hidden'
+      }
+    }
+
+    apply()
+
+    if (video.textTracks.length < subtitles.length) {
+      const handler = () => {
+        if (video.textTracks.length >= subtitles.length) {
+          apply()
+          video.textTracks.removeEventListener('addtrack', handler)
+        }
+      }
+      video.textTracks.addEventListener('addtrack', handler)
+      return () => video.textTracks.removeEventListener('addtrack', handler)
+    }
+  }, [activeSubtitle, subtitles])
+
+  useEffect(() => {
     if (anilistId) {
       saveProgress(anilistId, epNum, title, image, episodeId)
     }
@@ -162,6 +228,15 @@ export default function Watch() {
   const dubList = episodesData ? getEpisodeList(episodesData, provider, 'dub') : []
   const hasDub = dubList.length > 0
 
+  function selectSubtitleTrack(trackIndex) {
+    setActiveSubtitle(trackIndex)
+    const video = videoRef.current
+    if (!video) return
+    for (let i = 0; i < video.textTracks.length; i++) {
+      video.textTracks[i].mode = trackIndex >= 0 && i === trackIndex ? 'showing' : 'hidden'
+    }
+  }
+
   function selectSource(source) {
     setSelectedUrl(proxyUrl(source.url, source.referer))
   }
@@ -184,7 +259,19 @@ export default function Watch() {
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${episode.number}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
   }
 
+  const defaultSubIdx = (() => {
+    if (subtitles.length === 0) return -1
+    const es = subtitles.findIndex(s =>
+      s.language === 'es' ||
+      s.label?.toLowerCase().includes('spanish') ||
+      s.label?.toLowerCase().includes('español') ||
+      s.label?.toLowerCase().includes('castellano')
+    )
+    return es >= 0 ? es : 0
+  })()
+
   return (
+
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -266,6 +353,37 @@ export default function Watch() {
             </button>
           </div>
         )}
+
+        {subtitles.length > 0 && (
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-text-secondary mr-1 font-mono">CC</span>
+            <div className="flex rounded-lg overflow-hidden border border-white/10">
+              {subtitles.map((sub, i) => (
+                <button
+                  key={i}
+                  onClick={() => selectSubtitleTrack(i)}
+                  className={`px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                    activeSubtitle === i
+                      ? 'bg-neon-cyan text-black'
+                      : 'bg-surface text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {subtitleLangLabel(sub)}
+                </button>
+              ))}
+              <button
+                onClick={() => selectSubtitleTrack(-1)}
+                className={`px-2 py-1.5 text-[10px] font-medium transition-colors border-l border-white/10 ${
+                  activeSubtitle < 0
+                    ? 'bg-surface/50 text-text-secondary/50'
+                    : 'bg-surface text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                OFF
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
@@ -309,9 +427,9 @@ export default function Watch() {
                 key={i}
                 kind="subtitles"
                 src={sub.file}
-                srcLang={sub.language || (sub.label?.toLowerCase().includes('en') ? 'en' : sub.label?.toLowerCase().includes('es') ? 'es' : 'en')}
-                label={sub.label || `Subtítulo ${i + 1}`}
-                default={sub.default || sub.label?.toLowerCase().includes('es') || i === 0}
+                srcLang={subtitleSrcLang(sub)}
+                label={subtitleLangLabel(sub)}
+                default={i === defaultSubIdx}
               />
             ))}
           </video>

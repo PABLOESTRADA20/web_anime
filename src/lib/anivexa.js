@@ -62,6 +62,7 @@ export function normalizeStreams(watchData) {
       quality: s.name || 'auto',
       referer: s.headers?.Referer || '',
     }))
+    subtitles = watchData.subtitles || []
   }
 
   return { sources: streams, subtitles }

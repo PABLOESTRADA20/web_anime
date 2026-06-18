@@ -15,10 +15,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const origin = new URL(target).origin
     const res = await fetch(target, {
       headers: {
         'User-Agent': 'Mozilla/5.0',
-        'Referer': 'https://animepahe.com/',
+        'Referer': origin,
       },
     })
 
