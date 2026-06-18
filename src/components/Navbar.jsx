@@ -24,6 +24,7 @@ export default function Navbar() {
 
   const links = [
     { to: '/', label: 'Inicio' },
+    { to: '/directorio', label: 'Directorio' },
     { to: '/search', label: 'Buscar' },
     { to: '/manga', label: 'Manga' },
     { to: '/seasonal', label: 'Temporada' },

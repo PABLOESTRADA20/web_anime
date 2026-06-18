@@ -4,9 +4,11 @@ import { motion } from 'framer-motion'
 import Hls from 'hls.js'
 import { getEpisodes, parseEpisodeId, getEpisodeList } from '../lib/anivexa'
 import { getWatchWithFallback } from '../lib/api'
+import { getAnimeInfo } from '../lib/anilist'
 import { useHistory } from '../hooks/useHistory'
 import { useToast } from '../components/Toast'
 import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
+import { fetchSubtitle } from '../utils/proxy'
 
 function useHls(videoRef, url) {
   const hlsRef = useRef(null)
@@ -75,7 +77,6 @@ const CONSUMET_NAMES = {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
-const CORS_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/cors-proxy?url=` : null
 
 function proxyUrl(url, referer) {
   if (!M3U8_PROXY || !url) return url
@@ -84,13 +85,14 @@ function proxyUrl(url, referer) {
   return full
 }
 
-function proxySubUrl(url) {
-  if (!CORS_PROXY || !url) return url
-  return CORS_PROXY + encodeURIComponent(url)
-}
-
 function providerDisplayName(p) {
   return PROVIDER_NAMES[p] || CONSUMET_NAMES[p] || p
+}
+
+function getUniqueServers(sources) {
+  const servers = [...new Set(sources.map(s => s.server || 'default').filter(Boolean))]
+  if (servers.length <= 1) return []
+  return servers
 }
 
 export default function Watch() {
@@ -103,6 +105,7 @@ export default function Watch() {
 
   const [sources, setSources] = useState([])
   const [subtitles, setSubtitles] = useState([])
+  const [downloads, setDownloads] = useState([])
   const [selectedUrl, setSelectedUrl] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -114,6 +117,8 @@ export default function Watch() {
   const subtitleBlobsRef = useRef({})
   const [providerUsed, setProviderUsed] = useState(null)
   const [backendUsed, setBackendUsed] = useState(null)
+  const [activeServer, setActiveServer] = useState(null)
+  const [nextEpisode, setNextEpisode] = useState(null)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
@@ -139,6 +144,8 @@ export default function Watch() {
     setProviderErrors([])
     setSources([])
     setSubtitles([])
+    setDownloads([])
+    setActiveServer(null)
 
     getWatchWithFallback(anilistId, provider, epNum, audio)
       .then((result) => {
@@ -147,6 +154,11 @@ export default function Watch() {
         setBackendUsed(result.backend)
         setSources(result.sources)
         setSubtitles(result.subtitles)
+        setDownloads(result.downloads || [])
+        const servers = getUniqueServers(result.sources)
+        if (servers.length > 0) {
+          setActiveServer(servers[0])
+        }
         setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
         setLoading(false)
       })
@@ -158,6 +170,14 @@ export default function Watch() {
         setError('No se pudo cargar video de ningún proveedor.')
         setLoading(false)
       })
+
+    getAnimeInfo(parseInt(anilistId, 10))
+      .then((info) => {
+        if (cancelled && info?.nextAiringEpisode) {
+          setNextEpisode(info.nextAiringEpisode)
+        }
+      })
+      .catch(() => {})
 
     return () => { cancelled = true }
   }, [anilistId, provider, epNum, audio])
@@ -210,18 +230,9 @@ export default function Watch() {
       const blobs = {}
       await Promise.all(subtitles.map(async (sub, i) => {
         if (!sub.file) return
-        const urls = [proxySubUrl(sub.file), sub.file].filter(Boolean)
-        for (const url of urls) {
-          try {
-            const res = await fetch(url)
-            const text = await res.text()
-            if (text && !isCloudflareBlock(text)) {
-              blobs[i] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }))
-              return
-            }
-          } catch {
-            // retry with direct url
-          }
+        const text = await fetchSubtitle(sub.file)
+        if (text && !isCloudflareBlock(text)) {
+          blobs[i] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }))
         }
       }))
 
@@ -272,6 +283,11 @@ export default function Watch() {
   const dubList = episodesData ? getEpisodeList(episodesData, provider, 'dub') : []
   const hasDub = dubList.length > 0
 
+  const servers = getUniqueServers(sources)
+  const currentServerSources = activeServer
+    ? sources.filter(s => (s.server || 'default') === activeServer)
+    : sources
+
   function selectSubtitleTrack(trackIndex) {
     setActiveSubtitle(trackIndex)
     const video = videoRef.current
@@ -283,6 +299,14 @@ export default function Watch() {
 
   function selectSource(source) {
     setSelectedUrl(proxyUrl(source.url, source.referer))
+  }
+
+  function selectServer(server) {
+    setActiveServer(server)
+    const serverSources = sources.filter(s => (s.server || 'default') === server)
+    if (serverSources.length > 0) {
+      setSelectedUrl(proxyUrl(serverSources[0].url, serverSources[0].referer))
+    }
   }
 
   const switchProvider = useCallback((newProvider) => {
@@ -308,6 +332,18 @@ export default function Watch() {
     const es = subtitles.findIndex(isSpanishSub)
     return es >= 0 ? es : 0
   })()
+
+  function formatDate(timestamp) {
+    if (!timestamp) return ''
+    const d = new Date(timestamp * 1000)
+    return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return ''
+    const mb = bytes / (1024 * 1024)
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
+  }
 
   return (
 
@@ -517,24 +553,77 @@ export default function Watch() {
         )}
       </div>
 
-      {!loading && !error && sources.length > 1 && (
-        <div className="mt-4">
-          <p className="text-xs text-text-secondary mb-1.5">Calidad:</p>
-          <div className="flex flex-wrap gap-2">
-            {sources.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => selectSource(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  selectedUrl?.includes(encodeURIComponent(s.url))
-                    ? 'bg-primary text-white'
-                    : 'bg-surface text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {s.quality || s.server || `Fuente ${i + 1}`}
-              </button>
-            ))}
-          </div>
+      {!loading && !error && (
+        <div className="mt-4 space-y-4">
+          {servers.length > 1 && (
+            <div>
+              <p className="text-xs text-text-secondary mb-1.5">Servidor:</p>
+              <div className="flex flex-wrap gap-2">
+                {servers.map((server) => (
+                  <button
+                    key={server}
+                    onClick={() => selectServer(server)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      activeServer === server
+                        ? 'bg-primary text-white'
+                        : 'bg-surface text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {server}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {currentServerSources.length > 1 && (
+            <div>
+              <p className="text-xs text-text-secondary mb-1.5">Calidad:</p>
+              <div className="flex flex-wrap gap-2">
+                {currentServerSources.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => selectSource(s)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      selectedUrl?.includes(encodeURIComponent(s.url))
+                        ? 'bg-primary text-white'
+                        : 'bg-surface text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {s.quality || s.server || `Fuente ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {downloads.length > 0 && (
+            <div className="p-4 rounded-2xl bg-surface/50 border border-white/5">
+              <p className="text-xs font-medium text-text-secondary mb-2">Descargas:</p>
+              <div className="space-y-1.5">
+                {downloads.map((d, i) => (
+                  <a
+                    key={i}
+                    href={d.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface hover:bg-surface-hover transition-colors text-xs"
+                  >
+                    <span className="text-primary font-medium">{d.server || d.quality || 'Servidor ' + (i + 1)}</span>
+                    {d.size && <span className="text-text-secondary">{formatSize(d.size)}</span>}
+                    {d.audio && <span className="text-text-secondary/60">{d.audio}</span>}
+                    <span className="ml-auto text-neon-cyan">Descargar →</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {nextEpisode && (
+            <p className="text-xs text-text-secondary/60 text-center">
+              Próximo episodio: <span className="text-text-primary font-medium">{formatDate(nextEpisode.airingAt)}</span> (Ep. {nextEpisode.episode})
+            </p>
+          )}
         </div>
       )}
     </motion.div>

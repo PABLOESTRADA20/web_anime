@@ -236,6 +236,27 @@ const GET_SEASONAL = `
     }
   }`
 
+const DIRECTORY_QUERY = `
+  query ($page: Int, $perPage: Int, $search: String, $genre: String, $genre_in: [String], $year: Int, $format: MediaFormat, $status: MediaStatus, $season: MediaSeason, $sort: [MediaSort]) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo { hasNextPage total }
+      media(type: ANIME, isAdult: false, search: $search, genre: $genre, genre_in: $genre_in, seasonYear: $year, format: $format, status: $status, season: $season, sort: $sort) {
+        id
+        title { romaji english }
+        coverImage { large }
+        bannerImage
+        averageScore
+        genres
+        format
+        episodes
+        status
+        season
+        seasonYear
+        startDate { year month day }
+      }
+    }
+  }`
+
 async function gql(query, variables = {}, signal) {
   const res = await fetch(ANILIST_API, {
     signal,
@@ -349,6 +370,20 @@ export async function getSeasonalAnime(season, year, page = 1, perPage = 20) {
   const seasonYear = year || new Date().getFullYear()
   const data = await gql(GET_SEASONAL, { season: seasonUpper, seasonYear, page, perPage })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
+}
+
+export async function getDirectory(page = 1, perPage = 30, filters = {}, signal) {
+  const vars = { page, perPage }
+  if (filters.search) vars.search = filters.search
+  if (filters.genre) vars.genre = filters.genre
+  if (filters.genre_in?.length) vars.genre_in = filters.genre_in
+  if (filters.year) vars.year = filters.year
+  if (filters.format) vars.format = filters.format
+  if (filters.status) vars.status = filters.status
+  if (filters.season) vars.season = filters.season
+  vars.sort = filters.sort || ['TRENDING_DESC', 'POPULARITY_DESC']
+  const data = await gql(DIRECTORY_QUERY, vars, signal)
+  return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
 function getCurrentSeason() {

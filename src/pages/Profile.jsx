@@ -5,6 +5,7 @@ import { useWatchlist } from '../hooks/useWatchlist'
 import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useHistory } from '../hooks/useHistory'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import { useAnimeLists } from '../hooks/useAnimeLists'
 
 export default function Profile() {
   const { user, isReady, logout } = useAuth()
@@ -12,8 +13,13 @@ export default function Profile() {
   const { favorites } = useAnimeFavorites()
   const { history } = useHistory()
   const { mangaHistory } = useMangaHistory()
+  const { lists, getUserList } = useAnimeLists()
 
-  const [section, setSection] = useState('watchlist')
+  const watching = getUserList('watching')
+  const completed = getUserList('completed')
+  const planToWatch = getUserList('plan_to_watch')
+
+  const [section, setSection] = useState('watching')
 
   if (!isReady) {
     return (
@@ -35,11 +41,14 @@ export default function Profile() {
   }
 
   const tabs = useMemo(() => [
+    { key: 'watching', label: 'Mirando', count: watching.length },
+    { key: 'plan_to_watch', label: 'Por ver', count: planToWatch.length },
+    { key: 'completed', label: 'Visto', count: completed.length },
     { key: 'watchlist', label: 'Mi lista', count: watchlist.length },
     { key: 'favorites', label: 'Favoritos', count: favorites.length },
     { key: 'history', label: 'Historial anime', count: history.length },
     { key: 'manga', label: 'Historial manga', count: mangaHistory.length },
-  ], [watchlist.length, favorites.length, history.length, mangaHistory.length])
+  ], [watching.length, planToWatch.length, completed.length, watchlist.length, favorites.length, history.length, mangaHistory.length])
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -72,6 +81,75 @@ export default function Profile() {
           </button>
         ))}
       </div>
+
+      {section === 'watching' && (
+        <section>
+          {watching.length === 0 ? (
+            <p className="text-text-secondary text-sm">No has marcado ningún anime como "Mirando".</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {watching.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/anime/${item.anilist_id}`}
+                  className="group rounded-xl overflow-hidden bg-surface hover:bg-surface-hover transition-colors"
+                >
+                  <div className="aspect-[3/4] overflow-hidden">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <p className="text-xs p-2 line-clamp-2">{item.title}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {section === 'plan_to_watch' && (
+        <section>
+          {planToWatch.length === 0 ? (
+            <p className="text-text-secondary text-sm">No has marcado ningún anime como "Por ver".</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {planToWatch.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/anime/${item.anilist_id}`}
+                  className="group rounded-xl overflow-hidden bg-surface hover:bg-surface-hover transition-colors"
+                >
+                  <div className="aspect-[3/4] overflow-hidden">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <p className="text-xs p-2 line-clamp-2">{item.title}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {section === 'completed' && (
+        <section>
+          {completed.length === 0 ? (
+            <p className="text-text-secondary text-sm">No has marcado ningún anime como "Visto".</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {completed.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/anime/${item.anilist_id}`}
+                  className="group rounded-xl overflow-hidden bg-surface hover:bg-surface-hover transition-colors"
+                >
+                  <div className="aspect-[3/4] overflow-hidden">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <p className="text-xs p-2 line-clamp-2">{item.title}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {section === 'watchlist' && (
         <section>

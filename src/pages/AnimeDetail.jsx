@@ -11,6 +11,7 @@ import { useWatchlist } from '../hooks/useWatchlist'
 import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useAnimeRatings } from '../hooks/useAnimeRatings'
 import { useHistory } from '../hooks/useHistory'
+import { useAnimeLists } from '../hooks/useAnimeLists'
 import { useToast } from '../components/Toast'
 
 export default function AnimeDetail() {
@@ -20,6 +21,7 @@ export default function AnimeDetail() {
   const { isFavorite, toggleFavorite } = useAnimeFavorites()
   const { ratings, fetchRating, setRating } = useAnimeRatings()
   const { history } = useHistory()
+  const { getListStatus, setListStatus } = useAnimeLists()
   const toast = useToast()
 
   const [anime, setAnime] = useState(null)
@@ -126,6 +128,7 @@ export default function AnimeDetail() {
   const banner = anime.bannerImage
   const inList = isInWatchlist(parseInt(id, 10))
   const inFav = isFavorite(parseInt(id, 10))
+  const listStatus = getListStatus(parseInt(id, 10))
   const userRating = ratings[parseInt(id, 10)]
   const currentEps = episodeAudio === 'sub'
     ? (seasons[activeSeason]?.episodes || episodes)
@@ -181,6 +184,11 @@ export default function AnimeDetail() {
             {anime.status && (
               <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
                 {anime.status === 'RELEASING' ? 'Emitiendo' : anime.status === 'FINISHED' ? 'Finalizado' : anime.status}
+              </span>
+            )}
+            {anime.nextAiringEpisode && (
+              <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full">
+                Ep. {anime.nextAiringEpisode.episode} - {new Date(anime.nextAiringEpisode.airingAt * 1000).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             )}
           </div>
@@ -267,6 +275,29 @@ export default function AnimeDetail() {
                 >
                   {inFav ? '⭐ Favorito' : '☆ Favorito'}
                 </button>
+                {/* List status buttons */}
+                <div className="flex gap-1">
+                  {[
+                    { key: 'watching', label: 'Mirando' },
+                    { key: 'completed', label: 'Visto' },
+                    { key: 'plan_to_watch', label: 'Por ver' },
+                  ].map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        const title = anime.title?.romaji || anime.title?.english || ''
+                        setListStatus(parseInt(id, 10), title, anime.image, s.key)
+                      }}
+                      className={`px-3 py-2.5 rounded-xl font-medium text-xs transition-colors border ${
+                        listStatus === s.key
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
           </div>

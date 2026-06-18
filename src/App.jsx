@@ -22,6 +22,8 @@ const Characters = lazy(() => import('./pages/Characters'))
 const CharacterDetail = lazy(() => import('./pages/CharacterDetail'))
 const Schedule = lazy(() => import('./pages/Schedule'))
 const Seasonal = lazy(() => import('./pages/Seasonal'))
+const Directory = lazy(() => import('./pages/Directory'))
+const Random = lazy(() => import('./pages/Random'))
 
 function Lazy({ children }) {
   return <Suspense fallback={<div className="py-20"><GridSkeleton count={6} /></div>}>{children}</Suspense>
@@ -49,6 +51,8 @@ export default function App() {
                     <Route path="/character/:id" element={<Lazy><CharacterDetail /></Lazy>} />
                     <Route path="/schedule" element={<Lazy><Schedule /></Lazy>} />
                     <Route path="/seasonal" element={<Lazy><Seasonal /></Lazy>} />
+                    <Route path="/directorio" element={<Lazy><Directory /></Lazy>} />
+                    <Route path="/aleatorio" element={<Lazy><Random /></Lazy>} />
                     <Route path="/login" element={<Lazy><Login /></Lazy>} />
                     <Route path="/profile" element={<Lazy><Profile /></Lazy>} />
                     <Route path="*" element={<Lazy><NotFound /></Lazy>} />
