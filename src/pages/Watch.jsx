@@ -5,6 +5,8 @@ import Hls from 'hls.js'
 import { getEpisodes, parseEpisodeId, getEpisodeList } from '../lib/anivexa'
 import { getWatchWithFallback } from '../lib/api'
 import { useHistory } from '../hooks/useHistory'
+import { useToast } from '../components/Toast'
+import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
 
 function useHls(videoRef, url) {
   const hlsRef = useRef(null)
@@ -87,33 +89,6 @@ function proxySubUrl(url) {
   return CORS_PROXY + encodeURIComponent(url)
 }
 
-function subtitleLangLabel(sub) {
-  const label = (sub.label || sub.language || '').toLowerCase()
-  if (label.includes('english') || label === 'en' || label === 'inglés') return 'English'
-  if (label.includes('spanish') || label === 'es' || label.includes('español') || label.includes('castellano')) return 'Español'
-  if (label.includes('japanese') || label === 'ja' || label.includes('japonés') || label.includes('日本')) return '日本語'
-  if (label.includes('french') || label === 'fr' || label.includes('français')) return 'Français'
-  if (label.includes('portuguese') || label === 'pt' || label.includes('português')) return 'Português'
-  if (label.includes('arabic') || label === 'ar') return 'العربية'
-  if (label.includes('korean') || label === 'ko') return '한국어'
-  if (label.includes('chinese') || label === 'zh') return '中文'
-  return sub.label || sub.language || `Track ${sub.index || 0}`
-}
-
-function subtitleSrcLang(sub) {
-  if (sub.language) return sub.language
-  const label = (sub.label || '').toLowerCase()
-  if (label.includes('spanish') || label.includes('español')) return 'es'
-  if (label.includes('english') || label.includes('inglés')) return 'en'
-  if (label.includes('japanese') || label.includes('japonés')) return 'ja'
-  if (label.includes('french')) return 'fr'
-  if (label.includes('portuguese')) return 'pt'
-  if (label.includes('arabic')) return 'ar'
-  if (label.includes('korean')) return 'ko'
-  if (label.includes('chinese')) return 'zh'
-  return 'en'
-}
-
 function providerDisplayName(p) {
   return PROVIDER_NAMES[p] || CONSUMET_NAMES[p] || p
 }
@@ -124,6 +99,7 @@ export default function Watch() {
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const { saveProgress } = useHistory()
+  const toast = useToast()
 
   const [sources, setSources] = useState([])
   const [subtitles, setSubtitles] = useState([])
@@ -183,13 +159,12 @@ export default function Watch() {
       setActiveSubtitle(-1)
       return
     }
-    const esIndex = subtitles.findIndex(s =>
-      s.language === 'es' ||
-      s.label?.toLowerCase().includes('spanish') ||
-      s.label?.toLowerCase().includes('español') ||
-      s.label?.toLowerCase().includes('castellano')
-    )
-    setActiveSubtitle(esIndex >= 0 ? esIndex : 0)
+    const esIndex = subtitles.findIndex(isSpanishSub)
+    const preferred = esIndex >= 0 ? esIndex : 0
+    setActiveSubtitle(preferred)
+    if (esIndex < 0) {
+      toast('No hay subtítulos en español. Mostrando ' + subtitleLangLabel(subtitles[0]).toLowerCase() + '.', 'info', 4000)
+    }
   }, [subtitles])
 
   useEffect(() => {
@@ -215,10 +190,6 @@ export default function Watch() {
       return () => video.textTracks.removeEventListener('addtrack', handler)
     }
   }, [activeSubtitle, subtitles])
-
-  function isCloudflareBlock(text) {
-    return text.includes('cf-browser-verification') || text.includes('__cf_chl_') || text.includes('Just a moment')
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -324,12 +295,7 @@ export default function Watch() {
 
   const defaultSubIdx = (() => {
     if (subtitles.length === 0) return -1
-    const es = subtitles.findIndex(s =>
-      s.language === 'es' ||
-      s.label?.toLowerCase().includes('spanish') ||
-      s.label?.toLowerCase().includes('español') ||
-      s.label?.toLowerCase().includes('castellano')
-    )
+    const es = subtitles.findIndex(isSpanishSub)
     return es >= 0 ? es : 0
   })()
 
@@ -505,7 +471,6 @@ export default function Watch() {
             controls
             autoPlay
             className="w-full h-full"
-            crossOrigin="anonymous"
             playsInline
           >
             {subtitles.map((sub, i) => (
