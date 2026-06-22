@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { getDirectory } from '../lib/anilist'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
+import SeoHead from '../components/SeoHead'
 
 const GENRES = [
   'Accion', 'Aventura', 'Autos', 'Comedia', 'Dementia', 'Demonios', 'Misterio', 'Drama',
@@ -52,6 +53,32 @@ const currentYear = new Date().getFullYear()
 const YEARS = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i)
 
 const PER_PAGE = 30
+
+function FilterSection({ label, children }) {
+  return (
+    <div>
+      <p className="text-[10px] text-text-secondary/50 uppercase tracking-wider mb-1.5 font-medium">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function FilterBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+        active
+          ? 'bg-primary text-white'
+          : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
 
 export default function Directory() {
   const filtersState = useState({})
@@ -115,40 +142,16 @@ export default function Directory() {
       .catch(() => {})
   }
 
-  function FilterSection({ label, children }) {
-    return (
-      <div>
-        <p className="text-[10px] text-text-secondary/50 uppercase tracking-wider mb-1.5 font-medium">{label}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {children}
-        </div>
-      </div>
-    )
-  }
-
-  function FilterBtn({ active, onClick, children }) {
-    return (
-      <button
-        onClick={onClick}
-        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-          active
-            ? 'bg-primary text-white'
-            : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-        }`}
-      >
-        {children}
-      </button>
-    )
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Directorio</h1>
+    <>
+      <SeoHead title="Directorio de anime" />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Directorio</h1>
         <div className="flex gap-2">
           <button
             onClick={randomAnime}
@@ -352,5 +355,6 @@ export default function Directory() {
         </>
       )}
     </motion.div>
+    </>
   )
 }

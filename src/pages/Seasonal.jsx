@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getSeasonalAnime } from '../lib/anilist'
 import { GridSkeleton } from '../components/Skeletons'
+import SeoHead from '../components/SeoHead'
 
 function AnimeCardSmall({ anime, index = 0 }) {
   const title = anime.title?.romaji || anime.title?.english || 'Sin título'
@@ -81,8 +82,10 @@ export default function Seasonal() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <h1 className="text-xl font-bold mb-6">
+    <>
+      <SeoHead title={`Temporada ${season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} ${year}`} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        <h1 className="text-xl font-bold mb-6">
         🗓️ Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
       </h1>
 
@@ -139,5 +142,6 @@ export default function Seasonal() {
         </>
       )}
     </motion.div>
+    </>
   )
 }

@@ -47,7 +47,14 @@ Deno.serve(async (req) => {
     })
 
     const body = await res.text()
-    if (body.includes('cf-browser-verification') || body.includes('__cf_chl_') || body.includes('Just a moment')) {
+    if (
+      body.includes('cf-browser-verification') ||
+      body.includes('__cf_chl_') ||
+      body.includes('Just a moment') ||
+      body.includes('Attention Required') ||
+      body.includes('Checking your browser') ||
+      body.includes('cdn-cgi/challenge-platform')
+    ) {
       return new Response(JSON.stringify({ error: 'Cloudflare challenge blocked' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

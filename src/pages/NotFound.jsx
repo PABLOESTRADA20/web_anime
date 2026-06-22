@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom'
+import SeoHead from '../components/SeoHead'
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
+    <>
+      <SeoHead title="404 — Página no encontrada" />
+      <div className="flex flex-col items-center justify-center py-20 text-center">
       <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
       <p className="text-text-secondary mb-6">Página no encontrada</p>
       <Link
@@ -12,5 +15,6 @@ export default function NotFound() {
         Volver al inicio
       </Link>
     </div>
+    </>
   )
 }

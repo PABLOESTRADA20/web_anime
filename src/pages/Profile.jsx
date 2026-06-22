@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import SeoHead from '../components/SeoHead'
 import { useWatchlist } from '../hooks/useWatchlist'
 import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useHistory } from '../hooks/useHistory'
@@ -8,37 +9,18 @@ import { useMangaHistory } from '../hooks/useMangaHistory'
 import { useAnimeLists } from '../hooks/useAnimeLists'
 
 export default function Profile() {
-  const { user, isReady, logout } = useAuth()
+  const { user, logout } = useAuth()
   const { watchlist } = useWatchlist()
   const { favorites } = useAnimeFavorites()
   const { history } = useHistory()
   const { mangaHistory } = useMangaHistory()
-  const { lists, getUserList } = useAnimeLists()
+  const { getUserList } = useAnimeLists()
 
   const watching = getUserList('watching')
   const completed = getUserList('completed')
   const planToWatch = getUserList('plan_to_watch')
 
   const [section, setSection] = useState('watching')
-
-  if (!isReady) {
-    return (
-      <div className="text-center py-20 text-text-secondary">
-        <p>Sistema de usuarios no configurado.</p>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-text-secondary mb-4">No has iniciado sesión.</p>
-        <Link to="/login" className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm hover:bg-primary-hover transition-colors">
-          Iniciar sesión
-        </Link>
-      </div>
-    )
-  }
 
   const tabs = useMemo(() => [
     { key: 'watching', label: 'Mirando', count: watching.length },
@@ -51,7 +33,9 @@ export default function Profile() {
   ], [watching.length, planToWatch.length, completed.length, watchlist.length, favorites.length, history.length, mangaHistory.length])
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <>
+      <SeoHead title={user ? `Perfil de ${user.email?.split('@')[0]}` : 'Perfil'} />
+      <div className="max-w-3xl mx-auto">
       <div className="bg-surface rounded-2xl p-6 mb-8">
         <h1 className="text-xl font-bold mb-1">{user.email?.split('@')[0]}</h1>
         <p className="text-sm text-text-secondary">{user.email}</p>
@@ -265,5 +249,6 @@ export default function Profile() {
         </section>
       )}
     </div>
+    </>
   )
 }

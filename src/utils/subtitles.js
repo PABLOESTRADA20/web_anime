@@ -4,7 +4,10 @@ function normalizeLabel(sub) {
 
 function labelIncludes(sub, patterns) {
   const text = normalizeLabel(sub)
-  return patterns.some(p => text.includes(p) || text === p)
+  return patterns.some(p => {
+    if (p.length <= 2) return text === p
+    return text.includes(p)
+  })
 }
 
 const ES_PATTERNS = ['spanish', 'es', 'spa', 'español', 'espanol', 'castellano', 'latino', 'mexican', 'subtitulos', 'sub-es']
@@ -42,7 +45,17 @@ export function subtitleSrcLang(sub) {
 }
 
 export function isCloudflareBlock(text) {
-  return text.includes('cf-browser-verification') || text.includes('__cf_chl_') || text.includes('Just a moment')
+  return text.includes('cf-browser-verification') ||
+    text.includes('__cf_chl_') ||
+    text.includes('Just a moment') ||
+    text.includes('Attention Required') ||
+    text.includes('Checking your browser') ||
+    text.includes('cdn-cgi/challenge-platform')
+}
+
+export function isLikelySubtitle(text) {
+  const trimmed = text.trim()
+  return trimmed.startsWith('WEBVTT') || /^\d{2}:\d{2}/m.test(trimmed)
 }
 
 export function isSpanishSub(sub) {

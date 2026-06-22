@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getTopManga, searchManga } from '../lib/anilist'
 import { GridSkeleton } from '../components/Skeletons'
+import SeoHead from '../components/SeoHead'
 
 function MangaCard({ manga, index = 0 }) {
   const title = manga.title?.romaji || manga.title?.english || 'Sin título'
@@ -85,7 +86,9 @@ export default function Manga() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+    <>
+      <SeoHead title={query ? `"${query}" — Manga` : 'Manga'} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {!query && (
         <>
           <h1 className="text-xl font-bold mb-6">📚 Manga</h1>
@@ -134,5 +137,6 @@ export default function Manga() {
         </>
       )}
     </motion.div>
+    </>
   )
 }

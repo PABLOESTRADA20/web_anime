@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { searchCharacter } from '../lib/anilist'
 import { GridSkeleton } from '../components/Skeletons'
+import SeoHead from '../components/SeoHead'
 
 export default function Characters() {
   const [searchParams] = useSearchParams()
@@ -41,8 +42,10 @@ export default function Characters() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <h1 className="text-xl font-bold mb-6">🔍 Personajes</h1>
+    <>
+      <SeoHead title={queryFromUrl ? `"${queryFromUrl}" — Personajes` : 'Personajes'} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        <h1 className="text-xl font-bold mb-6">🔍 Personajes</h1>
 
       <form onSubmit={handleSearch} className="mb-6">
         <div className="flex gap-2">
@@ -111,5 +114,6 @@ export default function Characters() {
         </>
       )}
     </motion.div>
+    </>
   )
 }

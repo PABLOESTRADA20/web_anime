@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getMangaChapterPages, getMangaChapters } from '../lib/manga'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import SeoHead from '../components/SeoHead'
 
 export default function MangaRead() {
   const { id } = useParams()
@@ -19,6 +20,7 @@ export default function MangaRead() {
   const [chapters, setChapters] = useState([])
   const [chaptersLoading, setChaptersLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [failedPages, setFailedPages] = useState(new Set())
   const pagesContainerRef = useRef(null)
 
   const [brightness, setBrightness] = useState(100)
@@ -71,6 +73,7 @@ export default function MangaRead() {
     setLoading(true)
     setError(null)
     setCurrentPage(1)
+    setFailedPages(new Set())
     lastSavedPage.current = 0
 
     getMangaChapterPages(chapterId)
@@ -128,10 +131,12 @@ export default function MangaRead() {
   }, [rtl, goToNext, goToPrev])
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+    <>
+      <SeoHead title={title ? `${title} — Capítulo ${chapterNum || ''}` : 'Lector de manga'} image={image} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       className="max-w-4xl mx-auto"
     >
       {/* Top bar */}
@@ -271,22 +276,24 @@ export default function MangaRead() {
                 maxHeight: fitMode === 'height' ? '95vh' : 'none',
               }}
             >
-              <img
-                src={page.url}
-                alt={`Página ${page.pageNumber}`}
-                loading="lazy"
-                className={fitMode === 'width' ? 'w-full' : fitMode === 'height' ? 'h-full w-auto max-w-full' : ''}
-                onError={(e) => {
-                  const parent = e.target.parentElement
-                  if (parent) {
-                    parent.innerHTML = `<div class="flex items-center justify-center h-64 text-text-secondary text-sm">Error al cargar página ${page.pageNumber}</div>`
-                  }
-                }}
-              />
+              {failedPages.has(page.pageNumber) ? (
+                <div className="flex items-center justify-center h-64 text-text-secondary text-sm">
+                  Error al cargar página {page.pageNumber}
+                </div>
+              ) : (
+                <img
+                  src={page.url}
+                  alt={`Página ${page.pageNumber}`}
+                  loading="lazy"
+                  className={fitMode === 'width' ? 'w-full' : fitMode === 'height' ? 'h-full w-auto max-w-full' : ''}
+                  onError={() => setFailedPages(prev => new Set(prev).add(page.pageNumber))}
+                />
+              )}
             </div>
           ))}
         </div>
       )}
     </motion.div>
+    </>
   )
 }

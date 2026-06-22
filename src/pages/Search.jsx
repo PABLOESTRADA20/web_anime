@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import { searchAnime } from '../lib/api'
+import SeoHead from '../components/SeoHead'
 
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
 const FORMATS = ['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC']
@@ -51,10 +52,14 @@ export default function Search() {
   async function loadMore() {
     const next = page + 1
     setLoading(true)
-    const res = await searchAnime(query, next, filters)
-    setResults((prev) => [...prev, ...(res?.data || [])])
-    setHasNext(res?.hasNextPage || false)
-    setPage(next)
+    try {
+      const res = await searchAnime(query, next, filters)
+      setResults((prev) => [...prev, ...(res?.data || [])])
+      setHasNext(res?.hasNextPage || false)
+      setPage(next)
+    } catch {
+      // keep current results on error
+    }
     setLoading(false)
   }
 
@@ -113,12 +118,14 @@ export default function Search() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="flex items-center justify-between mb-6">
+    <>
+      <SeoHead title={query ? `"${query}" — Buscar anime` : 'Buscar anime'} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">
           {query ? (
             <>Resultados para: <span className="text-primary">"{query}"</span></>
@@ -253,5 +260,6 @@ export default function Search() {
         </>
       )}
     </motion.div>
+    </>
   )
 }

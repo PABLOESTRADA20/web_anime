@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
 import AnimeCard from '../components/AnimeCard'
+import { FadeIn, FadeInStagger } from '../components/FadeIn'
+import GradientHeading from '../components/GradientHeading'
 import CommentSection from '../components/CommentSection'
+import SeoHead from '../components/SeoHead'
 import { getAnimeInfo, getAnimeEpisodes } from '../lib/api'
 import { getAnimeCharacters } from '../lib/anilist'
 import { useAuth } from '../hooks/useAuth'
@@ -36,8 +39,6 @@ export default function AnimeDetail() {
   const [showTrailer, setShowTrailer] = useState(false)
   const [seasons, setSeasons] = useState([])
   const [activeSeason, setActiveSeason] = useState(0)
-  const [seasonsLoading, setSeasonsLoading] = useState(false)
-
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -72,7 +73,6 @@ export default function AnimeDetail() {
         ...sequels.map(r => ({ id: r.anilistId, title: r.title?.romaji || r.title?.english || '' })),
       ]
 
-      setSeasonsLoading(true)
       Promise.all(seasonMeta.map(s =>
         getAnimeEpisodes(s.id)
           .then(r => ({ providerEpisodes: r.providerEpisodes || [], dubEpisodes: r.dubEpisodes || [] }))
@@ -86,8 +86,7 @@ export default function AnimeDetail() {
           dubEpisodes: results[i].dubEpisodes,
         }))
         setSeasons(seasonData)
-        setSeasonsLoading(false)
-      }).catch(() => { if (!cancelled) setSeasonsLoading(false) })
+      }).catch(() => {})
     }).catch(() => { if (!cancelled) setLoading(false) })
 
     if (user) fetchRating(parseInt(id, 10))
@@ -97,30 +96,45 @@ export default function AnimeDetail() {
   async function handleWatchlist() {
     if (!anime) return
     setWlLoading(true)
-    const title = anime.title?.romaji || anime.title?.english || ''
-    const image = anime.image
-    await toggleWatchlist(parseInt(id, 10), title, image)
-    toast(isInWatchlist(parseInt(id, 10)) ? 'Eliminado de tu lista' : 'Agregado a tu lista', 'success')
+    try {
+      const title = anime.title?.romaji || anime.title?.english || ''
+      const image = anime.image
+      await toggleWatchlist(parseInt(id, 10), title, image)
+      toast(isInWatchlist(parseInt(id, 10)) ? 'Eliminado de tu lista' : 'Agregado a tu lista', 'success')
+    } catch {
+      toast('Error al actualizar la lista', 'error')
+    }
     setWlLoading(false)
   }
 
   async function handleFavorite() {
     if (!anime || !user) return
-    const title = anime.title?.romaji || anime.title?.english || ''
-    const image = anime.image
-    await toggleFavorite(parseInt(id, 10), title, image)
-    toast(isFavorite(parseInt(id, 10)) ? 'Eliminado de favoritos' : 'Agregado a favoritos', 'success')
+    try {
+      const title = anime.title?.romaji || anime.title?.english || ''
+      const image = anime.image
+      await toggleFavorite(parseInt(id, 10), title, image)
+      toast(isFavorite(parseInt(id, 10)) ? 'Eliminado de favoritos' : 'Agregado a favoritos', 'success')
+    } catch {
+      toast('Error al actualizar favoritos', 'error')
+    }
   }
 
   async function handleRating(rating) {
-    await setRating(parseInt(id, 10), rating)
-    toast(`Calificaste con ${rating}/10`, 'success')
+    try {
+      await setRating(parseInt(id, 10), rating)
+      toast(`Calificaste con ${rating}/10`, 'success')
+    } catch {
+      toast('Error al guardar la calificación', 'error')
+    }
   }
 
-  if (loading) return <DetailSkeleton />
+  if (loading) return <><SeoHead title="Cargando..." /><DetailSkeleton /></>
 
   if (!anime) return (
-    <div className="text-center py-20 text-text-secondary">No se encontró el anime.</div>
+    <>
+      <SeoHead title="Anime no encontrado" />
+      <div className="text-center py-20 text-text-secondary">No se encontró el anime.</div>
+    </>
   )
 
   const title = anime.title?.romaji || anime.title?.english || anime.title?.native || ''
@@ -141,11 +155,13 @@ export default function AnimeDetail() {
   const trailer = anime.trailer?.site === 'youtube' ? anime.trailer.id : null
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <>
+      <SeoHead title={title} description={anime.description?.replace(/<[^>]*>/g, '').slice(0, 160)} image={image || banner} url={`/anime/${id}`} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
       {banner && (
         <div className="relative h-[200px] sm:h-[300px] rounded-3xl overflow-hidden mb-6">
           <img src={banner} alt="" className="w-full h-full object-cover" />
@@ -189,6 +205,11 @@ export default function AnimeDetail() {
             {anime.nextAiringEpisode && (
               <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full">
                 Ep. {anime.nextAiringEpisode.episode} - {new Date(anime.nextAiringEpisode.airingAt * 1000).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            )}
+            {hasDub && (
+              <span className="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full" title="Disponible en doblaje (audio alternativo)">
+                🎤 Doblaje disponible
               </span>
             )}
           </div>
@@ -284,9 +305,14 @@ export default function AnimeDetail() {
                   ].map((s) => (
                     <button
                       key={s.key}
-                      onClick={() => {
-                        const title = anime.title?.romaji || anime.title?.english || ''
-                        setListStatus(parseInt(id, 10), title, anime.image, s.key)
+                      onClick={async () => {
+                        try {
+                          const title = anime.title?.romaji || anime.title?.english || ''
+                          await setListStatus(parseInt(id, 10), title, anime.image, s.key)
+                          toast(listStatus === s.key ? 'Estado eliminado' : `Estado: ${s.label}`, 'success')
+                        } catch {
+                          toast('Error al actualizar estado', 'error')
+                        }
                       }}
                       className={`px-3 py-2.5 rounded-xl font-medium text-xs transition-colors border ${
                         listStatus === s.key
@@ -304,14 +330,19 @@ export default function AnimeDetail() {
         </div>
       </div>
 
-      {/* Trailer Modal */}
       {showTrailer && trailer && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowTrailer(false)}
         >
-          <div
-            className="relative w-full max-w-3xl aspect-video rounded-2xl overflow-hidden"
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', bounce: 0.3 }}
+            className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
             <iframe
@@ -322,126 +353,147 @@ export default function AnimeDetail() {
             />
             <button
               onClick={() => setShowTrailer(false)}
-              className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white"
+              className="absolute top-3 right-3 w-10 h-10 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-primary/60 transition-colors border border-white/10"
+              aria-label="Cerrar trailer"
             >
-              ✕
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Characters */}
       {characters.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-lg font-bold mb-4">Personajes</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {characters.slice(0, 12).map((edge) => (
-              <Link
-                key={edge.node.id}
-                to={`/character/${edge.node.id}`}
-                className="group rounded-2xl overflow-hidden bg-surface hover:bg-surface-hover transition-all"
-              >
-                <div className="aspect-[3/4] overflow-hidden">
-                  <img src={edge.node.image?.large} alt={edge.node.name.full} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                </div>
-                <div className="p-2 text-center">
-                  <p className="text-xs font-medium truncate">{edge.node.name.full}</p>
-                  <p className="text-[10px] text-text-secondary truncate">{edge.role}</p>
-                  {edge.voiceActors?.length > 0 && (
-                    <p className="text-[10px] text-accent truncate">🎤 {edge.voiceActors[0].name?.full}</p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
+        <section className="mb-12">
+          <FadeIn>
+            <GradientHeading variant="pink" size="sm" className="mb-5">Personajes</GradientHeading>
+          </FadeIn>
+          <FadeInStagger>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {characters.slice(0, 12).map((edge) => (
+                <FadeIn key={edge.node.id}>
+                  <Link
+                    to={`/character/${edge.node.id}`}
+                    className="group rounded-2xl overflow-hidden bg-surface card-hover block"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden">
+                      <img src={edge.node.image?.large} alt={edge.node.name.full} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    </div>
+                    <div className="p-2.5 text-center">
+                      <p className="text-xs font-medium truncate">{edge.node.name.full}</p>
+                      <p className="text-[10px] text-text-secondary truncate">{edge.role}</p>
+                      {edge.voiceActors?.length > 0 && (
+                        <p className="text-[10px] text-accent truncate mt-0.5">{edge.voiceActors[0].name?.full}</p>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
+                  </Link>
+                </FadeIn>
+              ))}
+            </div>
+          </FadeInStagger>
         </section>
       )}
 
-      {/* Relations / Recommendations */}
       {anime.relations?.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            🔗 Relacionados
-            <span className="text-xs font-normal text-text-secondary">{anime.relations.length}</span>
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {anime.relations.slice(0, 6).map((rel, i) => (
-              <div key={rel.anilistId || rel.id || i} className="relative">
-                {rel.relationType && (
-                  <span className="absolute top-2 left-2 z-10 text-[10px] bg-black/70 text-white px-2 py-0.5 rounded-full">
-                    {rel.relationType}
-                  </span>
-                )}
-                <AnimeCard anime={rel} index={i} />
-              </div>
-            ))}
-          </div>
+        <section className="mb-12">
+          <FadeIn>
+            <GradientHeading variant="cyan" size="sm" className="mb-5">Relacionados</GradientHeading>
+          </FadeIn>
+          <FadeInStagger>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {anime.relations.slice(0, 6).map((rel, i) => (
+                <FadeIn key={rel.anilistId || rel.id || i} className="relative">
+                  {rel.relationType && (
+                    <span className="absolute top-2 left-2 z-10 text-[10px] bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-full border border-white/10">
+                      {rel.relationType}
+                    </span>
+                  )}
+                  <AnimeCard anime={rel} index={i} />
+                </FadeIn>
+              ))}
+            </div>
+          </FadeInStagger>
         </section>
       )}
 
       {anime.recommendations?.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-lg font-bold mb-4">💡 Recomendados</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {anime.recommendations.slice(0, 6).map((rec, i) => (
-              <AnimeCard key={rec.anilistId || rec.id || i} anime={rec} index={i} />
-            ))}
-          </div>
+        <section className="mb-12">
+          <FadeIn>
+            <GradientHeading variant="pink" size="sm" className="mb-5">Recomendados</GradientHeading>
+          </FadeIn>
+          <FadeInStagger>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {anime.recommendations.slice(0, 6).map((rec, i) => (
+                <FadeIn key={rec.anilistId || rec.id || i}>
+                  <AnimeCard anime={rec} index={i} />
+                </FadeIn>
+              ))}
+            </div>
+          </FadeInStagger>
         </section>
       )}
 
       {/* Comments */}
       <CommentSection anilistId={id} mediaType="anime" />
 
-      {/* Episodes */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">
-            Episodios ({currentEps.length}) {currentProvider && <span className="text-xs text-text-secondary font-normal ml-2">via {currentProvider}</span>}
-          </h2>
-          {hasDub && (
-            <div className="flex rounded-lg overflow-hidden border border-white/10">
-              <button
-                onClick={() => setEpisodeAudio('sub')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  episodeAudio === 'sub' ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                SUB
-              </button>
-              <button
-                onClick={() => setEpisodeAudio('dub')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  episodeAudio === 'dub' ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                DUB
-              </button>
-            </div>
-          )}
-        </div>
+      <section className="mb-12">
+        <FadeIn>
+          <div className="flex items-center justify-between mb-5">
+            <GradientHeading variant="pink" size="sm">
+              Episodios ({currentEps.length})
+              {currentProvider && <span className="text-xs font-normal text-text-secondary ml-2">via {currentProvider}</span>}
+            </GradientHeading>
+            {hasDub && (
+              <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
+                <button
+                  onClick={() => setEpisodeAudio('sub')}
+                  className={`relative px-4 py-1.5 text-xs font-medium transition-colors rounded-lg ${
+                    episodeAudio === 'sub' ? 'text-white' : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {episodeAudio === 'sub' && (
+                    <motion.span layoutId="audio-tab" className="absolute inset-0 bg-primary rounded-lg" />
+                  )}
+                  <span className="relative z-10">SUB</span>
+                </button>
+                <button
+                  onClick={() => setEpisodeAudio('dub')}
+                  className={`relative px-4 py-1.5 text-xs font-medium transition-colors rounded-lg ${
+                    episodeAudio === 'dub' ? 'text-white' : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {episodeAudio === 'dub' && (
+                    <motion.span layoutId="audio-tab" className="absolute inset-0 bg-primary rounded-lg" />
+                  )}
+                  <span className="relative z-10">DUB</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </FadeIn>
 
         {seasons.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {seasons.map((s, i) => (
-              <button
-                key={s.id}
-                onClick={() => { setActiveSeason(i); setEpisodeLimit(30) }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  activeSeason === i
-                    ? 'bg-neon-cyan text-black'
-                    : 'bg-surface text-text-secondary hover:text-neon-cyan'
-                }`}
-              >
-                {s.title || `Temporada ${i + 1}`}
-                <span className="ml-1 text-[10px] opacity-60">({s.episodes.length})</span>
-              </button>
-            ))}
-          </div>
+          <FadeIn>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {seasons.map((s, i) => (
+                <button
+                  key={s.id}
+                  onClick={() => { setActiveSeason(i); setEpisodeLimit(30) }}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    activeSeason === i ? 'text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/30' : 'bg-surface text-text-secondary border border-white/10 hover:text-neon-cyan'
+                  }`}
+                >
+                  {s.title || `Temporada ${i + 1}`}
+                  <span className="ml-1 text-[10px] opacity-60">({s.episodes.length})</span>
+                </button>
+              ))}
+            </div>
+          </FadeIn>
         )}
 
         {currentEps.length === 0 ? (
-          <p className="text-text-secondary text-sm">No hay episodios disponibles.</p>
+          <div className="text-center py-12 text-text-secondary text-sm bg-surface rounded-2xl border border-white/5">No hay episodios disponibles.</div>
         ) : (
           <>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -452,22 +504,25 @@ export default function AnimeDetail() {
                   <Link
                     key={epNum ?? `ep-${idx}`}
                     to={`/watch?anilistId=${seasons[activeSeason]?.id || id}&ep=${epNum}&provider=${currentProvider}&audio=${episodeAudio}&title=${encodeURIComponent(seasons[activeSeason]?.title || title)}&image=${encodeURIComponent(ep.image || image || '')}`}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors group ${
-                      watched ? 'bg-surface/50' : 'bg-surface hover:bg-surface-hover'
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group border ${
+                      watched ? 'bg-surface/50 border-transparent' : 'bg-surface border-transparent hover:border-primary/20 card-hover'
                     }`}
                   >
-                    <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      watched ? 'bg-primary/20 text-primary' : 'bg-surface-hover text-text-secondary'
+                    <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
+                      watched ? 'bg-primary/20 text-primary' : 'bg-surface-hover text-text-secondary group-hover:bg-primary/10 group-hover:text-primary'
                     }`}>
-                      {watched ? '✓' : epNum}
+                      {watched ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                      ) : epNum}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium group-hover:text-primary transition-colors">Episodio {epNum}</p>
                       {ep.title && <p className="text-xs text-text-secondary truncate mt-0.5">{ep.title}</p>}
                     </div>
                     {watched && (
-                      <span className="text-[10px] text-text-secondary shrink-0">Visto</span>
+                      <span className="text-[10px] text-primary/60 shrink-0 font-medium">Visto</span>
                     )}
+                    <svg className="w-4 h-4 text-text-secondary/30 group-hover:text-primary/50 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
                   </Link>
                 )
               })}
@@ -476,9 +531,9 @@ export default function AnimeDetail() {
               <div className="flex justify-center mt-6">
                 <button
                   onClick={() => setEpisodeLimit((prev) => prev + 30)}
-                  className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10"
+                  className="group/btn relative inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all overflow-hidden border border-white/10 bg-surface hover:border-primary/30"
                 >
-                  Cargar más episodios ({currentEps.length - episodeLimit} restantes)
+                  <span className="relative z-10 text-text-primary group-hover/btn:text-primary transition-colors">Cargar más episodios ({currentEps.length - episodeLimit} restantes)</span>
                 </button>
               </div>
             )}
@@ -486,5 +541,6 @@ export default function AnimeDetail() {
         )}
       </section>
     </motion.div>
+    </>
   )
 }

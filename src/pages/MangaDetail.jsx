@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
 import AnimeCard from '../components/AnimeCard'
 import CommentSection from '../components/CommentSection'
+import SeoHead from '../components/SeoHead'
 import { getMangaInfo } from '../lib/anilist'
 import { getMangaChapters } from '../lib/manga'
 import { useMangaHistory } from '../hooks/useMangaHistory'
@@ -42,8 +43,8 @@ export default function MangaDetail() {
     }).catch(() => setChaptersLoading(false))
   }, [id])
 
-  if (loading) return <DetailSkeleton />
-  if (!manga) return <div className="text-center py-20 text-text-secondary">No se encontró el manga.</div>
+  if (loading) return <><SeoHead title="Cargando..." /><DetailSkeleton /></>
+  if (!manga) return <><SeoHead title="Manga no encontrado" /><div className="text-center py-20 text-text-secondary">No se encontró el manga.</div></>
 
   const title = manga.title?.romaji || manga.title?.english || manga.title?.native || ''
   const image = manga.coverImage?.large
@@ -56,8 +57,10 @@ export default function MangaDetail() {
     : firstChapter
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {banner && (
+    <>
+      <SeoHead title={title} description={manga.description?.replace(/<[^>]*>/g, '').slice(0, 160)} image={image || banner} url={`/manga/${id}`} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        {banner && (
         <div className="relative h-[200px] sm:h-[300px] rounded-3xl overflow-hidden mb-6">
           <img src={banner} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
@@ -131,7 +134,9 @@ export default function MangaDetail() {
               <button
                 onClick={async () => {
                   setFavLoading(true)
-                  await toggleFavorite(parseInt(id, 10), title, image)
+                  try {
+                    await toggleFavorite(parseInt(id, 10), title, image)
+                  } catch { /* ignore */ }
                   setFavLoading(false)
                 }}
                 disabled={favLoading}
@@ -288,5 +293,6 @@ export default function MangaDetail() {
         )}
       </section>
     </motion.div>
+    </>
   )
 }

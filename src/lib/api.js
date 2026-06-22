@@ -1,6 +1,6 @@
-import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList, normalizeStreams, PROVIDER_PRIORITY } from './anivexa.js'
+import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList, normalizeStreams, detectSpanishAudio, PROVIDER_PRIORITY } from './anivexa.js'
 import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo } from './anilist.js'
-import { getAnimeEpisodes as kenjitsuGetEpisodes, getEpisodeServers, getAnimepaheSources, searchAnime as prvSearch, getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
+import { getAnimeEpisodes as kenjitsuGetEpisodes, getAnimepaheSources, searchAnime as prvSearch, getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
 import { isConsumetConfigured, CONSUMET_PROVIDERS, getConsumetWatch } from './consumet.js'
 
 function normalizeAnime(item) {
@@ -84,9 +84,9 @@ export async function getAnimeEpisodes(anilistId) {
 
 async function tryAnivexaProvider(provider, anilistId, epNum, audio, signal) {
   const data = await anivexaGetWatch(anilistId, provider, epNum, audio, signal)
-  const { sources, subtitles } = normalizeStreams(data)
+  const { sources, subtitles, audioLang } = normalizeStreams(data)
   if (sources.length > 0) {
-    return { sources, subtitles, provider, backend: 'anivexa' }
+    return { sources, subtitles, audioLang, provider, backend: 'anivexa' }
   }
   throw new Error(`${provider}: sin fuentes disponibles`)
 }
@@ -94,27 +94,74 @@ async function tryAnivexaProvider(provider, anilistId, epNum, audio, signal) {
 async function tryConsumetProvider(provider, anilistId, epNum, signal) {
   const { sources, subtitles } = await getConsumetWatch(anilistId, epNum, provider, signal)
   if (sources?.length > 0) {
-    return { sources, subtitles: subtitles || [], provider, backend: 'consumet' }
+    const audioLang = detectSpanishAudio({ subtitles }) ? 'es' : null
+    return { sources, subtitles: subtitles || [], audioLang, provider, backend: 'consumet' }
   }
   throw new Error(`${provider}: sin fuentes disponibles`)
 }
 
+async function tryKenjitsuAnimepahe(anilistId, epNum, audio = 'sub') {
+  const epData = await kenjitsuGetEpisodes(anilistId)
+  if (!epData?.providerEpisodes?.length) throw new Error('Kenjitsu: sin episodios')
+
+  const epList = audio === 'dub' ? (epData.dubEpisodes || epData.providerEpisodes) : epData.providerEpisodes
+  const episode = epList.find(e => e.number === epNum)
+  if (!episode?.episodeId) throw new Error(`Kenjitsu: episodio ${epNum} no encontrado`)
+
+  const version = audio === 'dub' ? 'dub' : 'sub'
+  const srcData = await getAnimepaheSources(episode.episodeId, version)
+  if (!srcData?.data?.sources?.length) throw new Error('Kenjitsu: sin fuentes disponibles')
+
+  const referer = srcData.headers?.Referer || 'https://kwik.cx/'
+  const sources = srcData.data.sources.map(s => ({
+    url: s.url,
+    quality: s.quality || 'auto',
+    referer,
+    type: s.type || 'hls',
+  }))
+
+  return { sources, subtitles: [], downloads: [], audioLang: null, provider: 'animepahe', backend: 'kenjitsu' }
+}
+
 export async function getWatchWithFallback(anilistId, preferredProvider, epNum, audio = 'sub') {
   const isConsumet = CONSUMET_PROVIDERS.includes(preferredProvider)
+  const isKenjitsu = preferredProvider === 'kenjitsu'
   const errors = []
 
+  if (isKenjitsu) {
+    try {
+      return await tryKenjitsuAnimepahe(anilistId, epNum, audio)
+    } catch (e) {
+      errors.push({ provider: 'animepahe', backend: 'kenjitsu', message: e.message })
+      const err = new Error('No se pudo cargar video de ningún proveedor.')
+      err.providerErrors = errors
+      throw err
+    }
+  }
+
   if (!isConsumet) {
-    const startIdx = PROVIDER_PRIORITY.indexOf(preferredProvider)
-    const ordered = startIdx >= 0
-      ? [...PROVIDER_PRIORITY.slice(startIdx), ...PROVIDER_PRIORITY.slice(0, startIdx)]
-      : PROVIDER_PRIORITY
+    let ordered = PROVIDER_PRIORITY
+    if (audio === 'latam') {
+      ordered = ['anidbapp', 'animepahe', ...PROVIDER_PRIORITY.filter(p => p !== 'anidbapp' && p !== 'animepahe')]
+    } else {
+      const startIdx = PROVIDER_PRIORITY.indexOf(preferredProvider)
+      if (startIdx >= 0) {
+        ordered = [...PROVIDER_PRIORITY.slice(startIdx), ...PROVIDER_PRIORITY.slice(0, startIdx)]
+      }
+    }
 
     const controller = new AbortController()
     const signal = controller.signal
+    const dubAudio = audio === 'latam' ? 'dub' : audio
 
     const attempts = ordered.map(async (provider) => {
       try {
-        const result = await tryAnivexaProvider(provider, anilistId, epNum, audio, signal)
+        const result = await tryAnivexaProvider(provider, anilistId, epNum, dubAudio, signal)
+        if (audio === 'latam') {
+          result.audioType = result.audioLang === 'es' ? 'latam' : 'dub'
+        } else {
+          result.audioType = audio
+        }
         controller.abort()
         return result
       } catch (e) {
@@ -137,6 +184,11 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     const attempts = CONSUMET_PROVIDERS.map(async (provider) => {
       try {
         const result = await tryConsumetProvider(provider, anilistId, epNum, signal)
+        if (audio === 'latam') {
+          result.audioType = result.audioLang === 'es' ? 'latam' : 'dub'
+        } else {
+          result.audioType = audio
+        }
         controller.abort()
         return result
       } catch (e) {
@@ -152,9 +204,15 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     }
   }
 
+  try {
+    return await tryKenjitsuAnimepahe(anilistId, epNum, audio)
+  } catch (e) {
+    errors.push({ provider: 'animepahe', backend: 'kenjitsu', message: e.message })
+  }
+
   const err = new Error('No se pudo cargar video de ningún proveedor.')
   err.providerErrors = errors
   throw err
 }
 
-export { getEpisodeServers, getAnimepaheSources }
+export { getAnimepaheSources }

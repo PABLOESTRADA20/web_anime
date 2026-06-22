@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import Hls from 'hls.js'
-import { getEpisodes, parseEpisodeId, getEpisodeList } from '../lib/anivexa'
-import { getWatchWithFallback } from '../lib/api'
+import { parseEpisodeId } from '../lib/anivexa'
+import { getAnimeEpisodes, getWatchWithFallback } from '../lib/api'
 import { getAnimeInfo } from '../lib/anilist'
 import { useHistory } from '../hooks/useHistory'
 import { useToast } from '../components/Toast'
+import SeoHead from '../components/SeoHead'
 import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
 import { fetchSubtitle } from '../utils/proxy'
 
@@ -17,6 +17,7 @@ function useHls(videoRef, url) {
   useEffect(() => {
     const video = videoRef.current
     if (!video || !url) return
+    let cancelled = false
 
     if (hlsRef.current) {
       hlsRef.current.destroy()
@@ -29,24 +30,43 @@ function useHls(videoRef, url) {
 
     const isHls = url.includes('.m3u8')
 
-    if (isHls && Hls.isSupported()) {
-      const hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = false } })
-      hlsRef.current = hls
-      hls.loadSource(url)
-      hls.attachMedia(video)
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {})
-      })
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url
-      const onLoaded = () => video.play().catch(() => {})
-      videoRefCleanup.current = onLoaded
-      video.addEventListener('loadedmetadata', onLoaded)
-    } else {
-      video.src = url
+    async function setupHls() {
+      if (!isHls) {
+        video.src = url
+        return
+      }
+
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url
+        const onLoaded = () => video.play().catch(() => {})
+        videoRefCleanup.current = onLoaded
+        video.addEventListener('loadedmetadata', onLoaded)
+        return
+      }
+
+      try {
+        const { default: Hls } = await import('hls.js')
+        if (cancelled) return
+        if (!Hls.isSupported()) {
+          video.src = url
+          return
+        }
+        const hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = false } })
+        hlsRef.current = hls
+        hls.loadSource(url)
+        hls.attachMedia(video)
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {})
+        })
+      } catch {
+        video.src = url
+      }
     }
 
+    setupHls()
+
     return () => {
+      cancelled = true
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null
@@ -59,6 +79,62 @@ function useHls(videoRef, url) {
   }, [url, videoRef])
 }
 
+function useKeyboardShortcuts(videoRef, onNextEpRef) {
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    function handler(e) {
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      switch (e.key) {
+        case ' ':
+        case 'k':
+          e.preventDefault()
+          if (video.paused) video.play().catch(() => {})
+          else video.pause()
+          break
+        case 'ArrowLeft':
+          e.preventDefault()
+          video.currentTime = Math.max(0, video.currentTime - 10)
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10)
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          video.volume = Math.min(1, (video.volume || 0) + 0.1)
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          video.volume = Math.max(0, (video.volume || 0) - 0.1)
+          break
+        case 'f':
+        case 'F':
+          e.preventDefault()
+          if (document.fullscreenElement) document.exitFullscreen()
+          else video.requestFullscreen()
+          break
+        case 'm':
+        case 'M':
+          e.preventDefault()
+          video.muted = !video.muted
+          break
+        case 'n':
+        case 'N':
+          e.preventDefault()
+          onNextEpRef.current?.()
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [videoRef, onNextEpRef])
+}
+
 const PROVIDER_NAMES = {
   anikoto: 'AniKoto',
   reanime: 'Reanime',
@@ -67,6 +143,12 @@ const PROVIDER_NAMES = {
   anineko: 'AniNeko',
   anidbapp: 'AniDB App',
   animepahe: 'AnimePahe',
+}
+
+const BACKEND_NAMES = {
+  kenjitsu: 'Kenjitsu',
+  anivexa: 'Anivexa',
+  consumet: 'Consumet',
 }
 
 const CONSUMET_NAMES = {
@@ -119,11 +201,13 @@ export default function Watch() {
   const [backendUsed, setBackendUsed] = useState(null)
   const [activeServer, setActiveServer] = useState(null)
   const [nextEpisode, setNextEpisode] = useState(null)
+  const [audioType, setAudioType] = useState('sub')
+  const [showEpisodes, setShowEpisodes] = useState(false)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
   const epNum = parsed?.epNum || parseInt(searchParams.get('ep'), 10)
-  const provider = parsed?.provider || searchParams.get('provider') || 'anikoto'
+  const provider = parsed?.provider || searchParams.get('provider') || 'kenjitsu'
   const audio = parsed?.audio || 'sub'
 
   const title = searchParams.get('title') || ''
@@ -152,6 +236,7 @@ export default function Watch() {
         if (cancelled) return
         setProviderUsed(result.provider)
         setBackendUsed(result.backend)
+        setAudioType(result.audioType || audio)
         setSources(result.sources)
         setSubtitles(result.subtitles)
         setDownloads(result.downloads || [])
@@ -159,7 +244,9 @@ export default function Watch() {
         if (servers.length > 0) {
           setActiveServer(servers[0])
         }
-        setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
+        if (result.sources.length > 0) {
+          setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
+        }
         setLoading(false)
       })
       .catch((err) => {
@@ -173,7 +260,7 @@ export default function Watch() {
 
     getAnimeInfo(parseInt(anilistId, 10))
       .then((info) => {
-        if (cancelled && info?.nextAiringEpisode) {
+        if (!cancelled && info?.nextAiringEpisode) {
           setNextEpisode(info.nextAiringEpisode)
         }
       })
@@ -266,7 +353,7 @@ export default function Watch() {
   useEffect(() => {
     if (!anilistId) return
     setEpisodesLoading(true)
-    getEpisodes(anilistId)
+    getAnimeEpisodes(anilistId)
       .then((data) => {
         setEpisodesData(data)
         setEpisodesLoading(false)
@@ -274,13 +361,17 @@ export default function Watch() {
       .catch(() => setEpisodesLoading(false))
   }, [anilistId])
 
-  const episodeList = episodesData ? getEpisodeList(episodesData, provider, audio) : []
+  const episodeList = episodesData
+    ? (episodesData.providerEpisodes || episodesData?.[provider]?.episodes?.[audio] || [])
+    : []
   const sortedEps = [...episodeList].sort((a, b) => b.number - a.number)
   const currentEpIndex = sortedEps.findIndex(ep => ep.number === epNum)
   const prevEp = currentEpIndex < sortedEps.length - 1 ? sortedEps[currentEpIndex + 1] : null
   const nextEp = currentEpIndex > 0 ? sortedEps[currentEpIndex - 1] : null
 
-  const dubList = episodesData ? getEpisodeList(episodesData, provider, 'dub') : []
+  const dubList = episodesData
+    ? (episodesData.dubEpisodes || episodesData?.[provider]?.episodes?.dub || [])
+    : []
   const hasDub = dubList.length > 0
 
   const servers = getUniqueServers(sources)
@@ -327,6 +418,12 @@ export default function Watch() {
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${episode.number}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
   }
 
+  const onNextEpRef = useRef(null)
+  useEffect(() => {
+    onNextEpRef.current = nextEp ? () => goToEpisode(nextEp) : null
+  }, [nextEp, goToEpisode])
+  useKeyboardShortcuts(videoRef, onNextEpRef)
+
   const defaultSubIdx = (() => {
     if (subtitles.length === 0) return -1
     const es = subtitles.findIndex(isSpanishSub)
@@ -345,116 +442,146 @@ export default function Watch() {
     return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
   }
 
-  return (
+  const pageTitle = title ? `Episodio ${epNum} de ${title}` : 'Reproducir'
 
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="max-w-5xl mx-auto"
+  return (
+    <>
+      <SeoHead title={pageTitle} image={image} url={`/watch?anilistId=${anilistId}&ep=${epNum}`} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-5xl mx-auto"
     >
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Link
           to={`/anime/${anilistId}`}
-          className="text-sm text-text-secondary hover:text-text-primary transition-colors shrink-0"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors shrink-0 group"
         >
-          ← Volver
+          <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+          Volver
         </Link>
 
         <div className="flex-1" />
 
         {!episodesLoading && sortedEps.length > 0 && (
-          <div className="flex items-center gap-2">
-            {prevEp ? (
-              <button
-                onClick={() => goToEpisode(prevEp)}
-                className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
-              >
-                ← Ep. {prevEp.number}
-              </button>
-            ) : (
-              <div className="px-3 py-1.5 text-xs text-text-secondary/40">← Ep. —</div>
-            )}
+          <>
+            <div className="flex items-center gap-1.5">
+              {prevEp ? (
+                <button
+                  onClick={() => goToEpisode(prevEp)}
+                  aria-label={`Episodio anterior: ${prevEp.number}`}
+                  className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors border border-white/5"
+                >
+                  ← Ep. {prevEp.number}
+                </button>
+              ) : (
+                <div className="px-3 py-1.5 text-xs text-text-secondary/40">← Ep. —</div>
+              )}
 
-            <select
-              value={epNum || ''}
-              onChange={(e) => {
-                const ep = sortedEps.find(ep => ep.number === parseInt(e.target.value, 10))
-                if (ep) goToEpisode(ep)
-              }}
-              className="bg-surface text-text-primary text-xs font-medium px-2 py-1.5 rounded-lg border border-white/10 cursor-pointer"
-            >
-              {sortedEps.map((ep) => (
-                <option key={ep.number} value={ep.number}>
-                  Ep. {ep.number}{ep.title ? ` - ${ep.title}` : ''}
-                </option>
-              ))}
-            </select>
-
-            {nextEp ? (
               <button
-                onClick={() => goToEpisode(nextEp)}
-                className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
+                onClick={() => setShowEpisodes(v => !v)}
+                aria-label="Lista de episodios"
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  showEpisodes
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
+                }`}
               >
-                Ep. {nextEp.number} →
+                Ep. {epNum} {showEpisodes ? '▲' : '▼'}
               </button>
-            ) : (
-              <div className="px-3 py-1.5 text-xs text-text-secondary/40">Ep. — →</div>
+
+              {nextEp ? (
+                <button
+                  onClick={() => goToEpisode(nextEp)}
+                  aria-label={`Siguiente episodio: ${nextEp.number}`}
+                  className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors border border-white/5"
+                >
+                  Ep. {nextEp.number} →
+                </button>
+              ) : (
+                <div className="px-3 py-1.5 text-xs text-text-secondary/40">Ep. — →</div>
+              )}
+            </div>
+
+            {showEpisodes && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="w-full"
+              >
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5 max-h-48 overflow-y-auto p-2 rounded-xl bg-surface/50 border border-white/5">
+                  {sortedEps.map((ep) => (
+                    <button
+                      key={ep.number}
+                      onClick={() => { goToEpisode(ep); setShowEpisodes(false) }}
+                      aria-label={`Episodio ${ep.number}${ep.title ? `: ${ep.title}` : ''}`}
+                      className={`aspect-square rounded-lg text-xs font-medium transition-colors border flex items-center justify-center ${
+                        ep.number === epNum
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-primary/30 hover:bg-surface-hover'
+                      }`}
+                    >
+                      {ep.number}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             )}
-          </div>
+          </>
         )}
 
         {hasDub && (
-          <div className="flex rounded-lg overflow-hidden border border-white/10">
-            <button
-              onClick={() => switchAudio('sub')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                audio === 'sub'
-                  ? 'bg-primary text-white'
-                  : 'bg-surface text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              SUB
-            </button>
-            <button
-              onClick={() => switchAudio('dub')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                audio === 'dub'
-                  ? 'bg-primary text-white'
-                  : 'bg-surface text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              DUB
-            </button>
+          <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
+            {[['sub', 'SUB'], ['dub', 'DUB'], ['latam', 'LATAM']].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => switchAudio(val)}
+                className={`relative px-2.5 py-1.5 text-xs font-medium transition-colors rounded-lg ${
+                  audio === val
+                    ? 'text-white'
+                    : audio === 'latam' && val === 'dub' && audioType === 'latam'
+                      ? 'text-accent/60'
+                      : 'bg-surface text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {audio === val && (
+                  <motion.span layoutId="audio-watch-tab" className="absolute inset-0 bg-primary rounded-lg" />
+                )}
+                <span className="relative z-10">{label}</span>
+              </button>
+            ))}
           </div>
         )}
 
         {subtitles.length > 0 && (
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-text-secondary mr-1 font-mono">CC</span>
-            <div className="flex rounded-lg overflow-hidden border border-white/10">
+            <span className="text-[10px] text-text-secondary font-mono">CC</span>
+            <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
               {subtitles.map((sub, i) => (
                 <button
                   key={i}
                   onClick={() => selectSubtitleTrack(i)}
-                  className={`px-2 py-1.5 text-[10px] font-medium transition-colors ${
-                    activeSubtitle === i
-                      ? 'bg-neon-cyan text-black'
-                      : 'bg-surface text-text-secondary hover:text-text-primary'
+                  className={`relative px-2 py-1.5 text-[10px] font-medium transition-colors rounded-lg ${
+                    activeSubtitle === i ? 'text-white' : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {subtitleLangLabel(sub)}
+                  {activeSubtitle === i && (
+                    <motion.span layoutId="sub-watch" className="absolute inset-0 bg-neon-cyan rounded-lg" />
+                  )}
+                  <span className="relative z-10">{subtitleLangLabel(sub)}</span>
                 </button>
               ))}
               <button
                 onClick={() => selectSubtitleTrack(-1)}
-                className={`px-2 py-1.5 text-[10px] font-medium transition-colors border-l border-white/10 ${
-                  activeSubtitle < 0
-                    ? 'bg-surface/50 text-text-secondary/50'
-                    : 'bg-surface text-text-secondary hover:text-text-primary'
+                className={`relative px-2 py-1.5 text-[10px] font-medium transition-colors rounded-lg ${
+                  activeSubtitle < 0 ? 'text-text-secondary/50' : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
-                OFF
+                {activeSubtitle < 0 && (
+                  <motion.span layoutId="sub-watch" className="absolute inset-0 bg-surface-hover rounded-lg" />
+                )}
+                <span className="relative z-10">OFF</span>
               </button>
             </div>
           </div>
@@ -462,58 +589,81 @@ export default function Watch() {
       </div>
 
       {providerUsed && providerUsed !== provider && (
-        <p className="text-[10px] text-text-secondary mb-2 text-center">
-          Sirviendo vía <span className="text-primary font-medium">{providerDisplayName(providerUsed)}</span> ({backendUsed}) como respaldo
-        </p>
+        <div className="flex items-center justify-center gap-1.5 mb-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <p className="text-[10px] text-text-secondary">
+            Sirviendo vía <span className="text-primary font-medium">{providerDisplayName(providerUsed)}</span> ({BACKEND_NAMES[backendUsed] || backendUsed})
+          </p>
+        </div>
+      )}
+      {audioType === 'latam' && (
+        <p className="text-[10px] text-accent mb-2 text-center font-medium">Audio Latino detectado</p>
       )}
 
-      <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Anivexa</span>
         {Object.entries(PROVIDER_NAMES).map(([p, name]) => (
           <button
             key={p}
             onClick={() => switchProvider(p)}
             disabled={loading}
-            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
               provider === p
-                ? 'bg-primary text-white'
-                : 'bg-surface text-text-secondary hover:text-text-primary'
+                ? 'bg-primary/10 text-primary border-primary/30'
+                : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
             }`}
           >
             {name}
           </button>
         ))}
       </div>
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono">Consumet</span>
+      <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Backends</span>
         {Object.entries(CONSUMET_NAMES).map(([p, name]) => (
           <button
             key={p}
             onClick={() => switchProvider(p)}
             disabled={loading}
-            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
               provider === p
-                ? 'bg-primary text-white'
-                : 'bg-surface text-text-secondary hover:text-text-primary'
+                ? 'bg-primary/10 text-primary border-primary/30'
+                : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
             }`}
           >
             {name}
           </button>
         ))}
+        <button
+          onClick={() => switchProvider('kenjitsu')}
+          disabled={loading}
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+            provider === 'kenjitsu'
+              ? 'bg-accent/10 text-accent border-accent/30'
+              : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
+          }`}
+        >
+          Kenjitsu
+        </button>
       </div>
 
-      <div className="relative bg-black rounded-2xl overflow-hidden aspect-video">
+      <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-2xl shadow-black/50 ring-1 ring-white/5">
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-surface">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-3">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 border-2 border-primary/30 rounded-full" />
+              <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+            <p className="text-xs text-text-secondary">Cargando video...</p>
           </div>
         ) : error ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-3 px-4">
-            <p className="text-text-secondary text-sm text-center">{error}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-4 px-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <p className="text-text-secondary text-sm text-center max-w-xs">{error}</p>
             {providerErrors.length > 0 && (
               <details className="text-[10px] text-text-secondary/60 max-w-xs text-center">
-                <summary className="cursor-pointer hover:text-text-secondary transition-colors">
-                  Detalles de errores ({providerErrors.length})
-                </summary>
+                <summary className="cursor-pointer hover:text-text-secondary transition-colors">Detalles de errores ({providerErrors.length})</summary>
                 <ul className="mt-1 space-y-0.5">
                   {providerErrors.map((e, i) => (
                     <li key={i}>{providerDisplayName(e.provider)} ({e.backend}): {e.message}</li>
@@ -522,13 +672,11 @@ export default function Watch() {
               </details>
             )}
             <div className="flex flex-wrap gap-2 mt-1">
-              <Link to="/" className="px-4 py-2 bg-primary text-white rounded-xl text-sm">Volver al inicio</Link>
+              <Link to="/" className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-medium transition-colors">Volver al inicio</Link>
               <button
                 onClick={() => switchProvider(provider === 'anikoto' ? 'reanime' : 'anikoto')}
-                className="px-4 py-2 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors"
-              >
-                Intentar otro proveedor
-              </button>
+                className="px-5 py-2.5 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors"
+              >Intentar otro proveedor</button>
             </div>
           </div>
         ) : (
@@ -538,35 +686,53 @@ export default function Watch() {
             autoPlay
             className="w-full h-full"
             playsInline
+            onEnded={() => {
+              if (nextEp) {
+                toast('Reproduciendo siguiente episodio...', 'info', 2000)
+                setTimeout(() => goToEpisode(nextEp), 1000)
+              }
+            }}
           >
-            {subtitles.map((sub, i) => (
-              <track
-                key={i}
-                kind="subtitles"
-                src={subtitleSrc[i] || sub.file}
-                srcLang={subtitleSrcLang(sub)}
-                label={subtitleLangLabel(sub)}
-                default={i === defaultSubIdx}
-              />
-            ))}
+            {subtitles.map((sub, i) => {
+              const trackSrc = subtitleSrc[i]
+              if (!trackSrc) return null
+              return (
+                <track
+                  key={i}
+                  kind="subtitles"
+                  src={trackSrc}
+                  srcLang={subtitleSrcLang(sub)}
+                  label={subtitleLangLabel(sub)}
+                  default={i === defaultSubIdx}
+                />
+              )
+            })}
           </video>
         )}
       </div>
 
       {!loading && !error && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-5 space-y-4">
+          <div className="flex flex-wrap gap-3 text-[10px] text-text-secondary/50 justify-center">
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Space</kbd> Play/Pause</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">←/→</kbd> 10s</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">↑/↓</kbd> Volumen</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">F</kbd> Pantalla completa</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">M</kbd> Silenciar</span>
+            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">N</kbd> Siguiente ep.</span>
+          </div>
           {servers.length > 1 && (
-            <div>
-              <p className="text-xs text-text-secondary mb-1.5">Servidor:</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-text-secondary font-medium">Servidor:</span>
+              <div className="flex gap-1.5">
                 {servers.map((server) => (
                   <button
                     key={server}
                     onClick={() => selectServer(server)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                       activeServer === server
-                        ? 'bg-primary text-white'
-                        : 'bg-surface text-text-secondary hover:text-text-primary'
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
                     }`}
                   >
                     {server}
@@ -577,17 +743,17 @@ export default function Watch() {
           )}
 
           {currentServerSources.length > 1 && (
-            <div>
-              <p className="text-xs text-text-secondary mb-1.5">Calidad:</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-text-secondary font-medium">Calidad:</span>
+              <div className="flex gap-1.5">
                 {currentServerSources.map((s, i) => (
                   <button
                     key={i}
                     onClick={() => selectSource(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                       selectedUrl?.includes(encodeURIComponent(s.url))
-                        ? 'bg-primary text-white'
-                        : 'bg-surface text-text-secondary hover:text-text-primary'
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
                     }`}
                   >
                     {s.quality || s.server || `Fuente ${i + 1}`}
@@ -607,12 +773,12 @@ export default function Watch() {
                     href={d.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface hover:bg-surface-hover transition-colors text-xs"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface hover:bg-surface-hover transition-all text-xs border border-transparent hover:border-primary/20 group"
                   >
-                    <span className="text-primary font-medium">{d.server || d.quality || 'Servidor ' + (i + 1)}</span>
+                    <span className="text-primary font-medium group-hover:text-primary-hover transition-colors">{d.server || d.quality || 'Servidor ' + (i + 1)}</span>
                     {d.size && <span className="text-text-secondary">{formatSize(d.size)}</span>}
                     {d.audio && <span className="text-text-secondary/60">{d.audio}</span>}
-                    <span className="ml-auto text-neon-cyan">Descargar →</span>
+                    <span className="ml-auto text-neon-cyan flex items-center gap-1 group-hover:gap-2 transition-all">Descargar <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></span>
                   </a>
                 ))}
               </div>
@@ -620,12 +786,14 @@ export default function Watch() {
           )}
 
           {nextEpisode && (
-            <p className="text-xs text-text-secondary/60 text-center">
+            <div className="flex items-center justify-center gap-2 text-xs text-text-secondary/60">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
               Próximo episodio: <span className="text-text-primary font-medium">{formatDate(nextEpisode.airingAt)}</span> (Ep. {nextEpisode.episode})
-            </p>
+            </div>
           )}
         </div>
       )}
     </motion.div>
+    </>
   )
 }

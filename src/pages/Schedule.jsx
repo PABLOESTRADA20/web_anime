@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getSchedule } from '../lib/anilist'
+import SeoHead from '../components/SeoHead'
 
 function formatAiringTime(timestamp) {
   const d = new Date(timestamp * 1000)
@@ -44,8 +45,10 @@ export default function Schedule() {
   const days = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <h1 className="text-xl font-bold mb-6">📅 Calendario de emisión</h1>
+    <>
+      <SeoHead title={filter !== 'all' ? `Calendario — ${filter}` : 'Calendario de emisión'} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        <h1 className="text-xl font-bold mb-6">📅 Calendario de emisión</h1>
 
       <div className="flex flex-wrap gap-2 mb-6">
         <button
@@ -107,5 +110,6 @@ export default function Schedule() {
         </div>
       )}
     </motion.div>
+    </>
   )
 }

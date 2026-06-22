@@ -45,8 +45,19 @@ export function parseEpisodeId(episodeId) {
   }
 }
 
+export function detectSpanishAudio(watchData) {
+  if (!watchData) return false
+  const ssub = watchData.ssub || watchData.sdub
+  const subs = ssub?.subtitles || watchData.subtitles || watchData.subs || watchData.tracks || []
+  return subs.some(s => {
+    const lang = (s.language || s.lang || s.srclang || '').toLowerCase()
+    const label = (s.label || s.name || '').toLowerCase()
+    return lang.startsWith('es') || /spanish|español|latino|subtitulos/i.test(label)
+  })
+}
+
 export function normalizeStreams(watchData) {
-  if (!watchData) return { sources: [], subtitles: [] }
+  if (!watchData) return { sources: [], subtitles: [], audioLang: null }
 
   let streams = []
   let subtitles = []
@@ -83,7 +94,9 @@ export function normalizeStreams(watchData) {
     }
   })
 
-  return { sources: streams, subtitles }
+  const audioLang = detectSpanishAudio(watchData) ? 'es' : (subtitles[0]?.language || null)
+
+  return { sources: streams, subtitles, audioLang }
 }
 
 let providerHealthCache = null

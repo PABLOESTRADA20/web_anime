@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
+import SeoHead from '../components/SeoHead'
 import { getCharacterInfo } from '../lib/anilist'
 
 export default function CharacterDetail() {
@@ -17,17 +18,19 @@ export default function CharacterDetail() {
     }).catch(() => setLoading(false))
   }, [id])
 
-  if (loading) return <DetailSkeleton />
-  if (!character) return <div className="text-center py-20 text-text-secondary">Personaje no encontrado.</div>
+  if (loading) return <><SeoHead title="Cargando..." /><DetailSkeleton /></>
+  if (!character) return <><SeoHead title="Personaje no encontrado" /><div className="text-center py-20 text-text-secondary">Personaje no encontrado.</div></>
 
   const name = character.name?.full || 'Sin nombre'
   const image = character.image?.large
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <div className="flex flex-col sm:flex-row gap-6 mb-10">
-        <div className="shrink-0 w-[200px] mx-auto sm:mx-0">
-          <img src={image} alt={name} className="w-full rounded-2xl shadow-lg" />
+    <>
+      <SeoHead title={name} description={character.description?.replace(/<[^>]*>/g, '').slice(0, 160)} image={image} url={`/character/${id}`} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        <div className="flex flex-col sm:flex-row gap-6 mb-10">
+          <div className="shrink-0 w-[200px] mx-auto sm:mx-0">
+            <img src={image} alt={name} className="w-full rounded-2xl shadow-lg" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold">{name}</h1>
@@ -102,5 +105,6 @@ export default function CharacterDetail() {
         </section>
       )}
     </motion.div>
+    </>
   )
 }

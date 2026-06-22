@@ -66,3 +66,74 @@ body {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+@keyframes cosmic-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cosmic-spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px var(--glow-color, oklch(0.65 0.25 330 / 0.3)); }
+  50% { box-shadow: 0 0 40px var(--glow-color, oklch(0.65 0.25 330 / 0.6)); }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@utility animate-cosmic-spin {
+  animation: cosmic-spin 3s linear infinite;
+}
+
+@utility animate-cosmic-spin-slow {
+  animation: cosmic-spin-slow 5s linear infinite;
+}
+
+@utility animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@utility glass {
+  background: oklch(0.1 0.01 280 / 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid oklch(1 0 0 / 0.08);
+}
+
+@utility glass-light {
+  background: oklch(0.93 0.01 280 / 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid oklch(0 0 0 / 0.08);
+}
+
+@utility text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility card-hover {
+  transition: all 0.3s ease;
+  &:hover {
+    box-shadow:
+      0 0 20px oklch(0.65 0.25 330 / 0.15),
+      0 0 60px oklch(0.65 0.25 330 / 0.05);
+    border-color: oklch(0.65 0.25 330 / 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

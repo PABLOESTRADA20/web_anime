@@ -1,3 +1,5 @@
+import { isCloudflareBlock, isLikelySubtitle } from './subtitles.js'
+
 const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL
   ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=`
   : null
@@ -51,8 +53,11 @@ async function fetchViaProxy(proxyUrl, target) {
     const res = await fetch(url, { signal: controller.signal })
     if (!res.ok) throw new Error(`Proxy ${res.status}`)
     const text = await res.text()
-    if (text.includes('cf-browser-verification') || text.includes('__cf_chl_') || text.includes('Just a moment')) {
+    if (isCloudflareBlock(text)) {
       throw new Error('Cloudflare block')
+    }
+    if (!isLikelySubtitle(text)) {
+      throw new Error('Not a valid subtitle')
     }
     return text
   } finally {
@@ -71,7 +76,7 @@ export async function fetchSubtitle(url) {
 
   try {
     const text = await fetchDirect(url)
-    if (text && !text.includes('cf-browser-verification')) {
+    if (text && !isCloudflareBlock(text) && isLikelySubtitle(text)) {
       setCache(cacheKey, text)
       return text
     }
@@ -97,6 +102,10 @@ export async function fetchSubtitle(url) {
     } catch (e) {
       errors.push(`public: ${e.message}`)
     }
+  }
+
+  if (errors.length) {
+    console.warn('[Subtitles] No se pudo obtener:', url, errors.join(' | '))
   }
 
   return null
