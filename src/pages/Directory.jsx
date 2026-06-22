@@ -1,17 +1,54 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { getDirectory } from '../lib/anilist'
+import { enrichAnimeBatch } from '../lib/api'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 
 const GENRES = [
-  'Accion', 'Aventura', 'Autos', 'Comedia', 'Dementia', 'Demonios', 'Misterio', 'Drama',
-  'Ecchi', 'Fantasia', 'Juegos', 'Hentai', 'Historico', 'Terror', 'Infantil', 'Magia',
-  'Artes Marciales', 'Mecha', 'Musica', 'Parodia', 'Samurai', 'Romance', 'Ciencia Ficcion',
-  'Shoujo', 'Shoujo Ai', 'Shounen', 'Shounen Ai', 'Espacial', 'Deportes', 'Super Poderes',
-  'Vampiros', 'Yaoi', 'Yuri', 'Harem', 'Recuentos de la vida', 'Sobrenatural', 'Militar',
-  'Policial', 'Psicologico', 'Thriller', 'Seinen', 'Josei',
+  { label: 'Accion', value: 'Action' },
+  { label: 'Aventura', value: 'Adventure' },
+  { label: 'Autos', value: 'Cars' },
+  { label: 'Comedia', value: 'Comedy' },
+  { label: 'Dementia', value: 'Dementia' },
+  { label: 'Demonios', value: 'Demons' },
+  { label: 'Misterio', value: 'Mystery' },
+  { label: 'Drama', value: 'Drama' },
+  { label: 'Ecchi', value: 'Ecchi' },
+  { label: 'Fantasia', value: 'Fantasy' },
+  { label: 'Juegos', value: 'Game' },
+  { label: 'Hentai', value: 'Hentai' },
+  { label: 'Historico', value: 'Historical' },
+  { label: 'Terror', value: 'Horror' },
+  { label: 'Infantil', value: 'Kids' },
+  { label: 'Magia', value: 'Magic' },
+  { label: 'Artes Marciales', value: 'Martial Arts' },
+  { label: 'Mecha', value: 'Mecha' },
+  { label: 'Musica', value: 'Music' },
+  { label: 'Parodia', value: 'Parody' },
+  { label: 'Samurai', value: 'Samurai' },
+  { label: 'Romance', value: 'Romance' },
+  { label: 'Ciencia Ficcion', value: 'Sci-Fi' },
+  { label: 'Shoujo', value: 'Shoujo' },
+  { label: 'Shoujo Ai', value: 'Shoujo Ai' },
+  { label: 'Shounen', value: 'Shounen' },
+  { label: 'Shounen Ai', value: 'Shounen Ai' },
+  { label: 'Espacial', value: 'Space' },
+  { label: 'Deportes', value: 'Sports' },
+  { label: 'Super Poderes', value: 'Super Power' },
+  { label: 'Vampiros', value: 'Vampire' },
+  { label: 'Yaoi', value: 'Yaoi' },
+  { label: 'Yuri', value: 'Yuri' },
+  { label: 'Harem', value: 'Harem' },
+  { label: 'Recuentos de la vida', value: 'Slice of Life' },
+  { label: 'Sobrenatural', value: 'Supernatural' },
+  { label: 'Militar', value: 'Military' },
+  { label: 'Policial', value: 'Police' },
+  { label: 'Psicologico', value: 'Psychological' },
+  { label: 'Thriller', value: 'Thriller' },
+  { label: 'Seinen', value: 'Seinen' },
+  { label: 'Josei', value: 'Josei' },
 ]
 
 const FORMATS = [
@@ -110,9 +147,11 @@ export default function Directory() {
     setLoading(true)
     getDirectory(page, PER_PAGE, filters)
       .then((res) => {
-        setAnimeList(res.data)
+        const list = res.data || []
+        setAnimeList(list)
         setTotal(res.total)
         setLoading(false)
+        enrichAnimeBatch(list).then(setAnimeList).catch(() => {})
       })
       .catch(() => setLoading(false))
   }, [page, filters])
@@ -207,11 +246,11 @@ export default function Directory() {
           <FilterSection label="Genero">
             {GENRES.map((g) => (
               <FilterBtn
-                key={g}
-                active={_filters.genre === g}
-                onClick={() => setFilter('genre', _filters.genre === g ? undefined : g)}
+                key={g.value}
+                active={_filters.genre === g.value}
+                onClick={() => setFilter('genre', _filters.genre === g.value ? undefined : g.value)}
               >
-                {g}
+                {g.label}
               </FilterBtn>
             ))}
           </FilterSection>

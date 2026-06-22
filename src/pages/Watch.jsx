@@ -715,6 +715,11 @@ export default function Watch() {
                 setTimeout(() => goToEpisode(nextEp), 1000)
               }
             }}
+            onError={() => {
+              if (selectedUrl) {
+                toast('Error al reproducir el video. Intenta con otro proveedor.', 'error', 5000)
+              }
+            }}
           >
             {subtitles.map((sub, i) => {
               const trackSrc = subtitleSrc[i]

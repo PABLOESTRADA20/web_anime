@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getSeasonalAnime } from '../lib/anilist'
+import { enrichAnimeBatch } from '../lib/api'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 
@@ -52,9 +53,11 @@ export default function Seasonal() {
     setLoading(true)
     setPage(1)
     getSeasonalAnime(season, year).then((res) => {
-      setAnimeList(res.data || [])
+      const list = res.data || []
+      setAnimeList(list)
       setHasNext(res.hasNextPage || false)
       setLoading(false)
+      enrichAnimeBatch(list).then(setAnimeList).catch(() => {})
     }).catch(() => setLoading(false))
   }, [season, year])
 

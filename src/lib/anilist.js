@@ -264,6 +264,12 @@ async function gql(query, variables = {}, signal) {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ query, variables }),
   })
+  if (res.status === 429) {
+    const retryAfter = parseInt(res.headers.get('Retry-After') || '5', 10) * 1000
+    await new Promise(r => setTimeout(r, Math.min(retryAfter, 15000)))
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return gql(query, variables, signal)
+  }
   if (!res.ok) {
     const err = await res.text()
     throw new Error(`AniList error ${res.status}: ${err}`)
@@ -370,6 +376,19 @@ export async function getSeasonalAnime(season, year, page = 1, perPage = 20) {
   const seasonYear = year || new Date().getFullYear()
   const data = await gql(GET_SEASONAL, { season: seasonUpper, seasonYear, page, perPage })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
+}
+
+const GET_ANIME_TITLE = `
+  query ($id: Int) {
+    Media(id: $id, type: ANIME) {
+      id
+      title { romaji english }
+    }
+  }`
+
+export async function getAnimeTitle(id) {
+  const data = await gql(GET_ANIME_TITLE, { id })
+  return data?.Media?.title || null
 }
 
 export async function getDirectory(page = 1, perPage = 30, filters = {}, signal) {

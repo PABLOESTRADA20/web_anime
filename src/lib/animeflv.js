@@ -1,9 +1,16 @@
 const ANIMEFLV_API = 'https://animeflv.ahmedrangel.com/api'
+const FETCH_TIMEOUT = 10000
 
 async function fetchJSON(url) {
-  const res = await fetch(url)
-  if (!res.ok) return null
-  return res.json()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) return null
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 function slugify(text) {
@@ -30,6 +37,61 @@ const SLUG_OVERRIDES = {
   'full metal alchemist': 'fullmetal-alchemist',
   'my hero academia': 'boku-no-hero-academia',
   'boku no hero academia': 'boku-no-hero-academia',
+  'demon slayer': 'kimetsu-no-yaiba',
+  'kimetsu no yaiba': 'kimetsu-no-yaiba',
+  'jujutsu kaisen': 'jujutsu-kaisen',
+  'chainsaw man': 'chainsaw-man',
+  'spy x family': 'spy-x-family',
+  'mob psycho 100': 'mob-psycho-100',
+  'one punch man': 'one-punch-man',
+  'steins;gate': 'steins-gate',
+  'code geass': 'code-geass',
+  'cowboy bebop': 'cowboy-bebop',
+  'evangelion': 'neon-genesis-evangelion',
+  'neon genesis evangelion': 'neon-genesis-evangelion',
+  'hunter x hunter': 'hunter-x-hunter',
+  'hunterxhunter': 'hunter-x-hunter',
+  'tokyo ghoul': 'tokyo-ghoul',
+  're:zero': 'rezero-starting-life-in-another-world',
+  'rezero': 'rezero-starting-life-in-another-world',
+  'overlord': 'overlord',
+  'konosuba': 'konosuba',
+  'that time i got reincarnated as a slime': 'tensei-shitara-slime-datta-ken',
+  'tensei shitara slime datta ken': 'tensei-shitara-slime-datta-ken',
+  'mushoku tensei': 'mushoku-tensei',
+  'made in abyss': 'made-in-abyss',
+  'vinland saga': 'vinland-saga',
+  'berserk': 'berserk',
+  'bleach': 'bleach',
+  'bleach thousand year blood war': 'bleach-thousand-year-blood-war',
+  'gintama': 'gintama',
+  'fairy tail': 'fairy-tail',
+  'haikyuu': 'haikyuu',
+  'haikyu': 'haikyuu',
+  'kuroko no basket': 'kuroko-no-basket',
+  'kurokos basketball': 'kuroko-no-basket',
+  'shokugeki no soma': 'shokugeki-no-soma',
+  'food wars': 'shokugeki-no-soma',
+  'black clover': 'black-clover',
+  'dr stone': 'dr-stone',
+  'promised neverland': 'yakusoku-no-neverland',
+  'yakusoku no neverland': 'yakusoku-no-neverland',
+  'no game no life': 'no-game-no-life',
+  'classroom of the elite': 'classroom-of-the-elite',
+  'danmachi': 'danmachi',
+  'gochuumon wa usagi desu ka': 'gochuumon-wa-usagi-desu-ka',
+  'kaguya-sama': 'kaguya-sama-love-is-war',
+  'kaguya sama': 'kaguya-sama-love-is-war',
+  'love is war': 'kaguya-sama-love-is-war',
+  'oshi no ko': 'oshi-no-ko',
+  'frieren': 'sousou-no-frieren',
+  'sousou no frieren': 'sousou-no-frieren',
+  'solo leveling': 'solo-leveling',
+  'dungeon meshi': 'dungeon-meshi',
+  'delicious in dungeon': 'dungeon-meshi',
+  'dandadan': 'dandadan',
+  'kaiju no 8': 'kaiju-no-8',
+  'kaiju number 8': 'kaiju-no-8',
 }
 
 export function getSlug(title) {

@@ -1,5 +1,5 @@
 import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList, normalizeStreams, PROVIDER_PRIORITY } from './anivexa.js'
-import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo } from './anilist.js'
+import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo, getAnimeTitle as anilistGetTitle } from './anilist.js'
 import { getAnimeEpisodes as kenjitsuGetEpisodes, getAnimepaheSources, searchAnime as prvSearch, getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
 import { getEpisodes as miruroGetEpisodes, getWatch as miruroGetWatch, MIRURO_PROVIDERS } from './miruro.js'
 import { getSpanishMetadata, getSlug, getAnimeInfo as animeflvGetInfo } from './animeflv.js'
@@ -106,10 +106,10 @@ let animeflvSlugCache = {}
 export async function getAnimeflvSlug(anilistId) {
   if (animeflvSlugCache[anilistId]) return animeflvSlugCache[anilistId]
   try {
-    const info = await anilistGetInfo(anilistId)
-    const title = info?.title?.romaji || info?.title?.english || ''
-    if (!title) return null
-    const slug = getSlug(title)
+    const title = await anilistGetTitle(anilistId)
+    const romaji = title?.romaji || title?.english || ''
+    if (!romaji) return null
+    const slug = getSlug(romaji)
     animeflvSlugCache[anilistId] = slug
     return slug
   } catch { return null }

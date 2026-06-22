@@ -7,7 +7,7 @@ import { GridSkeleton } from '../components/Skeletons'
 import { FadeIn, FadeInStagger } from '../components/FadeIn'
 import GradientHeading from '../components/GradientHeading'
 import SeoHead from '../components/SeoHead'
-import { getTopAnime } from '../lib/api'
+import { getTopAnime, enrichAnimeBatch } from '../lib/api'
 import { getRecentChapters } from '../lib/manga'
 import { useAuth } from '../hooks/useAuth'
 import { useHistory } from '../hooks/useHistory'
@@ -44,10 +44,18 @@ export default function Home() {
       getTopAnime('popular'),
       getTopAnime('airing'),
     ]).then(([trendRes, popRes, airRes]) => {
-      setTrending(trendRes?.data || [])
-      setPopular(popRes?.data || [])
-      setAiring(airRes?.data || [])
+      const t = trendRes?.data || []
+      const p = popRes?.data || []
+      const a = airRes?.data || []
+      setTrending(t)
+      setPopular(p)
+      setAiring(a)
       setLoading(false)
+      Promise.all([enrichAnimeBatch(t), enrichAnimeBatch(p), enrichAnimeBatch(a)]).then(([te, pe, ae]) => {
+        setTrending(te)
+        setPopular(pe)
+        setAiring(ae)
+      }).catch(() => {})
     }).catch(() => setLoading(false))
   }, [])
 

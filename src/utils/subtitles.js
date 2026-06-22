@@ -59,7 +59,7 @@ export function isLikelySubtitle(text) {
 }
 
 export function isSpanishSub(sub) {
-  const language = (sub.language || sub.srclang || '').toLowerCase()
+  const language = (sub.language || sub.lang || sub.srclang || '').toLowerCase()
   const file = (sub.file || sub.url || sub.src || '').toLowerCase()
 
   if (language === 'es' || language === 'spa') return true
