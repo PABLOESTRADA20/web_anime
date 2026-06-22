@@ -137,7 +137,7 @@ export default function AnimeDetail() {
     </>
   )
 
-  const title = anime.title?.romaji || anime.title?.english || anime.title?.native || ''
+  const title = anime.title_es || anime.title?.romaji || anime.title?.english || anime.title?.native || ''
   const image = anime.image || anime.posterImage
   const banner = anime.bannerImage
   const inList = isInWatchlist(parseInt(id, 10))
@@ -218,10 +218,13 @@ export default function AnimeDetail() {
             <p className="text-sm text-text-secondary mt-3">Estudio: <span className="text-text-primary">{anime.studio}</span></p>
           )}
 
-          {anime.synopsis && (
+          {(anime.synopsis_es || anime.synopsis) && (
             <p className="text-sm text-text-secondary mt-4 leading-relaxed line-clamp-4">
-              {anime.synopsis.replace(/<[^>]*>/g, '')}
+              {(anime.synopsis_es || anime.synopsis).replace(/<[^>]*>/g, '')}
             </p>
+          )}
+          {anime.synopsis_es && anime.synopsis && anime.synopsis_es !== anime.synopsis && (
+            <p className="text-[10px] text-accent mt-1">Sinopsis en español vía AnimeFLV</p>
           )}
 
           {/* User rating */}

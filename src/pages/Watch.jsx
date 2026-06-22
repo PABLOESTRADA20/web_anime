@@ -145,17 +145,23 @@ const PROVIDER_NAMES = {
   animepahe: 'AnimePahe',
 }
 
+const MIRURO_NAMES = {
+  kiwi: 'Kiwi',
+  pewe: 'Pewe',
+  moo: 'Moo',
+  bee: 'Bee',
+  hop: 'Hop',
+  bonk: 'Bonk',
+  ally: 'Ally',
+}
+
 const BACKEND_NAMES = {
   kenjitsu: 'Kenjitsu',
   anivexa: 'Anivexa',
-  consumet: 'Consumet',
+  miruro: 'Miruro',
 }
 
-const CONSUMET_NAMES = {
-  gogoanime: 'Gogoanime',
-  zoro: 'Zoro',
-  animekai: 'AnimeKai',
-}
+const ANIMEFLV_NAME = 'AnimeFLV'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
@@ -168,7 +174,7 @@ function proxyUrl(url, referer) {
 }
 
 function providerDisplayName(p) {
-  return PROVIDER_NAMES[p] || CONSUMET_NAMES[p] || p
+  return PROVIDER_NAMES[p] || p
 }
 
 function getUniqueServers(sources) {
@@ -353,17 +359,18 @@ export default function Watch() {
   useEffect(() => {
     if (!anilistId) return
     setEpisodesLoading(true)
-    getAnimeEpisodes(anilistId)
+    getAnimeEpisodes(anilistId, audio === 'latam' || provider === 'animeflv' ? 'latam' : 'sub')
       .then((data) => {
         setEpisodesData(data)
         setEpisodesLoading(false)
       })
       .catch(() => setEpisodesLoading(false))
-  }, [anilistId])
+  }, [anilistId, audio, provider])
 
   const episodeList = episodesData
     ? (episodesData.providerEpisodes || episodesData?.[provider]?.episodes?.[audio] || [])
     : []
+  const hasSpanishInfo = episodesData?.spanishInfo?.title
   const sortedEps = [...episodeList].sort((a, b) => b.number - a.number)
   const currentEpIndex = sortedEps.findIndex(ep => ep.number === epNum)
   const prevEp = currentEpIndex < sortedEps.length - 1 ? sortedEps[currentEpIndex + 1] : null
@@ -402,7 +409,8 @@ export default function Watch() {
 
   const switchProvider = useCallback((newProvider) => {
     if (!anilistId || !epNum) return
-    const newId = `watch/${newProvider}/${anilistId}/${audio}/${newProvider}-${epNum}`
+    const newAudio = newProvider === 'animeflv' ? 'latam' : audio
+    const newId = `watch/${newProvider}/${anilistId}/${newAudio}/${newProvider}-${epNum}`
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${epNum}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
   }, [anilistId, epNum, navigate, audio, title, image])
 
@@ -615,22 +623,25 @@ export default function Watch() {
           </button>
         ))}
       </div>
-      <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
-        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Backends</span>
-        {Object.entries(CONSUMET_NAMES).map(([p, name]) => (
+      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Miruro</span>
+        {Object.entries(MIRURO_NAMES).map(([p, name]) => (
           <button
-            key={p}
-            onClick={() => switchProvider(p)}
+            key={`miruro-${p}`}
+            onClick={() => switchProvider(`miruro-${p}`)}
             disabled={loading}
             className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-              provider === p
-                ? 'bg-primary/10 text-primary border-primary/30'
+              provider === `miruro-${p}`
+                ? 'bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30'
                 : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
             }`}
           >
             {name}
           </button>
         ))}
+      </div>
+      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Backends</span>
         <button
           onClick={() => switchProvider('kenjitsu')}
           disabled={loading}
@@ -641,6 +652,20 @@ export default function Watch() {
           }`}
         >
           Kenjitsu
+        </button>
+      </div>
+      <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">LATAM</span>
+        <button
+          onClick={() => switchProvider('animeflv')}
+          disabled={loading}
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+            provider === 'animeflv'
+              ? 'bg-accent/10 text-accent border-accent/30'
+              : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
+          }`}
+        >
+          {ANIMEFLV_NAME}
         </button>
       </div>
 

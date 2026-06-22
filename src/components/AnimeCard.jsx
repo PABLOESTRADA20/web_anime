@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 
 export default function AnimeCard({ anime, index = 0 }) {
   const id = anime.anilistId || anime.id
-  const title = anime.title?.romaji || anime.title?.english || anime.title?.native || anime.name || 'Sin título'
+  const title = anime.title_es || anime.title?.romaji || anime.title?.english || anime.title?.native || anime.name || 'Sin título'
   const image = anime.image || anime.posterImage
   const score = anime.score || anime.averageScore
   const format = anime.format
@@ -47,8 +47,13 @@ export default function AnimeCard({ anime, index = 0 }) {
           </span>
         )}
 
+        {anime.title_es && (
+          <span className="absolute top-2 left-2 bg-accent/80 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-accent/40 tracking-wider uppercase z-10">
+            ES
+          </span>
+        )}
         {format && (
-          <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-primary text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/20 tracking-wider uppercase">
+          <span className={`absolute ${anime.title_es ? 'top-10' : 'top-2'} left-2 bg-black/60 backdrop-blur-sm text-primary text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/20 tracking-wider uppercase`}>
             {format}
           </span>
         )}

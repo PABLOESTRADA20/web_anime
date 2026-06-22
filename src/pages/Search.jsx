@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
-import { searchAnime } from '../lib/api'
+import { searchAnime, enrichAnimeBatch } from '../lib/api'
 import SeoHead from '../components/SeoHead'
 
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
@@ -40,9 +40,13 @@ export default function Search() {
     setPage(1)
     setHasSearched(true)
     searchAnime(query, 1, filters, ac.signal).then((res) => {
-      setResults(res?.data || [])
+      const items = res?.data || []
+      setResults(items)
       setHasNext(res?.hasNextPage || false)
       setLoading(false)
+      enrichAnimeBatch(items).then((enriched) => {
+        if (!ac.signal.aborted) setResults([...enriched])
+      }).catch(() => {})
     }).catch((e) => {
       if (e.name !== 'AbortError') setLoading(false)
     })

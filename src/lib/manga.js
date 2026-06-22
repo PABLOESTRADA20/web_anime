@@ -1,29 +1,10 @@
-const CONSUMET_URL = import.meta.env.VITE_CONSUMET_URL
 const MANGADEX_API = 'https://api.mangadex.org'
 const MANGADEX_CDN = 'https://uploads.mangadex.org'
-
-function consumetBase() {
-  return CONSUMET_URL ? CONSUMET_URL.replace(/\/+$/, '') : null
-}
 
 async function fetchJSON(url) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Manga API error ${res.status}: ${res.statusText}`)
   return res.json()
-}
-
-async function fetchWithTimeout(url, ms = 8000) {
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), ms)
-  try {
-    const res = await fetch(url, { signal: controller.signal })
-    clearTimeout(id)
-    if (!res.ok) throw new Error(`Status ${res.status}`)
-    return res.json()
-  } catch (e) {
-    clearTimeout(id)
-    throw e
-  }
 }
 
 async function getMangaDexIdFromAnilist(anilistId) {
@@ -37,41 +18,39 @@ async function getMangaDexIdFromAnilist(anilistId) {
 }
 
 export async function getMangaChapters(anilistId) {
-  // Try Consumet first
-  const base = consumetBase()
-  if (base) {
-    try {
-      const data = await fetchWithTimeout(`${base}/meta/anilist/info/${anilistId}`, 10000)
-      if (data?.chapters?.length > 0) {
-        return data.chapters.map(ch => ({
-          chapterId: ch.id,
-          chapterNumber: ch.number || parseFloat(ch.chapterNumber) || 0,
-          title: ch.title || '',
-          pages: ch.pages || 0,
-        }))
-      }
-    } catch {
-      // fall through to MangaDex
-    }
-  }
-
-  // Fallback to MangaDex
   const mdId = await getMangaDexIdFromAnilist(anilistId)
   if (!mdId) throw new Error('No se pudo encontrar el manga en MangaDex')
 
-  const feed = await fetchJSON(
-    `${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=en&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`
-  )
-  const chapters = feed?.data || []
-  return chapters
-    .filter(ch => ch.attributes.chapter)
-    .map(ch => ({
-      chapterId: ch.id,
-      chapterNumber: parseFloat(ch.attributes.chapter),
-      title: ch.attributes.title || '',
-      pages: 0,
-    }))
-    .sort((a, b) => b.chapterNumber - a.chapterNumber)
+  const [enFeed, esFeed] = await Promise.allSettled([
+    fetchJSON(`${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=en&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`),
+    fetchJSON(`${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=es&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`),
+  ])
+
+  const chapters = []
+  for (const result of [enFeed, esFeed]) {
+    if (result.status !== 'fulfilled') continue
+    for (const ch of (result.value?.data || [])) {
+      if (!ch.attributes.chapter) continue
+      chapters.push({
+        chapterId: ch.id,
+        chapterNumber: parseFloat(ch.attributes.chapter),
+        title: ch.attributes.title || '',
+        language: ch.attributes.translatedLanguage || 'en',
+        pages: 0,
+      })
+    }
+  }
+
+  // Deduplicate by chapter number, prefer Spanish
+  const seen = new Map()
+  for (const ch of chapters) {
+    const existing = seen.get(ch.chapterNumber)
+    if (!existing || (ch.language === 'es' && existing.language !== 'es')) {
+      seen.set(ch.chapterNumber, ch)
+    }
+  }
+
+  return [...seen.values()].sort((a, b) => b.chapterNumber - a.chapterNumber)
 }
 
 export async function getMangaChapterPages(chapterId) {
@@ -87,7 +66,7 @@ export async function getMangaChapterPages(chapterId) {
 
 export async function getRecentChapters(limit = 20) {
   const chapterRes = await fetchJSON(
-    `${MANGADEX_API}/chapter?limit=${limit}&order[readableAt]=desc&translatedLanguage[]=en&includes[]=manga&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`
+    `${MANGADEX_API}/chapter?limit=${limit}&order[readableAt]=desc&translatedLanguage[]=en&translatedLanguage[]=es&includes[]=manga&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`
   )
 
   const chapters = chapterRes?.data || []
