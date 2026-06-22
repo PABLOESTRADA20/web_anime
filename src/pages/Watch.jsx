@@ -419,9 +419,7 @@ export default function Watch() {
   }
 
   const onNextEpRef = useRef(null)
-  useEffect(() => {
-    onNextEpRef.current = nextEp ? () => goToEpisode(nextEp) : null
-  }, [nextEp, goToEpisode])
+  onNextEpRef.current = nextEp ? () => goToEpisode(nextEp) : null
   useKeyboardShortcuts(videoRef, onNextEpRef)
 
   const defaultSubIdx = (() => {
