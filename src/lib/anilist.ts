@@ -1,4 +1,186 @@
+import { getCached, setCache } from './cache.js'
+
 const ANILIST_API = 'https://graphql.anilist.co'
+
+interface PageInfo {
+  hasNextPage: boolean
+  total?: number
+}
+
+interface Title {
+  romaji?: string
+  english?: string
+  native?: string
+}
+
+interface CoverImage {
+  large?: string
+  color?: string
+}
+
+interface FuzzyDate {
+  year?: number
+  month?: number
+  day?: number
+}
+
+interface Media {
+  id: number
+  idMal?: number
+  title: Title
+  coverImage: CoverImage
+  bannerImage?: string
+  description?: string
+  averageScore?: number
+  meanScore?: number
+  genres?: string[]
+  format?: string
+  status?: string
+  episodes?: number
+  duration?: number
+  chapters?: number
+  volumes?: number
+  season?: string
+  seasonYear?: number
+  startDate?: FuzzyDate
+  endDate?: FuzzyDate
+  countryOfOrigin?: string
+  hashtag?: string
+  isAdult?: boolean
+  synonyms?: string[]
+  tags?: { name: string; rank: number }[]
+  studios?: { nodes: { id: number; name: string }[] }
+  staff?: { edges: StaffEdge[] }
+  characters?: { edges: CharacterEdge[] }
+  trailer?: { id: string; site: string }
+  relations?: { edges: RelationEdge[] }
+  recommendations?: { nodes: RecommendationNode[] }
+  nextAiringEpisode?: { airingAt: number; episode: number }
+}
+
+interface StaffEdge {
+  node: {
+    id: number
+    name: { full: string }
+    image: { large: string }
+    primaryOccupations?: string[]
+  }
+  role: string
+}
+
+interface CharacterEdge {
+  node: {
+    id: number
+    name: { full: string; native?: string }
+    image: { large: string }
+  }
+  role: string
+  voiceActors: {
+    id: number
+    name: { full: string }
+    image: { large: string }
+    language: string
+  }[]
+}
+
+interface RelationEdge {
+  node: {
+    id: number
+    title: Title
+    coverImage: CoverImage
+    type: string
+    format?: string
+    averageScore?: number
+    episodes?: number
+    status?: string
+    season?: string
+    seasonYear?: number
+    startDate?: FuzzyDate
+  }
+  relationType: string
+}
+
+interface RecommendationNode {
+  mediaRecommendation: {
+    id: number
+    title: Title
+    coverImage: CoverImage
+    type: string
+    format?: string
+    averageScore?: number
+  }
+}
+
+interface Character {
+  id: number
+  name: { full: string; native?: string; alternative?: string[] }
+  image: { large: string }
+  description?: string
+  gender?: string
+  dateOfBirth?: FuzzyDate
+  age?: number
+  bloodType?: string
+  favourites: number
+  media?: {
+    edges: {
+      node: {
+        id: number
+        title: Title
+        coverImage: CoverImage
+        type: string
+        format?: string
+        averageScore?: number
+      }
+      voiceActors: {
+        id: number
+        name: { full: string }
+        image: { large: string }
+        language: string
+      }[]
+      role: string
+    }[]
+  }
+}
+
+interface AiringSchedule {
+  id: number
+  airingAt: number
+  episode: number
+  media: Media
+}
+
+interface AnimeListResult {
+  data: Media[]
+  hasNextPage: boolean
+  total?: number
+}
+
+interface CharacterListResult {
+  data: Character[]
+  hasNextPage: boolean
+}
+
+interface ScheduleResult {
+  data: AiringSchedule[]
+  hasNextPage: boolean
+}
+
+interface CharactersResult {
+  data: CharacterEdge[]
+  pageInfo: PageInfo
+}
+
+interface DirectoryFilters {
+  search?: string
+  genre?: string
+  genre_in?: string[]
+  year?: number
+  format?: string
+  status?: string
+  season?: string
+  sort?: string[]
+  minScore?: number
+}
 
 const SEARCH_MANGA = `
   query ($search: String, $page: Int, $perPage: Int) {
@@ -162,6 +344,7 @@ const GET_ANIME = `
   query ($id: Int) {
     Media(id: $id, type: ANIME) {
       id
+      idMal
       title { romaji english native }
       coverImage { large color }
       bannerImage
@@ -186,7 +369,7 @@ const GET_ANIME = `
       staff { edges { node { id name { full } image { large } primaryOccupations } role } }
       characters { edges { node { id name { full } image { large } } role voiceActors { id name { full } image { large } language } } }
       trailer { id site }
-      relations { edges { node { id title { romaji english } coverImage { large } type format averageScore } relationType } }
+      relations { edges { node { id title { romaji english } coverImage { large } type format averageScore episodes status season seasonYear startDate { year month day } } relationType } }
       recommendations(sort: RATING_DESC, perPage: 10) {
         nodes { mediaRecommendation { id title { romaji english } coverImage { large } type format averageScore } }
       }
@@ -257,7 +440,15 @@ const DIRECTORY_QUERY = `
     }
   }`
 
-async function gql(query, variables = {}, signal) {
+function gqlCacheKey(query: string, variables: Record<string, unknown> = {}): string {
+  return query.trim().slice(0, 80) + ':' + JSON.stringify(variables)
+}
+
+export async function gql<T>(query: string, variables: Record<string, unknown> = {}, signal?: AbortSignal): Promise<T> {
+  const cacheKey = gqlCacheKey(query, variables)
+  const cached = getCached(cacheKey, 'anilist')
+  if (cached) return cached as T
+
   const res = await fetch(ANILIST_API, {
     signal,
     method: 'POST',
@@ -268,7 +459,7 @@ async function gql(query, variables = {}, signal) {
     const retryAfter = parseInt(res.headers.get('Retry-After') || '5', 10) * 1000
     await new Promise(r => setTimeout(r, Math.min(retryAfter, 15000)))
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    return gql(query, variables, signal)
+    return gql<T>(query, variables, signal)
   }
   if (!res.ok) {
     const err = await res.text()
@@ -276,105 +467,107 @@ async function gql(query, variables = {}, signal) {
   }
   const json = await res.json()
   if (json.errors) throw new Error(json.errors[0]?.message || 'AniList error')
-  return json.data
+
+  setCache(cacheKey, json.data, 'anilist')
+  return json.data as T
 }
 
-export async function searchManga(query, page = 1, perPage = 20) {
-  const data = await gql(SEARCH_MANGA, { search: query, page, perPage })
+export async function searchManga(query: string, page = 1, perPage = 20): Promise<AnimeListResult> {
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(SEARCH_MANGA, { search: query, page, perPage })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
-export async function getMangaInfo(id) {
-  const data = await gql(GET_MANGA, { id })
+export async function getMangaInfo(id: number | string): Promise<Media> {
+  const data = await gql<{ Media: Media }>(GET_MANGA, { id: Number(id) })
   return data.Media
 }
 
-export async function getTopManga(category = 'TRENDING', page = 1, perPage = 20) {
-  const sortMap = {
+export async function getTopManga(category = 'TRENDING', page = 1, perPage = 20): Promise<AnimeListResult> {
+  const sortMap: Record<string, string[]> = {
     trending: ['TRENDING_DESC', 'POPULARITY_DESC'],
     popular: ['POPULARITY_DESC'],
     top: ['SCORE_DESC'],
     releasing: ['POPULARITY_DESC'],
     upcoming: ['POPULARITY_DESC'],
   }
-  const statusMap = {
+  const statusMap: Record<string, string> = {
     releasing: 'RELEASING',
     upcoming: 'NOT_YET_RELEASED',
   }
   const sorts = sortMap[category] || sortMap.trending
   const status = statusMap[category] || null
-  const data = await gql(TOP_MANGA, { page, perPage, sort: sorts, status })
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(TOP_MANGA, { page, perPage, sort: sorts, status })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function searchAnime(query, page = 1, perPage = 20, filters = {}, signal) {
-  const vars = { page, perPage }
+export async function searchAnime(query: string, page = 1, perPage = 20, filters: DirectoryFilters = {}, signal?: AbortSignal): Promise<AnimeListResult> {
+  const vars: Record<string, unknown> = { page, perPage }
   if (query) vars.search = query
   if (filters.genre) vars.genre = filters.genre
   if (filters.year) vars.year = filters.year
   if (filters.format) vars.format = filters.format
   if (filters.minScore) vars.minScore = filters.minScore
-  const data = await gql(SEARCH_ANIME, vars, signal)
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(SEARCH_ANIME, vars, signal)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
-export async function browseAnime(page = 1, perPage = 24, filters = {}) {
-  const vars = { page, perPage }
+export async function browseAnime(page = 1, perPage = 24, filters: DirectoryFilters = {}): Promise<AnimeListResult> {
+  const vars: Record<string, unknown> = { page, perPage }
   if (filters.genre) vars.genre = filters.genre
   if (filters.year) vars.year = filters.year
   if (filters.format) vars.format = filters.format
   if (filters.minScore) vars.minScore = filters.minScore
-  const data = await gql(SEARCH_ANIME, vars)
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(SEARCH_ANIME, vars)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
-export async function getTopAnimeList(category = 'trending', page = 1, perPage = 20) {
-  const sortMap = {
+export async function getTopAnimeList(category = 'trending', page = 1, perPage = 20): Promise<AnimeListResult> {
+  const sortMap: Record<string, string[]> = {
     trending: ['TRENDING_DESC', 'POPULARITY_DESC'],
     popular: ['POPULARITY_DESC'],
     top: ['SCORE_DESC'],
     airing: ['POPULARITY_DESC'],
     upcoming: ['POPULARITY_DESC'],
   }
-  const statusMap = {
+  const statusMap: Record<string, string> = {
     airing: 'RELEASING',
     upcoming: 'NOT_YET_RELEASED',
   }
   const sorts = sortMap[category] || sortMap.trending
   const status = statusMap[category] || null
-  const data = await gql(TOP_ANIME, { page, perPage, sort: sorts, status })
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(TOP_ANIME, { page, perPage, sort: sorts, status })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function getAnimeInfo(id) {
-  const data = await gql(GET_ANIME, { id })
+export async function getAnimeInfo(id: number | string): Promise<Media> {
+  const data = await gql<{ Media: Media }>(GET_ANIME, { id: Number(id) })
   return data.Media
 }
 
-export async function searchCharacter(query, page = 1, perPage = 20) {
-  const data = await gql(SEARCH_CHARACTER, { search: query, page, perPage })
+export async function searchCharacter(query: string, page = 1, perPage = 20): Promise<CharacterListResult> {
+  const data = await gql<{ Page: { characters: Character[]; pageInfo: PageInfo } }>(SEARCH_CHARACTER, { search: query, page, perPage })
   return { data: data.Page.characters, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function getCharacterInfo(id) {
-  const data = await gql(GET_CHARACTER, { id })
+export async function getCharacterInfo(id: number | string): Promise<Character> {
+  const data = await gql<{ Character: Character }>(GET_CHARACTER, { id: Number(id) })
   return data.Character
 }
 
-export async function getAnimeCharacters(animeId, page = 1, perPage = 50) {
-  const data = await gql(GET_ANIME_CHARACTERS, { id: animeId, page, perPage })
+export async function getAnimeCharacters(animeId: number | string, page = 1, perPage = 50): Promise<CharactersResult> {
+  const data = await gql<{ Media: { characters: { edges: CharacterEdge[]; pageInfo: PageInfo } } }>(GET_ANIME_CHARACTERS, { id: Number(animeId), page, perPage })
   return { data: data.Media?.characters?.edges || [], pageInfo: data.Media?.characters?.pageInfo }
 }
 
-export async function getSchedule(page = 1, perPage = 30, notYetAired = true) {
-  const data = await gql(GET_SCHEDULE, { page, perPage, notYetAired })
+export async function getSchedule(page = 1, perPage = 30, notYetAired = true): Promise<ScheduleResult> {
+  const data = await gql<{ Page: { airingSchedules: AiringSchedule[]; pageInfo: PageInfo } }>(GET_SCHEDULE, { page, perPage, notYetAired })
   return { data: data.Page.airingSchedules, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function getSeasonalAnime(season, year, page = 1, perPage = 20) {
+export async function getSeasonalAnime(season: string, year: number, page = 1, perPage = 20): Promise<AnimeListResult> {
   const seasonUpper = season ? season.toUpperCase() : getCurrentSeason()
   const seasonYear = year || new Date().getFullYear()
-  const data = await gql(GET_SEASONAL, { season: seasonUpper, seasonYear, page, perPage })
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(GET_SEASONAL, { season: seasonUpper, seasonYear, page, perPage })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
@@ -386,13 +579,105 @@ const GET_ANIME_TITLE = `
     }
   }`
 
-export async function getAnimeTitle(id) {
-  const data = await gql(GET_ANIME_TITLE, { id })
+export async function getAnimeTitle(id: number | string): Promise<Title | null> {
+  const data = await gql<{ Media: { title: Title } }>(GET_ANIME_TITLE, { id: Number(id) })
   return data?.Media?.title || null
 }
 
-export async function getDirectory(page = 1, perPage = 30, filters = {}, signal) {
-  const vars = { page, perPage }
+const GET_STAFF = `
+  query ($id: Int) {
+    Staff(id: $id) {
+      id
+      name { full native alternative }
+      image { large }
+      description
+      primaryOccupations
+      gender
+      dateOfBirth { year month day }
+      age
+      homeTown
+      bloodType
+      favourites
+      staffMedia(page: 1, perPage: 25, sort: POPULARITY_DESC) {
+        edges {
+          node { id title { romaji english } coverImage { large } type format averageScore episodes chapters status startDate { year month day } }
+          staffRole
+        }
+      }
+      characters(page: 1, perPage: 25, sort: ROLE) {
+        edges {
+          node { id name { full } image { large } }
+          role
+          media { id title { romaji english } coverImage { large } type format }
+        }
+      }
+    }
+  }`
+
+interface StaffDetail {
+  id: number
+  name: { full: string; native?: string; alternative?: string[] }
+  image: { large: string }
+  description?: string
+  primaryOccupations?: string[]
+  gender?: string
+  dateOfBirth?: FuzzyDate
+  age?: number
+  homeTown?: string
+  bloodType?: string
+  favourites: number
+  staffMedia?: {
+    edges: {
+      node: Media
+      staffRole: string
+    }[]
+  }
+  characters?: {
+    edges: {
+      node: { id: number; name: { full: string }; image: { large: string } }
+      role: string
+      media: { id: number; title: Title; coverImage: CoverImage; type: string; format?: string }
+    }[]
+  }
+}
+
+export async function getStaffInfo(id: number | string): Promise<StaffDetail> {
+  const data = await gql<{ Staff: StaffDetail }>(GET_STAFF, { id: Number(id) })
+  return data.Staff
+}
+
+const GET_STUDIO = `
+  query ($id: Int, $page: Int, $perPage: Int) {
+    Studio(id: $id) {
+      id
+      name
+      isAnimationStudio
+      favourites
+      media(page: $page, perPage: $perPage, sort: POPULARITY_DESC) {
+        pageInfo { hasNextPage total }
+        nodes { id title { romaji english } coverImage { large } type format averageScore episodes status startDate { year month day } }
+      }
+    }
+  }`
+
+interface StudioDetail {
+  id: number
+  name: string
+  isAnimationStudio: boolean
+  favourites: number
+  media: {
+    pageInfo: PageInfo
+    nodes: Media[]
+  }
+}
+
+export async function getStudioInfo(id: number | string, page = 1, perPage = 30): Promise<StudioDetail> {
+  const data = await gql<{ Studio: StudioDetail }>(GET_STUDIO, { id: Number(id), page, perPage })
+  return data.Studio
+}
+
+export async function getDirectory(page = 1, perPage = 30, filters: DirectoryFilters = {}, signal?: AbortSignal): Promise<AnimeListResult> {
+  const vars: Record<string, unknown> = { page, perPage }
   if (filters.search) vars.search = filters.search
   if (filters.genre) vars.genre = filters.genre
   if (filters.genre_in?.length) vars.genre_in = filters.genre_in
@@ -401,11 +686,11 @@ export async function getDirectory(page = 1, perPage = 30, filters = {}, signal)
   if (filters.status) vars.status = filters.status
   if (filters.season) vars.season = filters.season
   vars.sort = filters.sort || ['TRENDING_DESC', 'POPULARITY_DESC']
-  const data = await gql(DIRECTORY_QUERY, vars, signal)
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(DIRECTORY_QUERY, vars, signal)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
-function getCurrentSeason() {
+function getCurrentSeason(): string {
   const month = new Date().getMonth() + 1
   if (month <= 3) return 'WINTER'
   if (month <= 6) return 'SPRING'

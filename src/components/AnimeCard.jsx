@@ -2,13 +2,18 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
-export default function AnimeCard({ anime, index = 0 }) {
+export default function AnimeCard({ anime, index = 0, progress }) {
   const id = anime.anilistId || anime.id
   const title = anime.title_es || anime.title?.romaji || anime.title?.english || anime.title?.native || anime.name || 'Sin título'
   const image = anime.image || anime.posterImage
   const score = anime.score || anime.averageScore
   const format = anime.format
+  const watchEp = anime.watchEp
   const [imgFailed, setImgFailed] = useState(false)
+
+  const linkTo = watchEp
+    ? `/watch?anilistId=${id}&ep=${watchEp}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image || '')}`
+    : `/anime/${id}`
 
   return (
     <motion.div
@@ -17,7 +22,7 @@ export default function AnimeCard({ anime, index = 0 }) {
       transition={{ duration: 0.3, delay: index * 0.05 }}
     >
       <Link
-        to={`/anime/${id}`}
+        to={linkTo}
         className="group relative rounded-2xl overflow-hidden bg-surface card-hover block"
       >
         <div className="aspect-[3/4] overflow-hidden relative">
@@ -58,11 +63,26 @@ export default function AnimeCard({ anime, index = 0 }) {
           </span>
         )}
 
+        {watchEp && (
+          <span className="absolute bottom-10 right-2 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/40">
+            Ep. {watchEp}
+          </span>
+        )}
+
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <h3 className="text-sm font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">
             {title}
           </h3>
         </div>
+
+        {progress !== undefined && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+            <div
+              className="h-full bg-neon-cyan transition-all duration-300"
+              style={{ width: `${Math.min(progress * 100, 100)}%` }}
+            />
+          </div>
+        )}
 
         <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
       </Link>

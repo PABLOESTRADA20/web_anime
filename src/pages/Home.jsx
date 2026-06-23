@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Hero from '../components/Hero'
@@ -12,6 +12,8 @@ import { getRecentChapters } from '../lib/manga'
 import { useAuth } from '../hooks/useAuth'
 import { useHistory } from '../hooks/useHistory'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import { useToast } from '../components/Toast'
+import { getRecommendations, getUserGenreProfile, getUserInteractionIds } from '../lib/recommendations'
 
 function SectionHeader({ icon, title, link, linkText }) {
   return (
@@ -37,13 +39,23 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [recentChapters, setRecentChapters] = useState([])
   const [recentLoading, setRecentLoading] = useState(true)
+  const [recommendations, setRecommendations] = useState([])
+  const [recsLoading, setRecsLoading] = useState(false)
+  const toast = useToast()
+  const acRef = useRef(null)
 
   useEffect(() => {
+    acRef.current?.abort()
+    const ac = new AbortController()
+    acRef.current = ac
+
+    const signal = ac.signal
     Promise.all([
       getTopAnime('trending'),
       getTopAnime('popular'),
       getTopAnime('airing'),
     ]).then(([trendRes, popRes, airRes]) => {
+      if (signal.aborted) return
       const t = trendRes?.data || []
       const p = popRes?.data || []
       const a = airRes?.data || []
@@ -52,21 +64,54 @@ export default function Home() {
       setAiring(a)
       setLoading(false)
       Promise.all([enrichAnimeBatch(t), enrichAnimeBatch(p), enrichAnimeBatch(a)]).then(([te, pe, ae]) => {
-        setTrending(te)
-        setPopular(pe)
-        setAiring(ae)
+        if (!signal.aborted) {
+          setTrending(te)
+          setPopular(pe)
+          setAiring(ae)
+        }
       }).catch(() => {})
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      if (!signal.aborted) {
+        setLoading(false)
+        toast('Error al cargar el inicio', 'error')
+      }
+    })
+
+    return () => ac.abort()
+  }, [toast])
+
+  useEffect(() => {
+    const ac = new AbortController()
+    getRecentChapters(12)
+      .then((data) => {
+        if (!ac.signal.aborted) {
+          setRecentChapters(data || [])
+          setRecentLoading(false)
+        }
+      })
+      .catch(() => { if (!ac.signal.aborted) setRecentLoading(false) })
+    return () => ac.abort()
   }, [])
 
   useEffect(() => {
-    getRecentChapters(12)
-      .then((data) => {
-        setRecentChapters(data || [])
-        setRecentLoading(false)
-      })
-      .catch(() => setRecentLoading(false))
-  }, [])
+    if (!user) { setRecommendations([]); return }
+    const ac = new AbortController()
+    setRecsLoading(true)
+    ;(async () => {
+      try {
+        const genres = await getUserGenreProfile(user.id)
+        if (ac.signal.aborted || genres.length === 0) { setRecsLoading(false); return }
+        const interactedIds = await getUserInteractionIds(user.id)
+        const result = await getRecommendations(genres)
+        if (!ac.signal.aborted) {
+          const filtered = (result.data || []).filter(a => !interactedIds.has(a.id)).slice(0, 12)
+          setRecommendations(filtered)
+        }
+      } catch { /* ignore */ }
+      setRecsLoading(false)
+    })()
+    return () => ac.abort()
+  }, [user])
 
   const recentHistory = useMemo(() => history.slice(0, 8), [history])
 
@@ -90,26 +135,36 @@ export default function Home() {
                   link="/search"
                   linkText="Ver más"
                 />
-                <div className="space-y-2">
+                <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
                   {recentHistory.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4 p-3 rounded-xl bg-surface hover:bg-surface-hover transition-all duration-300 group border border-transparent hover:border-primary/20 card-hover">
-                      <Link to={`/anime/${item.anilist_id}`} className="shrink-0">
-                        <div className="w-24 aspect-video rounded-lg overflow-hidden bg-surface-hover ring-1 ring-white/10 group-hover:ring-primary/30 transition-all">
-                          {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
-                        </div>
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <Link to={`/anime/${item.anilist_id}`} className="text-sm font-medium truncate group-hover:text-neon-cyan transition-colors block">
-                          {item.title}
-                        </Link>
-                        <Link to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
-                          className="inline-flex items-center gap-1 mt-1 text-xs text-text-secondary hover:text-neon-cyan transition-colors"
-                        >
-                          Episodio {item.episode_number}
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-                        </Link>
+                    <Link
+                      key={item.id}
+                      to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
+                      className="snap-start shrink-0 w-40 group relative rounded-2xl overflow-hidden bg-surface card-hover block"
+                    >
+                      <div className="aspect-[3/4] overflow-hidden relative">
+                        {item.image ? (
+                          <img src={item.image} alt={item.title} loading="lazy"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-secondary/40 text-xs p-4 text-center">
+                            {item.title}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                       </div>
-                    </div>
+                      <span className="absolute top-2 right-2 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/40">
+                        Ep. {item.episode_number}
+                      </span>
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <h3 className="text-xs font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">
+                          {item.title}
+                        </h3>
+                      </div>
+
+                      <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -149,6 +204,30 @@ export default function Home() {
                 </div>
               </div>
             </FadeIn>
+          )}
+        </section>
+      )}
+
+      {user && (recommendations.length > 0 || recsLoading) && (
+        <section className="mb-12">
+          <FadeIn>
+            <SectionHeader
+              icon={<svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>}
+              title="Recomendado para ti"
+              link="/search"
+              linkText="Ver más"
+            />
+          </FadeIn>
+          {recsLoading ? <GridSkeleton count={6} /> : (
+            <FadeInStagger>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {recommendations.map((a, i) => (
+                  <FadeIn key={a.anilistId || a.id}>
+                    <AnimeCard anime={a} index={i} />
+                  </FadeIn>
+                ))}
+              </div>
+            </FadeInStagger>
           )}
         </section>
       )}

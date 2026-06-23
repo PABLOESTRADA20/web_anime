@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
-export function useComments(anilistId, mediaType = 'anime') {
+export function useComments(anilistId, mediaType = 'anime', episodeNumber = null) {
   const { user } = useAuth()
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,26 +16,44 @@ export function useComments(anilistId, mediaType = 'anime') {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: err } = await supabase
+      let query = supabase
         .from('comments')
         .select(`
           *,
           user:user_id ( email ),
-          likes:comment_likes ( count ),
-          replies:comments!parent_id ( * )
+          likes:comment_likes ( count )
         `)
         .eq('anilist_id', anilistId)
         .eq('media_type', mediaType)
         .is('parent_id', null)
+
+      if (episodeNumber) {
+        query = query.eq('episode_number', episodeNumber)
+      }
+
+      const { data, error: err } = await query
         .order('created_at', { ascending: false })
 
       if (err) throw err
-      setComments(data || [])
+
+      // Fetch replies separately for each top-level comment
+      const commentsWithReplies = await Promise.all(
+        (data || []).map(async (comment) => {
+          const { data: replies } = await supabase
+            .from('comments')
+            .select('*, user:user_id ( email )')
+            .eq('parent_id', comment.id)
+            .order('created_at', { ascending: true })
+          return { ...comment, replies: replies || [] }
+        })
+      )
+
+      setComments(commentsWithReplies)
     } catch (e) {
       setError(e.message)
     }
     setLoading(false)
-  }, [anilistId, mediaType])
+  }, [anilistId, mediaType, episodeNumber])
 
   useEffect(() => {
     fetchComments()
@@ -44,16 +62,19 @@ export function useComments(anilistId, mediaType = 'anime') {
   async function addComment(content, rating = null, parentId = null) {
     if (!user || !isSupabaseReady()) return
     try {
+      const insertData = {
+        user_id: user.id,
+        anilist_id: parseInt(anilistId, 10),
+        media_type: mediaType,
+        content,
+        rating,
+        parent_id: parentId,
+      }
+      if (episodeNumber) insertData.episode_number = episodeNumber
+
       const { data, error: err } = await supabase
         .from('comments')
-        .insert({
-          user_id: user.id,
-          anilist_id: parseInt(anilistId, 10),
-          media_type: mediaType,
-          content,
-          rating,
-          parent_id: parentId,
-        })
+        .insert(insertData)
         .select()
         .single()
 

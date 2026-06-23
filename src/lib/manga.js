@@ -1,47 +1,124 @@
-const MANGADEX_API = 'https://api.mangadex.org'
-const MANGADEX_CDN = 'https://uploads.mangadex.org'
+import { getCached, setCache } from './cache.js'
 
-async function fetchJSON(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Manga API error ${res.status}: ${res.statusText}`)
-  return res.json()
+const MANGADEX_API = '/api/mangadex'
+const MANGADEX_CDN = 'https://uploads.mangadex.org'
+const RATE_LIMIT_MS = 250
+let lastRequestTime = 0
+const mdIdCache = new Map()
+
+async function rateLimit() {
+  const now = Date.now()
+  const wait = Math.max(0, RATE_LIMIT_MS - (now - lastRequestTime))
+  if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  lastRequestTime = Date.now()
 }
 
-async function getMangaDexIdFromAnilist(anilistId) {
-  const data = await fetchJSON(
-    `${MANGADEX_API}/manga?externalId[]=al:${anilistId}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&limit=1`
-  )
-  if (data?.data?.length > 0) {
-    return data.data[0].id
+async function fetchJSON(url, cacheKey) {
+  if (cacheKey) {
+    const cached = getCached(cacheKey, 'mangadex')
+    if (cached) return cached
   }
+
+  await rateLimit()
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Manga API error ${res.status}: ${res.statusText}`)
+  const json = await res.json()
+
+  if (cacheKey) setCache(cacheKey, json, 'mangadex')
+  return json
+}
+
+function getTitles(anilistData) {
+  const titles = []
+  if (anilistData?.title?.romaji) titles.push(anilistData.title.romaji)
+  if (anilistData?.title?.english) titles.push(anilistData.title.english)
+  if (anilistData?.title?.native) titles.push(anilistData.title.native)
+  return [...new Set(titles)]
+}
+
+async function findMangaDexId(anilistId, titleVariants) {
+  const cacheKey = `al:${anilistId}`
+  if (mdIdCache.has(cacheKey)) return mdIdCache.get(cacheKey)
+
+  for (const title of titleVariants) {
+    if (!title) continue
+    try {
+      const data = await fetchJSON(
+        `${MANGADEX_API}/manga?title=${encodeURIComponent(title)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+        `search:${title}`
+      )
+      if (data?.data?.length) {
+        const match = data.data.find(m => m.attributes?.links?.al === String(anilistId))
+        if (match) {
+          mdIdCache.set(cacheKey, match.id)
+          return match.id
+        }
+      }
+    } catch { continue }
+  }
+
+  mdIdCache.set(cacheKey, null)
   return null
 }
 
-export async function getMangaChapters(anilistId) {
-  const mdId = await getMangaDexIdFromAnilist(anilistId)
+async function fetchFeed(mdId, language) {
+  try {
+    const data = await fetchJSON(
+      `${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=${language}&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+      `feed:${mdId}:${language}`
+    )
+    return data?.data || []
+  } catch {
+    return []
+  }
+}
+
+const GET_ANILIST_MANGA_TITLE = `
+  query ($id: Int) {
+    Media(id: $id, type: MANGA) {
+      id
+      title { romaji english native }
+    }
+  }`
+
+async function fetchAnilistTitles(anilistId) {
+  try {
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query: GET_ANILIST_MANGA_TITLE, variables: { id: anilistId } }),
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    return getTitles(json?.data?.Media)
+  } catch { return [] }
+}
+
+export async function getMangaChapters(anilistId, anilistData) {
+  const titles = anilistData ? getTitles(anilistData) : await fetchAnilistTitles(anilistId)
+  const mdId = await findMangaDexId(anilistId, titles)
   if (!mdId) throw new Error('No se pudo encontrar el manga en MangaDex')
 
-  const [enFeed, esFeed] = await Promise.allSettled([
-    fetchJSON(`${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=en&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`),
-    fetchJSON(`${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=es&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`),
+  const [enChaps, esChaps] = await Promise.allSettled([
+    fetchFeed(mdId, 'en'),
+    fetchFeed(mdId, 'es'),
   ])
 
   const chapters = []
-  for (const result of [enFeed, esFeed]) {
+  for (const result of [enChaps, esChaps]) {
     if (result.status !== 'fulfilled') continue
-    for (const ch of (result.value?.data || [])) {
+    for (const ch of result.value) {
       if (!ch.attributes.chapter) continue
       chapters.push({
         chapterId: ch.id,
         chapterNumber: parseFloat(ch.attributes.chapter),
         title: ch.attributes.title || '',
         language: ch.attributes.translatedLanguage || 'en',
-        pages: 0,
+        pages: ch.attributes.pages || 0,
       })
     }
   }
 
-  // Deduplicate by chapter number, prefer Spanish
   const seen = new Map()
   for (const ch of chapters) {
     const existing = seen.get(ch.chapterNumber)
@@ -59,17 +136,19 @@ export async function getMangaChapterPages(chapterId) {
   const hash = data.chapter?.hash
   const pages = data.chapter?.data || []
   return pages.map((p, i) => ({
-    url: `${baseUrl}/data/${encodeURIComponent(hash)}/${encodeURIComponent(p)}`,
+    url: `${baseUrl}/data/${hash}/${p}`,
     pageNumber: i + 1,
   }))
 }
 
 export async function getRecentChapters(limit = 20) {
-  const chapterRes = await fetchJSON(
+  await rateLimit()
+  const chapterRes = await fetch(
     `${MANGADEX_API}/chapter?limit=${limit}&order[readableAt]=desc&translatedLanguage[]=en&translatedLanguage[]=es&includes[]=manga&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`
   )
-
-  const chapters = chapterRes?.data || []
+  if (!chapterRes.ok) throw new Error(`Manga API error ${chapterRes.status}`)
+  const chapterData = await chapterRes.json()
+  const chapters = chapterData?.data || []
   if (chapters.length === 0) return []
 
   const mangaIds = [...new Set(
@@ -113,5 +192,3 @@ export async function getRecentChapters(limit = 20) {
     })
     .filter(ch => ch.chapterNumber && ch.anilistId)
 }
-
-

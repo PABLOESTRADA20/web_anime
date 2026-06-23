@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { getTopManga, searchManga } from '../lib/anilist'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
 
 function MangaCard({ manga, index = 0 }) {
   const title = manga.title?.romaji || manga.title?.english || 'Sin título'
@@ -44,6 +46,7 @@ export default function Manga() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [hasNext, setHasNext] = useState(false)
+  const toast = useToast()
 
   const categories = [
     { id: 'trending', label: 'Tendencia' },
@@ -54,22 +57,26 @@ export default function Manga() {
   ]
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     setPage(1)
-    if (query) {
-      searchManga(query).then((res) => {
+    const fetch = query
+      ? searchManga(query, 1)
+      : getTopManga(category, 1)
+    fetch.then((res) => {
+      if (!ac.signal.aborted) {
         setMangaList(res.data || [])
         setHasNext(res.hasNextPage || false)
         setLoading(false)
-      }).catch(() => setLoading(false))
-    } else {
-      getTopManga(category).then((res) => {
-        setMangaList(res.data || [])
-        setHasNext(res.hasNextPage || false)
+      }
+    }).catch(() => {
+      if (!ac.signal.aborted) {
         setLoading(false)
-      }).catch(() => setLoading(false))
-    }
-  }, [query, category])
+        toast('Error al cargar manga', 'error')
+      }
+    })
+    return () => ac.abort()
+  }, [query, category, toast])
 
   async function loadMore() {
     const next = page + 1
@@ -81,7 +88,9 @@ export default function Manga() {
       setMangaList((prev) => [...prev, ...(res.data || [])])
       setHasNext(res.hasNextPage || false)
       setPage(next)
-    } catch (e) { console.error(e) }
+    } catch {
+      toast('Error al cargar más', 'error')
+    }
     setLoading(false)
   }
 
@@ -91,7 +100,7 @@ export default function Manga() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {!query && (
         <>
-          <h1 className="text-xl font-bold mb-6">📚 Manga</h1>
+          <h1 className="text-xl font-bold mb-6">Manga</h1>
           <div className="flex flex-wrap gap-2 mb-6">
             {categories.map((cat) => (
               <button
@@ -115,7 +124,7 @@ export default function Manga() {
       {loading && mangaList.length === 0 ? (
         <GridSkeleton count={12} />
       ) : mangaList.length === 0 ? (
-        <p className="text-text-secondary">No se encontraron resultados.</p>
+        <EmptyState message="No se encontraron resultados." />
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

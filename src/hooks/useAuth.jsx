@@ -31,7 +31,25 @@ export function AuthProvider({ children }) {
   }
 
   async function register(email, password) {
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
+    return data
+  }
+
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login?reset=true`,
+    })
+    if (error) throw error
+  }
+
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+  }
+
+  async function loginWithProvider(provider) {
+    const { error } = await supabase.auth.signInWithOAuth({ provider })
     if (error) throw error
   }
 
@@ -40,8 +58,10 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const needsVerification = user && !user.email_confirmed_at && !user?.identities?.some(i => i.identity_provider !== 'email')
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isReady: isSupabaseReady() }}>
+    <AuthContext.Provider value={{ user, loading, login, register, resetPassword, updatePassword, loginWithProvider, logout, isReady: isSupabaseReady(), needsVerification }}>
       {children}
     </AuthContext.Provider>
   )

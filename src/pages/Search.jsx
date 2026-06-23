@@ -5,6 +5,7 @@ import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import { searchAnime, enrichAnimeBatch } from '../lib/api'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
 
 const GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller']
 const FORMATS = ['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL', 'MUSIC']
@@ -51,7 +52,7 @@ export default function Search() {
       if (e.name !== 'AbortError') setLoading(false)
     })
     return () => ac.abort()
-  }, [query, filters])
+  }, [query, filters, hasAny])
 
   async function loadMore() {
     const next = page + 1
@@ -230,15 +231,10 @@ export default function Search() {
       {loading && results.length === 0 ? (
         <GridSkeleton count={12} />
       ) : results.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-text-secondary">No se encontraron resultados.</p>
-          <button
-            onClick={clearFilters}
-            className="mt-3 text-sm text-primary hover:underline"
-          >
-            Limpiar filtros
-          </button>
-        </div>
+        <EmptyState
+          message="No se encontraron resultados."
+          action={hasAny ? { label: 'Limpiar filtros', onClick: clearFilters } : undefined}
+        />
       ) : (
         <>
           <p className="text-xs text-text-secondary mb-4">{results.length} resultado{results.length !== 1 ? 's' : ''}</p>

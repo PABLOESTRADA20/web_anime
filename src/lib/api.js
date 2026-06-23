@@ -1,8 +1,10 @@
 import { getEpisodes as anivexaGetEpisodes, getWatch as anivexaGetWatch, getBestProvider, getEpisodeList, normalizeStreams, PROVIDER_PRIORITY } from './anivexa.js'
 import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo, getAnimeTitle as anilistGetTitle } from './anilist.js'
-import { getAnimeEpisodes as kenjitsuGetEpisodes, getAnimepaheSources, searchAnime as prvSearch, getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
+import { getAnimeEpisodes as kenjitsuGetEpisodes, getAnimepaheSources, searchAnime as prvSearch, 
+getTopAnime as prvTop, getAnimeInfo as prvInfo } from './providers.js'
 import { getEpisodes as miruroGetEpisodes, getWatch as miruroGetWatch, MIRURO_PROVIDERS } from './miruro.js'
-import { getSpanishMetadata, getSlug, getAnimeInfo as animeflvGetInfo } from './animeflv.js'
+import { getSpanishMetadata, getSlug } from './animeflv.js'
+import { getAnimeEpisodes as veranimeEpisodes } from './veranime.js'
 
 function normalizeAnime(item) {
   if (!item) return item
@@ -12,7 +14,7 @@ function normalizeAnime(item) {
     image: item.image || item.coverImage?.large || item.posterImage,
     score: item.score ?? item.averageScore ?? null,
     synopsis: item.synopsis || item.description || '',
-    studio: item.studio || item.studios?.nodes?.[0]?.name || null,
+    studio: item.studio || (item.studios?.nodes?.[0] ? { id: item.studios.nodes[0].id, name: item.studios.nodes[0].name } : null),
     relations: (item.relations?.edges || item.relations || []).map(e => {
       const node = e.node || e.mediaRecommendation || e
       return { ...node, anilistId: node.id, image: node.image || node.coverImage?.large }
@@ -66,8 +68,7 @@ export async function getAnimeInfo(id) {
 async function tryEnrichSpanish(anime) {
   const title = anime.title?.romaji || anime.title?.english || ''
   if (!title) return
-  const slug = getSlug(title)
-  const es = await animeflvGetInfo(slug)
+  const es = await getSpanishMetadata(title)
   if (es) {
     anime.title_es = es.title
     anime.synopsis_es = es.synopsis
@@ -78,7 +79,6 @@ async function tryEnrichSpanish(anime) {
 const ES_CONCURRENCY = 5
 
 export async function enrichAnimeBatch(list) {
-  const results = []
   const queue = [...list]
   async function worker() {
     while (queue.length) {
@@ -87,8 +87,7 @@ export async function enrichAnimeBatch(list) {
       const title = item.title?.romaji || item.title?.english || ''
       if (!title) continue
       try {
-        const slug = getSlug(title)
-        const es = await animeflvGetInfo(slug)
+        const es = await getSpanishMetadata(title)
         if (es) {
           item.title_es = es.title
           item.synopsis_es = es.synopsis
@@ -101,40 +100,25 @@ export async function enrichAnimeBatch(list) {
   return list
 }
 
-let animeflvSlugCache = {}
-
-export async function getAnimeflvSlug(anilistId) {
-  if (animeflvSlugCache[anilistId]) return animeflvSlugCache[anilistId]
+async function tryAnimeflvEpisodes(anilistId) {
   try {
     const title = await anilistGetTitle(anilistId)
-    const romaji = title?.romaji || title?.english || ''
-    if (!romaji) return null
-    const slug = getSlug(romaji)
-    animeflvSlugCache[anilistId] = slug
-    return slug
-  } catch { return null }
-}
-
-async function tryAnimeflvEpisodes(anilistId) {
-  const slug = await getAnimeflvSlug(anilistId)
-  if (!slug) return null
-  try {
-    const data = await animeflvGetInfo(slug)
-    if (data?.episodes?.length) {
-      return {
-        providerEpisodes: data.episodes.map(ep => ({
-          number: ep.number,
-          title: `Episodio ${ep.number}`,
-          episodeId: ep.slug,
-        })),
-        dubEpisodes: data.episodes.map(ep => ({
-          number: ep.number,
-          title: `Episodio ${ep.number}`,
-          episodeId: ep.slug,
-        })),
-        provider: 'animeflv',
-        spanishInfo: { title: data.title, synopsis: data.synopsis, genres: data.genres, cover: data.cover },
-      }
+    if (!title) return null
+    const es = await getSpanishMetadata(title)
+    if (!es?.episodes?.length) return null
+    return {
+      providerEpisodes: es.episodes.map(ep => ({
+        number: ep.number,
+        title: `Episodio ${ep.number}`,
+        episodeId: ep.slug,
+      })),
+      dubEpisodes: es.episodes.map(ep => ({
+        number: ep.number,
+        title: `Episodio ${ep.number}`,
+        episodeId: ep.slug,
+      })),
+      provider: 'animeflv',
+      spanishInfo: { title: es.title, synopsis: es.synopsis, genres: es.genres, cover: es.cover },
     }
   } catch { /* fall through */ }
   return null
@@ -144,6 +128,14 @@ export async function getAnimeEpisodes(anilistId, audio) {
   if (audio === 'latam') {
     const ae = await tryAnimeflvEpisodes(anilistId)
     if (ae) return ae
+
+    try {
+      const title = await anilistGetTitle(anilistId)
+      if (title?.romaji) {
+        const veranime = await veranimeEpisodes(getSlug(title.romaji))
+        if (veranime?.providerEpisodes?.length) return veranime
+      }
+    } catch { /* fall through */ }
   }
 
   for (const p of MIRURO_PROVIDERS) {
@@ -183,13 +175,35 @@ export async function getAnimeEpisodes(anilistId, audio) {
   return { providerEpisodes: [], dubEpisodes: [], provider: null }
 }
 
+function isSpanishSub(s) {
+  const lang = (s.language || s.lang || s.srclang || '').toLowerCase()
+  const file = (s.file || '').toLowerCase()
+  const label = (s.label || '').toLowerCase()
+  return lang === 'es' || lang === 'spa' ||
+    /spanish|español|espanol|latino|castellano/.test(label) ||
+    /es\.|spanish\.|spa-|_es\./.test(file)
+}
+
 async function tryAnivexaProvider(provider, anilistId, epNum, audio, signal) {
   const data = await anivexaGetWatch(anilistId, provider, epNum, audio, signal)
   const { sources, subtitles, audioLang } = normalizeStreams(data)
   if (sources.length > 0) {
-    return { sources, subtitles, audioLang, provider, backend: 'anivexa' }
+    return { sources, subtitles, audioLang, provider, backend: 'anivexa', audioType: audio === 'dub' ? 'dub' : 'sub' }
   }
   throw new Error(`${provider}: sin fuentes disponibles`)
+}
+
+async function findSpanishSubtitles(anilistId, epNum, signal) {
+  const providers = PROVIDER_PRIORITY.filter(p => p !== 'animepahe')
+  for (const p of providers) {
+    try {
+      const data = await anivexaGetWatch(anilistId, p, epNum, 'sub', signal)
+      const { subtitles } = normalizeStreams(data)
+      const es = subtitles.find(isSpanishSub)
+      if (es) return [es]
+    } catch { /* skip */ }
+  }
+  return []
 }
 
 async function tryKenjitsuAnimepahe(anilistId, epNum, audio = 'sub') {
@@ -220,11 +234,23 @@ async function tryKenjitsuAnimepahe(anilistId, epNum, audio = 'sub') {
     type: s.type || 'hls',
   }))
 
-  const subtitles = subResult.status === 'fulfilled' && subResult.value?.subtitles?.length
+  let subtitles = subResult.status === 'fulfilled' && subResult.value?.subtitles?.length
     ? subResult.value.subtitles
     : []
 
-  return { sources, subtitles, downloads: [], audioLang: null, provider: 'animepahe', backend: 'kenjitsu' }
+  if (!subtitles.length || !subtitles.some(isSpanishSub)) {
+    for (const p of PROVIDER_PRIORITY) {
+      try {
+        const data = await anivexaGetWatch(anilistId, p, epNum, audio)
+        const ns = normalizeStreams(data)
+        const es = ns.subtitles?.find(isSpanishSub)
+        if (es) { subtitles = [es, ...ns.subtitles.filter(s => !isSpanishSub(s))]; break }
+        if (!subtitles.length && ns.subtitles?.length) subtitles = ns.subtitles
+      } catch { /* continue */ }
+    }
+  }
+
+  return { sources, subtitles, downloads: [], audioLang: null, provider: 'animepahe', backend: 'kenjitsu', audioType: audio === 'dub' ? 'dub' : 'sub' }
 }
 
 async function tryMiruroProvider(miruroProvider, anilistId, epNum, audio = 'sub') {
@@ -248,19 +274,42 @@ async function tryMiruroProvider(miruroProvider, anilistId, epNum, audio = 'sub'
     ? subResult.value.subtitles
     : []
 
-  if (!subtitles.length) {
+  if (!subtitles.length || !subtitles.some(isSpanishSub)) {
+    let allSubs = []
     for (const p of PROVIDER_PRIORITY) {
       try {
         const data = await anivexaGetWatch(anilistId, p, epNum, dubAudio)
         const ns = normalizeStreams(data)
-        if (ns.subtitles?.length) { subtitles = ns.subtitles; break }
+        if (ns.subtitles?.length) {
+          const esSub = ns.subtitles.find(isSpanishSub)
+          if (esSub) { subtitles = [esSub, ...ns.subtitles.filter(s => !isSpanishSub(s))]; break }
+          allSubs = [...allSubs, ...ns.subtitles]
+          if (!subtitles.length) subtitles = allSubs
+        }
       } catch { /* continue */ }
     }
   }
 
   const result = { sources: watchResult.value.sources, subtitles, downloads: [], audioLang: null, provider: miruroProvider, backend: 'miruro' }
-  result.audioType = audio === 'latam' ? 'dub' : audio
+  result.audioType = audio === 'latam' ? 'latam' : audio
   return result
+}
+
+async function tryVerAnimeProvider(title, epNum) {
+  if (!title) throw new Error('VerAnime: sin título')
+  const slug = getSlug(title)
+  const episodes = await veranimeEpisodes(slug)
+  const ep = episodes.providerEpisodes.find(e => e.number === epNum)
+  if (!ep?.slug) throw new Error('VerAnime: episodio no encontrado')
+  const res = await fetch(`/api/proxy?url=${encodeURIComponent(`https://veranime.lat/api/anime/episode/servers?slug=${ep.slug}`)}`)
+  const servers = await res.json()
+  const latino = servers?.find(s => s.lang?.includes('latino') || s.lang?.includes('es'))
+  const server = latino || servers?.[0]
+  if (!server?.id) throw new Error('VerAnime: sin servidores')
+  return {
+    sources: [{ url: server.id, quality: 'auto', referer: 'https://www.veranime.lat/', type: 'hls' }],
+    subtitles: [], downloads: [], audioType: 'latam', provider: 'veranime', backend: 'veranime',
+  }
 }
 
 export async function getWatchWithFallback(anilistId, preferredProvider, epNum, audio = 'sub') {
@@ -268,7 +317,6 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
   const isAnimeflv = preferredProvider === 'animeflv'
   const isMiruro = MIRURO_PROVIDERS.includes(preferredProvider) || preferredProvider.startsWith('miruro-')
   const errors = []
-  const latamAudio = audio === 'latam' || isAnimeflv ? 'dub' : audio
 
   if (isKenjitsu) {
     try {
@@ -281,19 +329,29 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     }
   }
 
-  if (isAnimeflv) {
-    // AnimeFLV = LATAM forced: try Miruro dub first, always inject Spanish subs
-    for (const p of MIRURO_PROVIDERS) {
-      try {
-        const result = await tryMiruroProvider(p, anilistId, epNum, 'latam')
+  if (isAnimeflv || audio === 'latam') {
+    try {
+      const title = await anilistGetTitle(anilistId)
+      if (title?.romaji) {
+        const result = await tryVerAnimeProvider(title.romaji, epNum)
         result.provider = 'animeflv'
         result.audioType = 'latam'
         return result
+      }
+    } catch (e) {
+      errors.push({ provider: 'veranime', backend: 'veranime', message: e.message })
+    }
+
+    for (const p of MIRURO_PROVIDERS) {
+      try {
+        const result = await tryMiruroProvider(p, anilistId, epNum, 'latam')
+        result.provider = isAnimeflv ? 'animeflv' : p
+        result.audioType = 'latam'
+        return result
       } catch (e) {
-        errors.push({ provider: `animeflv/${p}`, backend: 'miruro', message: e.message })
+        errors.push({ provider: `${isAnimeflv ? 'animeflv/' : ''}${p}`, backend: 'miruro', message: e.message })
       }
     }
-    // Fallback to Anivexa with dub
     return await fallbackAnivexa(anilistId, epNum, errors, true)
   }
 
@@ -306,7 +364,6 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     }
   }
 
-  // Try MiruroAPI providers first (working CDNs)
   {
     let miruroList = MIRURO_PROVIDERS
     if (preferredProvider && !isKenjitsu && !isMiruro) {
@@ -321,8 +378,7 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     }
   }
 
-  // Fallback to Anivexa providers
-  return await fallbackAnivexa(anilistId, epNum, errors, audio === 'latam')
+  return await fallbackAnivexa(anilistId, epNum, errors, false)
 }
 
 async function fallbackAnivexa(anilistId, epNum, errors, isLatam) {
@@ -338,7 +394,7 @@ async function fallbackAnivexa(anilistId, epNum, errors, isLatam) {
   const attempts = ordered.map(async (provider) => {
     try {
       const result = await tryAnivexaProvider(provider, anilistId, epNum, dubAudio, signal)
-      result.audioType = isLatam ? (result.audioLang === 'es' ? 'latam' : 'dub') : 'sub'
+      result.audioType = isLatam ? 'latam' : 'sub'
       controller.abort()
       return result
     } catch (e) {
@@ -347,17 +403,29 @@ async function fallbackAnivexa(anilistId, epNum, errors, isLatam) {
     }
   })
 
+  let result
   try {
-    return await Promise.any(attempts)
+    result = await Promise.any(attempts)
   } catch {
-    // all anivexa providers failed
+    result = null
+  }
+
+  if (result) {
+    if (!result.subtitles.some(isSpanishSub)) {
+      const esSubs = await findSpanishSubtitles(anilistId, epNum, signal)
+      if (esSubs.length > 0) {
+        const existing = result.subtitles.filter(s => !isSpanishSub(s))
+        result.subtitles = [...esSubs, ...existing]
+      }
+    }
+    return result
   }
 
   // Final fallback to Kenjitsu
   try {
-    const result = await tryKenjitsuAnimepahe(anilistId, epNum, isLatam ? 'dub' : 'sub')
-    if (isLatam) result.audioType = 'dub'
-    return result
+    const kenjitsuResult = await tryKenjitsuAnimepahe(anilistId, epNum, isLatam ? 'dub' : 'sub')
+    if (isLatam) kenjitsuResult.audioType = 'latam'
+    return kenjitsuResult
   } catch (e) {
     errors.push({ provider: 'animepahe', backend: 'kenjitsu', message: e.message })
   }

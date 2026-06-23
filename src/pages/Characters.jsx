@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { searchCharacter } from '../lib/anilist'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
 
 export default function Characters() {
   const [searchParams] = useSearchParams()
@@ -14,19 +16,28 @@ export default function Characters() {
   const [page, setPage] = useState(1)
   const [hasNext, setHasNext] = useState(false)
   const [searched, setSearched] = useState(false)
+  const toast = useToast()
+  const acRef = useRef(null)
 
   async function handleSearch(e) {
     e?.preventDefault()
     if (!query.trim()) return
+    acRef.current?.abort()
+    const ac = new AbortController()
+    acRef.current = ac
     setLoading(true)
     setSearched(true)
     setPage(1)
     try {
-      const res = await searchCharacter(query)
-      setResults(res.data || [])
-      setHasNext(res.hasNextPage || false)
-    } catch (e) { console.error(e) }
-    setLoading(false)
+      const res = await searchCharacter(query, 1, ac.signal)
+      if (!ac.signal.aborted) {
+        setResults(res.data || [])
+        setHasNext(res.hasNextPage || false)
+      }
+    } catch {
+      if (!ac.signal.aborted) toast('Error al buscar personajes', 'error')
+    }
+    if (!ac.signal.aborted) setLoading(false)
   }
 
   async function loadMore() {
@@ -37,7 +48,9 @@ export default function Characters() {
       setResults((prev) => [...prev, ...(res.data || [])])
       setHasNext(res.hasNextPage || false)
       setPage(next)
-    } catch (e) { console.error(e) }
+    } catch {
+      toast('Error al cargar más', 'error')
+    }
     setLoading(false)
   }
 
@@ -45,7 +58,7 @@ export default function Characters() {
     <>
       <SeoHead title={queryFromUrl ? `"${queryFromUrl}" — Personajes` : 'Personajes'} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <h1 className="text-xl font-bold mb-6">🔍 Personajes</h1>
+        <h1 className="text-xl font-bold mb-6">Personajes</h1>
 
       <form onSubmit={handleSearch} className="mb-6">
         <div className="flex gap-2">
@@ -69,7 +82,7 @@ export default function Characters() {
       ) : !searched ? (
         <p className="text-text-secondary text-sm">Busca un personaje por nombre.</p>
       ) : results.length === 0 ? (
-        <p className="text-text-secondary">No se encontraron personajes.</p>
+        <EmptyState message="No se encontraron personajes." />
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

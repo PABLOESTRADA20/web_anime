@@ -5,6 +5,8 @@ import { getSeasonalAnime } from '../lib/anilist'
 import { enrichAnimeBatch } from '../lib/api'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
 
 function AnimeCardSmall({ anime, index = 0 }) {
   const title = anime.title?.romaji || anime.title?.english || 'Sin título'
@@ -48,18 +50,29 @@ export default function Seasonal() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [page, setPage] = useState(1)
   const [hasNext, setHasNext] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     setPage(1)
     getSeasonalAnime(season, year).then((res) => {
+      if (ac.signal.aborted) return
       const list = res.data || []
       setAnimeList(list)
       setHasNext(res.hasNextPage || false)
       setLoading(false)
-      enrichAnimeBatch(list).then(setAnimeList).catch(() => {})
-    }).catch(() => setLoading(false))
-  }, [season, year])
+      enrichAnimeBatch(list).then((enriched) => {
+        if (!ac.signal.aborted) setAnimeList(enriched)
+      }).catch(() => {})
+    }).catch(() => {
+      if (!ac.signal.aborted) {
+        setLoading(false)
+        toast('Error al cargar temporada', 'error')
+      }
+    })
+    return () => ac.abort()
+  }, [season, year, toast])
 
   async function loadMore() {
     const next = page + 1
@@ -69,7 +82,9 @@ export default function Seasonal() {
       setAnimeList((prev) => [...prev, ...(res.data || [])])
       setHasNext(res.hasNextPage || false)
       setPage(next)
-    } catch (e) { console.error(e) }
+    } catch {
+      toast('Error al cargar más', 'error')
+    }
     setLoading(false)
   }
 
@@ -89,7 +104,7 @@ export default function Seasonal() {
       <SeoHead title={`Temporada ${season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} ${year}`} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <h1 className="text-xl font-bold mb-6">
-        🗓️ Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
+        Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
       </h1>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -123,7 +138,7 @@ export default function Seasonal() {
       {loading && animeList.length === 0 ? (
         <GridSkeleton count={12} />
       ) : animeList.length === 0 ? (
-        <p className="text-text-secondary">No hay anime en esta temporada.</p>
+        <EmptyState message="No hay anime en esta temporada." />
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

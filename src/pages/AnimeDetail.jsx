@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
@@ -6,7 +6,10 @@ import AnimeCard from '../components/AnimeCard'
 import { FadeIn, FadeInStagger } from '../components/FadeIn'
 import GradientHeading from '../components/GradientHeading'
 import CommentSection from '../components/CommentSection'
+import ReviewSection from '../components/ReviewSection'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
+
 import { getAnimeInfo, getAnimeEpisodes } from '../lib/api'
 import { getAnimeCharacters } from '../lib/anilist'
 import { useAuth } from '../hooks/useAuth'
@@ -15,6 +18,7 @@ import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useAnimeRatings } from '../hooks/useAnimeRatings'
 import { useHistory } from '../hooks/useHistory'
 import { useAnimeLists } from '../hooks/useAnimeLists'
+import AddToCollectionBtn from '../components/AddToCollectionBtn'
 import { useToast } from '../components/Toast'
 
 export default function AnimeDetail() {
@@ -39,6 +43,22 @@ export default function AnimeDetail() {
   const [showTrailer, setShowTrailer] = useState(false)
   const [seasons, setSeasons] = useState([])
   const [activeSeason, setActiveSeason] = useState(0)
+
+  const SEASON_ORDER = useMemo(() => ({ WINTER: 0, SPRING: 1, SUMMER: 2, FALL: 3 }), [])
+
+  const sortSeasonMeta = useCallback((meta) => {
+    return [...meta].sort((a, b) => {
+      const aYear = a.seasonYear || 0
+      const bYear = b.seasonYear || 0
+      if (aYear !== bYear) return aYear - bYear
+      return (SEASON_ORDER[a.season] || 0) - (SEASON_ORDER[b.season] || 0)
+    })
+  }, [SEASON_ORDER])
+
+  function seasonLabel(s) {
+    if (s.season && s.seasonYear) return `${s.season} ${s.seasonYear}`
+    return s.title || `Parte`
+  }
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -58,40 +78,64 @@ export default function AnimeDetail() {
       setCharacters(charRes?.data || [])
       setLoading(false)
 
-      const title = data?.title?.romaji || data?.title?.english || data?.title?.native || ''
       const currentId = parseInt(id, 10)
+      const title = data?.title?.romaji || data?.title?.english || data?.title?.native || ''
 
-      const prequels = (data?.relations || []).filter(r => r.relationType === 'PREQUEL')
-      const sequels = (data?.relations || []).filter(r => r.relationType === 'SEQUEL')
+      const relations = data?.relations || []
+      const franchise = relations.filter(r =>
+        ['PREQUEL', 'SEQUEL', 'PARENT', 'SIDE_STORY'].includes(r.relationType)
+      )
+      if (franchise.length === 0) return
 
-      const hasRelated = prequels.length > 0 || sequels.length > 0
-      if (!hasRelated) return
+      const currentMeta = {
+        id: currentId,
+        title,
+        season: data.season,
+        seasonYear: data.seasonYear,
+        episodes: data.episodes,
+        status: data.status,
+      }
 
-      const seasonMeta = [
-        ...prequels.map(r => ({ id: r.anilistId, title: r.title?.romaji || r.title?.english || '' })),
-        { id: currentId, title },
-        ...sequels.map(r => ({ id: r.anilistId, title: r.title?.romaji || r.title?.english || '' })),
-      ]
+      const relatedMeta = franchise.map(r => ({
+        id: r.id,
+        title: r.title?.romaji || r.title?.english || '',
+        season: r.season,
+        seasonYear: r.seasonYear,
+        episodes: r.episodes,
+        status: r.status,
+      }))
 
-      Promise.all(seasonMeta.map(s =>
+      const allMeta = sortSeasonMeta([...relatedMeta, currentMeta])
+      const seen = new Set()
+      const unique = allMeta.filter(m => {
+        if (seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      })
+
+      Promise.all(unique.map(s =>
         getAnimeEpisodes(s.id)
           .then(r => ({ providerEpisodes: r.providerEpisodes || [], dubEpisodes: r.dubEpisodes || [] }))
           .catch(() => ({ providerEpisodes: [], dubEpisodes: [] }))
       )).then(results => {
         if (cancelled) return
-        const seasonData = seasonMeta.map((meta, i) => ({
+        const seasonData = unique.map((meta, i) => ({
           id: meta.id,
-          title: meta.title,
-          episodes: results[i].providerEpisodes,
+          title: seasonLabel(meta),
+          providerEpisodes: results[i].providerEpisodes,
           dubEpisodes: results[i].dubEpisodes,
+          totalEpisodes: meta.episodes,
+          status: meta.status,
         }))
+        const currentIndex = seasonData.findIndex(s => s.id === currentId)
+        setActiveSeason(currentIndex >= 0 ? currentIndex : 0)
         setSeasons(seasonData)
       }).catch(() => {})
     }).catch(() => { if (!cancelled) setLoading(false) })
 
     if (user) fetchRating(parseInt(id, 10))
     return () => { cancelled = true }
-  }, [id, user])
+  }, [id, user, fetchRating, sortSeasonMeta])
 
   async function handleWatchlist() {
     if (!anime) return
@@ -133,7 +177,7 @@ export default function AnimeDetail() {
   if (!anime) return (
     <>
       <SeoHead title="Anime no encontrado" />
-      <div className="text-center py-20 text-text-secondary">No se encontró el anime.</div>
+      <EmptyState icon="🔍" message="No se encontró el anime." />
     </>
   )
 
@@ -145,8 +189,10 @@ export default function AnimeDetail() {
   const listStatus = getListStatus(parseInt(id, 10))
   const userRating = ratings[parseInt(id, 10)]
   const currentEps = episodeAudio === 'sub'
-    ? (seasons[activeSeason]?.episodes || episodes)
-    : (seasons[activeSeason]?.dubEpisodes || dubEpisodes)
+    ? (seasons[activeSeason]?.providerEpisodes || episodes)
+    : episodeAudio === 'latam'
+      ? (seasons[activeSeason]?.dubEpisodes || dubEpisodes)
+      : (seasons[activeSeason]?.dubEpisodes || dubEpisodes)
   const hasDub = dubEpisodes.length > 0
   const watchedEpisodes = new Set(
     history.filter((h) => h.anilist_id === parseInt(id, 10)).map((h) => h.episode_number)
@@ -215,7 +261,11 @@ export default function AnimeDetail() {
           </div>
 
           {anime.studio && (
-            <p className="text-sm text-text-secondary mt-3">Estudio: <span className="text-text-primary">{anime.studio}</span></p>
+            <p className="text-sm text-text-secondary mt-3">Estudio: {anime.studio.id ? (
+              <Link to={`/studio/${anime.studio.id}`} className="text-text-primary hover:text-neon-cyan transition-colors">{anime.studio.name}</Link>
+            ) : (
+              <span className="text-text-primary">{anime.studio.name || anime.studio}</span>
+            )}</p>
           )}
 
           {(anime.synopsis_es || anime.synopsis) && (
@@ -327,6 +377,7 @@ export default function AnimeDetail() {
                     </button>
                   ))}
                 </div>
+                <AddToCollectionBtn anilistId={parseInt(id, 10)} mediaType="anime" />
               </>
             )}
           </div>
@@ -386,7 +437,7 @@ export default function AnimeDetail() {
                       <p className="text-xs font-medium truncate">{edge.node.name.full}</p>
                       <p className="text-[10px] text-text-secondary truncate">{edge.role}</p>
                       {edge.voiceActors?.length > 0 && (
-                        <p className="text-[10px] text-accent truncate mt-0.5">{edge.voiceActors[0].name?.full}</p>
+                        <Link to={`/staff/${edge.voiceActors[0].id}`} onClick={(e) => e.stopPropagation()} className="text-[10px] text-accent truncate mt-0.5 block hover:text-neon-cyan transition-colors">{edge.voiceActors[0].name?.full}</Link>
                       )}
                     </div>
                     <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
@@ -437,6 +488,9 @@ export default function AnimeDetail() {
         </section>
       )}
 
+      {/* Reviews */}
+      <ReviewSection anilistId={id} mediaType="anime" />
+
       {/* Comments */}
       <CommentSection anilistId={id} mediaType="anime" />
 
@@ -447,32 +501,22 @@ export default function AnimeDetail() {
               Episodios ({currentEps.length})
               {currentProvider && <span className="text-xs font-normal text-text-secondary ml-2">via {currentProvider}</span>}
             </GradientHeading>
-            {hasDub && (
-              <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
+            <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
+              {[['sub', 'SUB'], ['dub', 'DUB'], ['latam', 'LATAM']].map(([val, label]) => (
                 <button
-                  onClick={() => setEpisodeAudio('sub')}
+                  key={val}
+                  onClick={() => setEpisodeAudio(val)}
                   className={`relative px-4 py-1.5 text-xs font-medium transition-colors rounded-lg ${
-                    episodeAudio === 'sub' ? 'text-white' : 'text-text-secondary hover:text-text-primary'
+                    episodeAudio === val ? 'text-white' : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {episodeAudio === 'sub' && (
+                  {episodeAudio === val && (
                     <motion.span layoutId="audio-tab" className="absolute inset-0 bg-primary rounded-lg" />
                   )}
-                  <span className="relative z-10">SUB</span>
+                  <span className="relative z-10">{label}</span>
                 </button>
-                <button
-                  onClick={() => setEpisodeAudio('dub')}
-                  className={`relative px-4 py-1.5 text-xs font-medium transition-colors rounded-lg ${
-                    episodeAudio === 'dub' ? 'text-white' : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {episodeAudio === 'dub' && (
-                    <motion.span layoutId="audio-tab" className="absolute inset-0 bg-primary rounded-lg" />
-                  )}
-                  <span className="relative z-10">DUB</span>
-                </button>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </FadeIn>
 
@@ -486,9 +530,13 @@ export default function AnimeDetail() {
                   className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     activeSeason === i ? 'text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/30' : 'bg-surface text-text-secondary border border-white/10 hover:text-neon-cyan'
                   }`}
+                  title={`${s.totalEpisodes ? s.totalEpisodes + ' episodios' : ''}${s.status ? ' · ' + s.status : ''}`}
                 >
                   {s.title || `Temporada ${i + 1}`}
-                  <span className="ml-1 text-[10px] opacity-60">({s.episodes.length})</span>
+                  <span className="ml-1 text-[10px] opacity-60">({(s.providerEpisodes?.length || 0)})</span>
+                  {s.id === parseInt(id, 10) && (
+                    <span className="ml-1 text-[8px] text-primary">●</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -496,7 +544,7 @@ export default function AnimeDetail() {
         )}
 
         {currentEps.length === 0 ? (
-          <div className="text-center py-12 text-text-secondary text-sm bg-surface rounded-2xl border border-white/5">No hay episodios disponibles.</div>
+          <EmptyState message="No hay episodios disponibles." />
         ) : (
           <>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

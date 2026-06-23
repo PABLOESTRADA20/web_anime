@@ -4,19 +4,30 @@ import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import { getCharacterInfo } from '../lib/anilist'
+import { useToast } from '../components/Toast'
 
 export default function CharacterDetail() {
   const { id } = useParams()
   const [character, setCharacter] = useState(null)
   const [loading, setLoading] = useState(true)
+  const toast = useToast()
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     getCharacterInfo(id).then((data) => {
-      setCharacter(data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [id])
+      if (!ac.signal.aborted) {
+        setCharacter(data)
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (!ac.signal.aborted) {
+        setLoading(false)
+        toast('Error al cargar personaje', 'error')
+      }
+    })
+    return () => ac.abort()
+  }, [id, toast])
 
   if (loading) return <><SeoHead title="Cargando..." /><DetailSkeleton /></>
   if (!character) return <><SeoHead title="Personaje no encontrado" /><div className="text-center py-20 text-text-secondary">Personaje no encontrado.</div></>

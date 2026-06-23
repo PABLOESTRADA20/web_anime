@@ -1,31 +1,35 @@
-const BASE = 'https://kenjitsu.vercel.app/api'
+const PROXY = '/api/proxy?url='
+
+const KENJITSU_BASE = 'https://kenjitsu.vercel.app/api'
 
 async function fetchJSON(url) {
-  const res = await fetch(url)
+  const res = await fetch(PROXY + encodeURIComponent(url))
   if (!res.ok) throw new Error(`Provider error: ${res.status}`)
   return res.json()
 }
 
 export async function searchAnime(query, page = 1) {
-  return fetchJSON(`${BASE}/anilist/anime/search?q=${encodeURIComponent(query)}&page=${page}`)
+  return fetchJSON(`${KENJITSU_BASE}/anilist/anime/search?q=${encodeURIComponent(query)}&page=${page}`)
 }
 
 export async function getTopAnime(category = 'trending', page = 1) {
-  return fetchJSON(`${BASE}/anilist/anime/top/${category}?page=${page}`)
+  return fetchJSON(`${KENJITSU_BASE}/anilist/anime/top/${category}?page=${page}`)
 }
 
 export async function getAnimeInfo(anilistId) {
-  return fetchJSON(`${BASE}/anilist/anime/${anilistId}`)
+  return fetchJSON(`${KENJITSU_BASE}/anilist/anime/${anilistId}`)
 }
 
 export async function getAnimeEpisodes(anilistId, provider = 'animepahe') {
-  return fetchJSON(`${BASE}/anilist/episodes/${anilistId}?provider=${provider}`)
+  return fetchJSON(`${KENJITSU_BASE}/anilist/episodes/${anilistId}?provider=${provider}`)
 }
 
 export async function getEpisodeServers(episodeId) {
-  return fetchJSON(`${BASE}/animepahe/episode/${episodeId}/servers`)
+  return fetchJSON(`${KENJITSU_BASE}/animepahe/episode/${episodeId}/servers`)
 }
 
 export async function getAnimepaheSources(episodeId, version = 'sub') {
-  return fetchJSON(`${BASE}/animepahe/sources/${episodeId}?version=${version}`)
+  return fetchJSON(`${KENJITSU_BASE}/animepahe/sources/${episodeId}?version=${version}`)
 }
+
+

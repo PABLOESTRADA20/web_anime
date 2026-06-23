@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { getDirectory } from '../lib/anilist'
 import { enrichAnimeBatch } from '../lib/api'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
+import { useToast } from '../components/Toast'
 
 const GENRES = [
   { label: 'Accion', value: 'Action' },
@@ -127,6 +128,8 @@ export default function Directory() {
   const [total, setTotal] = useState(0)
   const [searchText, setSearchText] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const toast = useToast()
+  const acRef = useRef(null)
 
   const filters = useMemo(() => {
     const f = {}
@@ -144,17 +147,26 @@ export default function Directory() {
   }, [_filters])
 
   useEffect(() => {
+    acRef.current?.abort()
+    const ac = new AbortController()
+    acRef.current = ac
     setLoading(true)
     getDirectory(page, PER_PAGE, filters)
       .then((res) => {
+        if (ac.signal.aborted) return
         const list = res.data || []
         setAnimeList(list)
         setTotal(res.total)
         setLoading(false)
         enrichAnimeBatch(list).then(setAnimeList).catch(() => {})
       })
-      .catch(() => setLoading(false))
-  }, [page, filters])
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setLoading(false)
+          toast('Error al cargar directorio', 'error')
+        }
+      })
+  }, [page, filters, toast])
 
   function setFilter(key, value) {
     _setFilters(prev => ({ ...prev, [key]: value || undefined }))
@@ -178,7 +190,7 @@ export default function Directory() {
           window.open(`/anime/${res.data[0].id}`, '_self')
         }
       })
-      .catch(() => {})
+      .catch(() => { toast('Error al cargar anime aleatorio', 'error') })
   }
 
   return (

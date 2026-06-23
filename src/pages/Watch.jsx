@@ -3,14 +3,23 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { parseEpisodeId } from '../lib/anivexa'
 import { getAnimeEpisodes, getWatchWithFallback } from '../lib/api'
+
 import { getAnimeInfo } from '../lib/anilist'
 import { useHistory } from '../hooks/useHistory'
 import { useToast } from '../components/Toast'
+import CommunityEpisodes from '../components/CommunityEpisodes'
+import EmbedPlayer from '../components/EmbedPlayer'
+import WatchParty from '../components/WatchParty'
+import { useWatchParty } from '../hooks/useWatchParty'
+import CommentSection from '../components/CommentSection'
+import { getProviderLabel } from '../hooks/useCommunityEpisodes'
 import SeoHead from '../components/SeoHead'
 import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
 import { fetchSubtitle } from '../utils/proxy'
+import { downloadVideoEpisode, isVideoCached } from '../utils/videoDownload'
+import { VideoCacheLoader } from '../utils/videoCacheLoader'
 
-function useHls(videoRef, url) {
+function useHls(videoRef, url, useCache) {
   const hlsRef = useRef(null)
   const videoRefCleanup = useRef(null)
 
@@ -51,7 +60,11 @@ function useHls(videoRef, url) {
           video.src = url
           return
         }
-        const hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = false } })
+        const config = { xhrSetup: (xhr) => { xhr.withCredentials = false } }
+        if (useCache) {
+          config.loader = VideoCacheLoader
+        }
+        const hls = new Hls(config)
         hlsRef.current = hls
         hls.loadSource(url)
         hls.attachMedia(video)
@@ -76,10 +89,10 @@ function useHls(videoRef, url) {
         videoRefCleanup.current = null
       }
     }
-  }, [url, videoRef])
+  }, [url, videoRef, useCache])
 }
 
-function useKeyboardShortcuts(videoRef, onNextEpRef) {
+function useKeyboardShortcuts(videoRef, onNextEpRef, setPlaybackRate) {
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -127,12 +140,34 @@ function useKeyboardShortcuts(videoRef, onNextEpRef) {
           e.preventDefault()
           onNextEpRef.current?.()
           break
+        case '>':
+        case '.':
+          e.preventDefault()
+          if (e.shiftKey) {
+            const rates = [0.5, 1, 1.5, 2]
+            const current = video.playbackRate
+            const next = rates.find(r => r > current) || rates[0]
+            video.playbackRate = next
+            setPlaybackRate(next)
+          }
+          break
+        case '<':
+        case ',':
+          e.preventDefault()
+          if (e.shiftKey) {
+            const rates = [2, 1.5, 1, 0.5]
+            const current = video.playbackRate
+            const prev = rates.find(r => r < current) || rates[rates.length - 1]
+            video.playbackRate = prev
+            setPlaybackRate(prev)
+          }
+          break
       }
     }
 
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [videoRef, onNextEpRef])
+  }, [videoRef, onNextEpRef, setPlaybackRate])
 }
 
 const PROVIDER_NAMES = {
@@ -159,9 +194,8 @@ const BACKEND_NAMES = {
   kenjitsu: 'Kenjitsu',
   anivexa: 'Anivexa',
   miruro: 'Miruro',
+  veranime: 'VerAnime',
 }
-
-const ANIMEFLV_NAME = 'AnimeFLV'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
@@ -209,6 +243,14 @@ export default function Watch() {
   const [nextEpisode, setNextEpisode] = useState(null)
   const [audioType, setAudioType] = useState('sub')
   const [showEpisodes, setShowEpisodes] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [timeDisplay, setTimeDisplay] = useState({ current: 0, duration: 0 })
+  const [isIframeSource, setIsIframeSource] = useState(false)
+  const [autoplayCountdown, setAutoplayCountdown] = useState(null)
+  const [dlProgress, setDlProgress] = useState(null)
+  const [dlStatus, setDlStatus] = useState('idle')
+  const [isCached, setIsCached] = useState(false)
+  const [useCachePlayback, setUseCachePlayback] = useState(false)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
@@ -219,7 +261,21 @@ export default function Watch() {
   const title = searchParams.get('title') || ''
   const image = searchParams.get('image') || ''
 
-  useHls(videoRef, selectedUrl)
+  const party = useWatchParty(anilistId, epNum, videoRef)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('party') && anilistId && epNum) {
+      party.join()
+    }
+  }, [anilistId, epNum, party])
+
+  useHls(videoRef, selectedUrl, useCachePlayback)
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (v) v.playbackRate = playbackRate
+  }, [playbackRate, videoRef])
 
   useEffect(() => {
     if (!anilistId || !epNum) {
@@ -250,8 +306,16 @@ export default function Watch() {
         if (servers.length > 0) {
           setActiveServer(servers[0])
         }
-        if (result.sources.length > 0) {
-          setSelectedUrl(proxyUrl(result.sources[0].url, result.sources[0].referer))
+        const allIframe = result.sources.length > 0 && result.sources.every(s => s.type === 'iframe')
+        setIsIframeSource(allIframe)
+        if (!allIframe && result.sources.length > 0) {
+          const order = ['4K', '1080p', '720p', '480p', '360p', 'auto']
+          const sorted = [...result.sources].sort((a, b) => {
+            const ai = order.findIndex(o => (a.quality || '').toLowerCase().includes(o))
+            const bi = order.findIndex(o => (b.quality || '').toLowerCase().includes(o))
+            return (ai >= 0 ? ai : 99) - (bi >= 0 ? bi : 99)
+          })
+          setSelectedUrl(proxyUrl(sorted[0].url, sorted[0].referer))
         }
         setLoading(false)
       })
@@ -286,7 +350,7 @@ export default function Watch() {
     if (esIndex < 0) {
       toast('No hay subtítulos en español. Mostrando ' + subtitleLangLabel(subtitles[0]).toLowerCase() + '.', 'info', 4000)
     }
-  }, [subtitles])
+  }, [subtitles, toast])
 
   useEffect(() => {
     const video = videoRef.current
@@ -321,9 +385,10 @@ export default function Watch() {
 
     async function loadAll() {
       const blobs = {}
+      const referer = sources.find(s => s.referer)?.referer || ''
       await Promise.all(subtitles.map(async (sub, i) => {
         if (!sub.file) return
-        const text = await fetchSubtitle(sub.file)
+        const text = await fetchSubtitle(sub.file, referer)
         if (text && !isCloudflareBlock(text)) {
           blobs[i] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }))
         }
@@ -341,7 +406,7 @@ export default function Watch() {
     if (subtitles.length > 0) loadAll()
 
     return () => { cancelled = true }
-  }, [subtitles])
+  }, [subtitles, sources])
 
   useEffect(() => {
     return () => {
@@ -370,16 +435,10 @@ export default function Watch() {
   const episodeList = episodesData
     ? (episodesData.providerEpisodes || episodesData?.[provider]?.episodes?.[audio] || [])
     : []
-  const hasSpanishInfo = episodesData?.spanishInfo?.title
   const sortedEps = [...episodeList].sort((a, b) => b.number - a.number)
   const currentEpIndex = sortedEps.findIndex(ep => ep.number === epNum)
   const prevEp = currentEpIndex < sortedEps.length - 1 ? sortedEps[currentEpIndex + 1] : null
   const nextEp = currentEpIndex > 0 ? sortedEps[currentEpIndex - 1] : null
-
-  const dubList = episodesData
-    ? (episodesData.dubEpisodes || episodesData?.[provider]?.episodes?.dub || [])
-    : []
-  const hasDub = dubList.length > 0
 
   const servers = getUniqueServers(sources)
   const currentServerSources = activeServer
@@ -397,6 +456,46 @@ export default function Watch() {
 
   function selectSource(source) {
     setSelectedUrl(proxyUrl(source.url, source.referer))
+  }
+
+  async function handleDownload(quality) {
+    if (!anilistId || !epNum) return
+    const source = sources.find(s => (s.quality || '').toLowerCase().includes(quality.toLowerCase())) || sources[0]
+    if (!source) { toast('No hay fuente disponible para descargar', 'error'); return }
+
+    const id = `video-${anilistId}-ep${epNum}-${quality}`
+    setDlStatus('downloading')
+    setDlProgress({ current: 0, total: 1 })
+
+    try {
+      await downloadVideoEpisode({
+        id,
+        title: title || `Episodio ${epNum}`,
+        image,
+        episode: epNum,
+        quality,
+        m3u8Url: source.url,
+        referer: source.referer || '',
+        onProgress: (current, total) => setDlProgress({ current, total }),
+      })
+      setDlStatus('done')
+      toast('Episodio descargado para ver offline', 'success', 4000)
+    } catch (e) {
+      setDlStatus('error')
+      toast(`Error al descargar: ${e.message}`, 'error', 5000)
+    }
+  }
+
+  useEffect(() => {
+    if (!anilistId || !epNum) return
+    const id = `video-${anilistId}-ep${epNum}-`
+    isVideoCached(id).then(cached => setIsCached(cached))
+  }, [anilistId, epNum, sources])
+
+  function toggleOfflinePlayback() {
+    if (isCached) {
+      setUseCachePlayback(v => !v)
+    }
   }
 
   function selectServer(server) {
@@ -420,15 +519,26 @@ export default function Watch() {
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${epNum}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
   }
 
-  function goToEpisode(episode) {
+  const goToEpisode = useCallback((episode) => {
     if (!anilistId) return
     const newId = `watch/${provider}/${anilistId}/${audio}/${provider}-${episode.number}`
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${episode.number}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
-  }
+  }, [anilistId, provider, audio, navigate, title, image])
+
+  useEffect(() => {
+    if (autoplayCountdown === null || !nextEp) return
+    if (autoplayCountdown <= 0) {
+      setAutoplayCountdown(null)
+      goToEpisode(nextEp)
+      return
+    }
+    const timer = setTimeout(() => setAutoplayCountdown(autoplayCountdown - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [autoplayCountdown, nextEp, goToEpisode])
 
   const onNextEpRef = useRef(null)
   onNextEpRef.current = nextEp ? () => goToEpisode(nextEp) : null
-  useKeyboardShortcuts(videoRef, onNextEpRef)
+  useKeyboardShortcuts(videoRef, onNextEpRef, setPlaybackRate)
 
   const defaultSubIdx = (() => {
     if (subtitles.length === 0) return -1
@@ -440,6 +550,13 @@ export default function Watch() {
     if (!timestamp) return ''
     const d = new Date(timestamp * 1000)
     return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  function formatTime(s) {
+    if (!s || isNaN(s)) return '0:00'
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
   function formatSize(bytes) {
@@ -537,7 +654,7 @@ export default function Watch() {
           </>
         )}
 
-        {hasDub && (
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
             {[['sub', 'SUB'], ['dub', 'DUB'], ['latam', 'LATAM']].map(([val, label]) => (
               <button
@@ -548,7 +665,7 @@ export default function Watch() {
                     ? 'text-white'
                     : audio === 'latam' && val === 'dub' && audioType === 'latam'
                       ? 'text-accent/60'
-                      : 'bg-surface text-text-secondary hover:text-text-primary'
+                      : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {audio === val && (
@@ -558,7 +675,13 @@ export default function Watch() {
               </button>
             ))}
           </div>
-        )}
+          {providerUsed && (
+            <span className="text-[10px] font-mono text-text-secondary/50 bg-surface-hover px-2 py-1 rounded-md border border-white/5">
+              {getProviderLabel(providerUsed)}
+              <span className="text-text-secondary/30 ml-1">· {BACKEND_NAMES[backendUsed] || backendUsed}</span>
+            </span>
+          )}
+        </div>
 
         {subtitles.length > 0 && (
           <div className="flex items-center gap-1">
@@ -665,8 +788,18 @@ export default function Watch() {
               : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
           }`}
         >
-          {ANIMEFLV_NAME}
+          AnimeFLV
         </button>
+        <div className="ml-auto">
+          <WatchParty
+            participants={party.participants}
+            connected={party.connected}
+            partyId={party.partyId}
+            onJoin={party.join}
+            onLeave={party.leave}
+            videoRef={videoRef}
+          />
+        </div>
       </div>
 
       <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-2xl shadow-black/50 ring-1 ring-white/5">
@@ -702,17 +835,80 @@ export default function Watch() {
               >Intentar otro proveedor</button>
             </div>
           </div>
-        ) : (
-          <video
+        ) : null}
+
+      {error && (
+        <CommunityEpisodes
+          anilistId={anilistId}
+          episodeNumber={epNum}
+          title={title}
+          image={image}
+          embedMode
+          onSelectUrl={(url, provider) => {
+            if (url.includes('.mp4') || url.includes('.m3u8')) {
+              setSelectedUrl(proxyUrl(url))
+              setError(null)
+              toast(`Reproduciendo desde ${getProviderLabel(provider)}`, 'success', 3000)
+            }
+          }}
+        />
+      )}
+
+      {!loading && !error && isIframeSource && (
+        <EmbedPlayer
+          embeds={sources.map(s => ({ url: s.url, name: s.quality }))}
+          onBack={() => { selectedUrl && setIsIframeSource(false) }}
+        />
+      )}
+
+      {autoplayCountdown !== null && nextEp && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 gap-4">
+          <p className="text-lg font-medium text-white">Siguiente episodio en {autoplayCountdown}s</p>
+          <p className="text-sm text-text-secondary">Episodio {nextEp.number}</p>
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={() => { setAutoplayCountdown(null); goToEpisode(nextEp) }}
+              className="px-5 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors"
+            >
+              Reproducir ahora
+            </button>
+            <button
+              onClick={() => setAutoplayCountdown(null)}
+              className="px-5 py-2 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && !isIframeSource && (
+        <video
             ref={videoRef}
             controls
             autoPlay
             className="w-full h-full"
             playsInline
+            crossOrigin="anonymous"
+            preload="metadata"
+            playbackRate={playbackRate}
+            onPlay={() => party.broadcast('play', videoRef.current?.currentTime || 0)}
+            onPause={() => party.broadcast('pause', videoRef.current?.currentTime || 0)}
+            onSeeked={() => party.broadcast('seek', videoRef.current?.currentTime || 0)}
+            onTimeUpdate={() => {
+              const v = videoRef.current
+              if (v) setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
+            }}
+            onLoadedMetadata={() => {
+              const v = videoRef.current
+              if (v) {
+                v.playbackRate = playbackRate
+                setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
+              }
+            }}
             onEnded={() => {
               if (nextEp) {
-                toast('Reproduciendo siguiente episodio...', 'info', 2000)
-                setTimeout(() => goToEpisode(nextEp), 1000)
+                setAutoplayCountdown(5)
               }
             }}
             onError={() => {
@@ -741,13 +937,55 @@ export default function Watch() {
 
       {!loading && !error && (
         <div className="mt-5 space-y-4">
-          <div className="flex flex-wrap gap-3 text-[10px] text-text-secondary/50 justify-center">
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Space</kbd> Play/Pause</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">←/→</kbd> 10s</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">↑/↓</kbd> Volumen</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">F</kbd> Pantalla completa</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">M</kbd> Silenciar</span>
-            <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">N</kbd> Siguiente ep.</span>
+          <div className="flex flex-wrap items-center gap-3 text-[10px] text-text-secondary/50 justify-between">
+            <div className="flex flex-wrap gap-3">
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Space</kbd> Play/Pause</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">←/→</kbd> 10s</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">↑/↓</kbd> Volumen</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">F</kbd> Pantalla completa</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">M</kbd> Silenciar</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">N</kbd> Siguiente ep.</span>
+              <span><kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Shift+&lt;/&gt;</kbd> Velocidad</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] text-text-secondary/70">
+                {formatTime(timeDisplay.current)} / {formatTime(timeDisplay.duration)}
+              </span>
+              <button
+                onClick={() => {
+                  const v = videoRef.current
+                  if (!v) return
+                  if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture()
+                  } else {
+                    v.requestPictureInPicture()
+                  }
+                }}
+                className="px-2 py-1 rounded bg-surface border border-white/10 hover:bg-surface-hover transition-colors"
+                title="Picture-in-Picture"
+              >
+                PiP
+              </button>
+              <div className="flex items-center gap-1">
+                {[0.5, 1, 1.5, 2].map((rate) => (
+                  <button
+                    key={rate}
+                    onClick={() => {
+                      setPlaybackRate(rate)
+                      const v = videoRef.current
+                      if (v) v.playbackRate = rate
+                    }}
+                    className={`px-2 py-1 rounded text-[10px] font-mono transition-colors border ${
+                      playbackRate === rate
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-surface border-white/10 text-text-secondary/50 hover:text-text-primary hover:border-white/20'
+                    }`}
+                  >
+                    {rate}x
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           {servers.length > 1 && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -774,22 +1012,85 @@ export default function Watch() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-text-secondary font-medium">Calidad:</span>
               <div className="flex gap-1.5">
-                {currentServerSources.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => selectSource(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                      selectedUrl?.includes(encodeURIComponent(s.url))
-                        ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
-                    }`}
-                  >
-                    {s.quality || s.server || `Fuente ${i + 1}`}
-                  </button>
-                ))}
+                {[...currentServerSources]
+                  .sort((a, b) => {
+                    const order = ['4K', '1080p', '720p', '480p', '360p', 'auto']
+                    const ai = order.findIndex(o => (a.quality || '').toLowerCase().includes(o))
+                    const bi = order.findIndex(o => (b.quality || '').toLowerCase().includes(o))
+                    return (ai >= 0 ? ai : 99) - (bi >= 0 ? bi : 99)
+                  })
+                  .map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => selectSource(s)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                        selectedUrl?.includes(encodeURIComponent(s.url))
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
+                      }`}
+                    >
+                      {s.quality || s.server || `Fuente ${i + 1}`}
+                    </button>
+                  ))}
               </div>
             </div>
           )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {isCached && (
+              <button
+                onClick={toggleOfflinePlayback}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border flex items-center gap-1.5 ${
+                  useCachePlayback
+                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                    : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                {useCachePlayback ? 'Offline activado' : 'Offline'}
+              </button>
+            )}
+            {dlStatus === 'idle' && currentServerSources.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-text-secondary font-medium">Descargar:</span>
+                <div className="flex gap-1">
+                  {[...new Set(currentServerSources.map(s => s.quality || 'auto'))].slice(0, 3).map(q => (
+                    <button
+                      key={q}
+                      onClick={() => handleDownload(q)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border bg-surface text-text-secondary border-white/10 hover:text-primary hover:border-primary/30 flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {dlStatus === 'downloading' && dlProgress && (
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface border border-primary/20">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="flex-1 min-w-[120px]">
+                  <div className="h-1.5 bg-surface-hover rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${(dlProgress.current / dlProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <span className="text-[10px] text-text-secondary font-mono shrink-0">{dlProgress.current}/{dlProgress.total}</span>
+              </div>
+            )}
+            {dlStatus === 'done' && (
+              <span className="text-[10px] text-green-400 font-medium flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+                Descargado
+              </span>
+            )}
+            {dlStatus === 'error' && (
+              <span className="text-[10px] text-red-400 font-medium">Error al descargar</span>
+            )}
+          </div>
 
           {downloads.length > 0 && (
             <div className="p-4 rounded-2xl bg-surface/50 border border-white/5">
@@ -821,6 +1122,25 @@ export default function Watch() {
           )}
         </div>
       )}
+
+      {!loading && !error && anilistId && epNum && (
+        <CommunityEpisodes
+          anilistId={anilistId}
+          episodeNumber={epNum}
+          title={title}
+          image={image}
+          onSelectUrl={(url, provider) => {
+            if (url.includes('.mp4') || url.includes('.m3u8')) {
+              setSelectedUrl(proxyUrl(url))
+              toast(`Reproduciendo desde ${getProviderLabel(provider)}`, 'success', 3000)
+            } else {
+              window.open(url, '_blank', 'noopener')
+            }
+          }}
+        />
+      )}
+
+      <CommentSection anilistId={anilistId} episodeNumber={epNum} />
     </motion.div>
     </>
   )

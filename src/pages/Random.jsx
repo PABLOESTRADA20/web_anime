@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 const RANDOM_QUERY = `
   query ($page: Int, $perPage: Int) {
     Page(page: $page, perPage: $perPage) {
+      pageInfo { total }
       media(type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
         id
       }
@@ -12,28 +13,28 @@ const RANDOM_QUERY = `
 
 const ANILIST_API = 'https://graphql.anilist.co'
 
-async function getTotalPages() {
-  const res = await fetch(ANILIST_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ query: RANDOM_QUERY, variables: { page: 1, perPage: 1 } }),
-  })
-  const json = await res.json()
-  return json.data?.Page?.media?.[0]?.id || 0
-}
-
 export default function Random() {
   const [target, setTarget] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-    getTotalPages().then((maxId) => {
+    async function pick() {
+      const res = await fetch(ANILIST_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query: RANDOM_QUERY, variables: { page: 1, perPage: 50 } }),
+      })
+      const json = await res.json()
       if (cancelled) return
-      const randomId = Math.floor(Math.random() * maxId) + 1
-      setTarget(randomId)
-    }).catch(() => {
-      if (!cancelled) setTarget(1)
-    })
+      const pool = json?.data?.Page?.media?.filter(Boolean) || []
+      if (pool.length > 0) {
+        const pick = pool[Math.floor(Math.random() * pool.length)]
+        setTarget(pick.id)
+      } else {
+        setTarget(1)
+      }
+    }
+    pick().catch(() => { if (!cancelled) setTarget(1) })
     return () => { cancelled = true }
   }, [])
 

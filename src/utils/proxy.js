@@ -1,5 +1,7 @@
 import { isCloudflareBlock, isLikelySubtitle } from './subtitles.js'
 
+const CLOUDFLARE_PROXY = '/api/proxy?url='
+
 const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL
   ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=`
   : null
@@ -45,12 +47,11 @@ async function fetchDirect(url) {
   }
 }
 
-async function fetchViaProxy(proxyUrl, target) {
+async function fetchViaFullUrl(fullUrl) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
   try {
-    const url = proxyUrl + encodeURIComponent(target)
-    const res = await fetch(url, { signal: controller.signal })
+    const res = await fetch(fullUrl, { signal: controller.signal })
     if (!res.ok) throw new Error(`Proxy ${res.status}`)
     const text = await res.text()
     if (isCloudflareBlock(text)) {
@@ -65,10 +66,14 @@ async function fetchViaProxy(proxyUrl, target) {
   }
 }
 
-export async function fetchSubtitle(url) {
+async function fetchViaProxy(proxyUrl, target) {
+  return fetchViaFullUrl(proxyUrl + encodeURIComponent(target))
+}
+
+export async function fetchSubtitle(url, referer) {
   if (!url) return null
 
-  const cacheKey = url
+  const cacheKey = `${url}|${referer || ''}`
   const cached = getCached(cacheKey)
   if (cached) return cached
 
@@ -84,28 +89,47 @@ export async function fetchSubtitle(url) {
     errors.push(`direct: ${e.message}`)
   }
 
-  if (CORS_PROXY) {
-    try {
-      const text = await fetchViaProxy(CORS_PROXY, url)
-      setCache(cacheKey, text)
-      return text
-    } catch (e) {
-      errors.push(`supabase: ${e.message}`)
-    }
+  const proxies = []
+  const refParam = referer ? `&referer=${encodeURIComponent(referer)}` : ''
+
+  // 1. Cloudflare proxy with referer (best chance for CDN subtitles)
+  proxies.push(() => fetchViaFullUrl(CLOUDFLARE_PROXY + encodeURIComponent(url) + refParam))
+
+  // 2. Try without referer but through Cloudflare proxy
+  if (referer) {
+    proxies.push(() => fetchViaFullUrl(CLOUDFLARE_PROXY + encodeURIComponent(url)))
   }
 
+  // 3. Supabase CORS proxy
+  if (CORS_PROXY) {
+    proxies.push(() => fetchViaFullUrl(CORS_PROXY + encodeURIComponent(url) + refParam))
+  }
+
+  // 4. Public proxy services
   for (const proxy of PUBLIC_PROXIES) {
+    proxies.push(() => fetchViaProxy(proxy, url))
+  }
+
+  for (const attempt of proxies) {
     try {
-      const text = await fetchViaProxy(proxy, url)
+      const text = await attempt()
+      if (isCloudflareBlock(text)) {
+        errors.push('cloudflare block')
+        continue
+      }
+      if (!isLikelySubtitle(text)) {
+        errors.push('invalid subtitle format')
+        continue
+      }
       setCache(cacheKey, text)
       return text
     } catch (e) {
-      errors.push(`public: ${e.message}`)
+      errors.push(e.message)
     }
   }
 
   if (errors.length) {
-    console.warn('[Subtitles] No se pudo obtener:', url, errors.join(' | '))
+    console.warn('[Subtitles] No se pudo obtener:', url, errors.slice(0, 3).join(' | '))
   }
 
   return null

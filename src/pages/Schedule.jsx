@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getSchedule } from '../lib/anilist'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
 
 function formatAiringTime(timestamp) {
   const d = new Date(timestamp * 1000)
@@ -24,14 +26,24 @@ export default function Schedule() {
   const [schedule, setSchedule] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const toast = useToast()
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     getSchedule(1, 50).then((res) => {
-      setSchedule(res.data || [])
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
+      if (!ac.signal.aborted) {
+        setSchedule(res.data || [])
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (!ac.signal.aborted) {
+        setLoading(false)
+        toast('Error al cargar el calendario', 'error')
+      }
+    })
+    return () => ac.abort()
+  }, [toast])
 
   const filtered = filter === 'all'
     ? schedule
@@ -48,7 +60,7 @@ export default function Schedule() {
     <>
       <SeoHead title={filter !== 'all' ? `Calendario — ${filter}` : 'Calendario de emisión'} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <h1 className="text-xl font-bold mb-6">📅 Calendario de emisión</h1>
+        <h1 className="text-xl font-bold mb-6">Calendario de emisión</h1>
 
       <div className="flex flex-wrap gap-2 mb-6">
         <button
@@ -79,7 +91,7 @@ export default function Schedule() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="text-text-secondary">No hay episodios programados.</p>
+        <EmptyState message="No hay episodios programados." />
       ) : (
         <div className="space-y-2">
           {filtered.map((s) => {

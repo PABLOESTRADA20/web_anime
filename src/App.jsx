@@ -1,11 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider } from './hooks/useAuth'
+import { AuthProvider, useAuth } from './hooks/useAuth'
 import { ThemeProvider } from './hooks/useTheme'
+import { I18nProvider } from './hooks/useI18n'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import UpdatePrompt from './components/UpdatePrompt'
 import { GridSkeleton } from './components/Skeletons'
 
 const Home = lazy(() => import('./pages/Home'))
@@ -24,9 +26,28 @@ const Schedule = lazy(() => import('./pages/Schedule'))
 const Seasonal = lazy(() => import('./pages/Seasonal'))
 const Directory = lazy(() => import('./pages/Directory'))
 const Random = lazy(() => import('./pages/Random'))
+const PublicProfile = lazy(() => import('./pages/PublicProfile'))
+const Studio = lazy(() => import('./pages/Studio'))
+const Staff = lazy(() => import('./pages/Staff'))
+const Downloads = lazy(() => import('./pages/Downloads'))
+const Activity = lazy(() => import('./pages/Activity'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Collections = lazy(() => import('./pages/Collections'))
+const CollectionDetail = lazy(() => import('./pages/CollectionDetail'))
 
-function Lazy({ children }) {
-  return <Suspense fallback={<div className="py-20"><GridSkeleton count={6} /></div>}>{children}</Suspense>
+function RouteGuard({ children }) {
+  return <ErrorBoundary><Suspense fallback={<div className="py-20"><GridSkeleton count={6} /></div>}>{children}</Suspense></ErrorBoundary>
+}
+
+function VerifyBanner() {
+  const { needsVerification } = useAuth()
+  if (!needsVerification) return null
+  return (
+    <div className="bg-yellow-600/20 border border-yellow-600/30 text-yellow-300 text-xs text-center py-2 px-4">
+      Verifica tu correo electrónico para acceder a todas las funciones.
+    </div>
+  )
 }
 
 export default function App() {
@@ -34,34 +55,48 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
+          <I18nProvider>
           <ToastProvider>
-            <ErrorBoundary>
-              <div className="min-h-screen flex flex-col">
-                <Navbar />
-                <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-24 pb-8">
-                  <Routes>
-                    <Route path="/" element={<Lazy><Home /></Lazy>} />
-                    <Route path="/search" element={<Lazy><Search /></Lazy>} />
-                    <Route path="/anime/:id" element={<Lazy><AnimeDetail /></Lazy>} />
-                    <Route path="/watch/*" element={<Lazy><Watch /></Lazy>} />
-                    <Route path="/manga" element={<Lazy><Manga /></Lazy>} />
-                    <Route path="/manga/:id/read" element={<Lazy><MangaRead /></Lazy>} />
-                    <Route path="/manga/:id" element={<Lazy><MangaDetail /></Lazy>} />
-                    <Route path="/characters" element={<Lazy><Characters /></Lazy>} />
-                    <Route path="/character/:id" element={<Lazy><CharacterDetail /></Lazy>} />
-                    <Route path="/schedule" element={<Lazy><Schedule /></Lazy>} />
-                    <Route path="/seasonal" element={<Lazy><Seasonal /></Lazy>} />
-                    <Route path="/directorio" element={<Lazy><Directory /></Lazy>} />
-                    <Route path="/aleatorio" element={<Lazy><Random /></Lazy>} />
-                    <Route path="/login" element={<Lazy><Login /></Lazy>} />
-                    <Route path="/profile" element={<Lazy><Profile /></Lazy>} />
-                    <Route path="*" element={<Lazy><NotFound /></Lazy>} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
-            </ErrorBoundary>
+            <div className="min-h-screen flex flex-col">
+              <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-lg focus:text-sm">
+                Saltar al contenido
+              </a>
+              <VerifyBanner />
+              <Navbar />
+              <main id="main-content" className="flex-1 max-w-7xl mx-auto w-full px-4 pt-24 pb-8">
+                <Routes>
+                  <Route path="/" element={<RouteGuard><Home /></RouteGuard>} />
+                  <Route path="/search" element={<RouteGuard><Search /></RouteGuard>} />
+                  <Route path="/anime/:id" element={<RouteGuard><AnimeDetail /></RouteGuard>} />
+                  <Route path="/watch/*" element={<RouteGuard><Watch /></RouteGuard>} />
+                  <Route path="/manga" element={<RouteGuard><Manga /></RouteGuard>} />
+                  <Route path="/manga/:id/read" element={<RouteGuard><MangaRead /></RouteGuard>} />
+                  <Route path="/manga/:id" element={<RouteGuard><MangaDetail /></RouteGuard>} />
+                  <Route path="/characters" element={<RouteGuard><Characters /></RouteGuard>} />
+                  <Route path="/character/:id" element={<RouteGuard><CharacterDetail /></RouteGuard>} />
+                  <Route path="/schedule" element={<RouteGuard><Schedule /></RouteGuard>} />
+                  <Route path="/seasonal" element={<RouteGuard><Seasonal /></RouteGuard>} />
+                  <Route path="/directorio" element={<RouteGuard><Directory /></RouteGuard>} />
+                  <Route path="/aleatorio" element={<RouteGuard><Random /></RouteGuard>} />
+                  <Route path="/login" element={<RouteGuard><Login /></RouteGuard>} />
+                  <Route path="/profile" element={<RouteGuard><Profile /></RouteGuard>} />
+                  <Route path="/profile/:id" element={<RouteGuard><PublicProfile /></RouteGuard>} />
+                  <Route path="/studio/:id" element={<RouteGuard><Studio /></RouteGuard>} />
+                  <Route path="/staff/:id" element={<RouteGuard><Staff /></RouteGuard>} />
+                  <Route path="/downloads" element={<RouteGuard><Downloads /></RouteGuard>} />
+                  <Route path="/activity" element={<RouteGuard><Activity /></RouteGuard>} />
+                  <Route path="/settings" element={<RouteGuard><Settings /></RouteGuard>} />
+                  <Route path="/admin" element={<RouteGuard><Admin /></RouteGuard>} />
+                  <Route path="/collections" element={<RouteGuard><Collections /></RouteGuard>} />
+                  <Route path="/collections/:id" element={<RouteGuard><CollectionDetail /></RouteGuard>} />
+                  <Route path="*" element={<RouteGuard><NotFound /></RouteGuard>} />
+                </Routes>
+              </main>
+              <Footer />
+              <UpdatePrompt />
+            </div>
           </ToastProvider>
+          </I18nProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

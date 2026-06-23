@@ -1,7 +1,8 @@
+const PROXY = '/api/proxy?url='
 const BASE = import.meta.env.VITE_MIRURO_URL || 'https://mirurotvapi.vercel.app/api'
 
 async function fetchJSON(url) {
-  const res = await fetch(url)
+  const res = await fetch(PROXY + encodeURIComponent(url))
   if (!res.ok) throw new Error(`Miruro error ${res.status}`)
   return res.json()
 }

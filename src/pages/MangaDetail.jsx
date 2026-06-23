@@ -8,7 +8,9 @@ import SeoHead from '../components/SeoHead'
 import { getMangaInfo } from '../lib/anilist'
 import { getMangaChapters } from '../lib/manga'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import { useToast } from '../components/Toast'
 import { useMangaFavorites } from '../hooks/useMangaFavorites'
+import { useMangaLists } from '../hooks/useMangaLists'
 import { useAuth } from '../hooks/useAuth'
 
 function formatChapterNum(n) {
@@ -27,21 +29,32 @@ export default function MangaDetail() {
   const { user } = useAuth()
   const { getLatestChapter, isChapterRead } = useMangaHistory()
   const { isFavorite, toggleFavorite } = useMangaFavorites()
+  const { getListStatus, setListStatus: setMangaListStatus } = useMangaLists()
   const [favLoading, setFavLoading] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
+    const ac = new AbortController()
     setLoading(true)
     setChapters([])
-    getMangaInfo(id).then((data) => {
+    getMangaInfo(id).then(async (data) => {
+      if (ac.signal.aborted) return
       setManga(data)
       setLoading(false)
-    }).catch(() => setLoading(false))
-
-    getMangaChapters(id).then((res) => {
-      setChapters(res || [])
-      setChaptersLoading(false)
-    }).catch(() => setChaptersLoading(false))
-  }, [id])
+      try {
+        const chs = await getMangaChapters(id, data)
+        if (!ac.signal.aborted) setChapters(chs || [])
+      } catch { /* no chapters */ }
+      if (!ac.signal.aborted) setChaptersLoading(false)
+    }).catch(() => {
+      if (!ac.signal.aborted) {
+        setLoading(false)
+        setChaptersLoading(false)
+        toast('Error al cargar manga', 'error')
+      }
+    })
+    return () => ac.abort()
+  }, [id, toast])
 
   if (loading) return <><SeoHead title="Cargando..." /><DetailSkeleton /></>
   if (!manga) return <><SeoHead title="Manga no encontrado" /><div className="text-center py-20 text-text-secondary">No se encontró el manga.</div></>
@@ -148,6 +161,32 @@ export default function MangaDetail() {
               >
                 {isFavorite(parseInt(id, 10)) ? '❤️ Favorito' : '🤍 Favorito'}
               </button>
+            )}
+            {user && (
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {[
+                  { key: 'reading', label: 'Leyendo' },
+                  { key: 'completed', label: 'Completado' },
+                  { key: 'plan_to_read', label: 'Por leer' },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={async () => {
+                      try {
+                        await setMangaListStatus(parseInt(id, 10), manga.title?.romaji || manga.title?.english || '', manga.image || manga.coverImage?.large, s.key)
+                        toast(getListStatus(parseInt(id, 10)) === s.key ? 'Estado eliminado' : `Marcado: ${s.label}`, 'success')
+                      } catch { toast('Error al actualizar', 'error') }
+                    }}
+                    className={`px-3 py-2 rounded-xl font-medium text-xs transition-colors border ${
+                      getListStatus(parseInt(id, 10)) === s.key
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
