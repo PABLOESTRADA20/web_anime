@@ -315,13 +315,13 @@ export default function Watch() {
   const [detectingAudio, setDetectingAudio] = useState(true)
   const audioFallbackRef = useRef(null)
 
-  const effectiveAudio = selectedLanguage || audio
-
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
   const epNum = parsed?.epNum || parseInt(searchParams.get('ep'), 10)
   const provider = parsed?.provider || searchParams.get('provider') || 'kenjitsu'
   const audio = parsed?.audio || 'sub'
+
+  const effectiveAudio = selectedLanguage || audio
 
   const title = searchParams.get('title') || ''
   const image = searchParams.get('image') || ''
