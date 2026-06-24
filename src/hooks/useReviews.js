@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 
 export function useReviews(anilistId, mediaType = 'anime') {
   const [reviews, setReviews] = useState([])
@@ -16,22 +16,24 @@ export function useReviews(anilistId, mediaType = 'anime') {
     try {
       const { data, error } = await supabase
         .from('reviews')
-        .select('*, user:user_id(email), votes:review_votes(sum)')
+        .select('*, votes:review_votes(sum)')
         .eq('anilist_id', anilistId)
         .eq('media_type', mediaType)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
+      const withEmails = await attachUserEmails(data || [])
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
-        const own = (data || []).find((r) => r.user_id === user.id)
+        const own = (withEmails || []).find((r) => r.user_id === user.id)
         setUserReview(own || null)
       }
 
-      setReviews(data || [])
+      setReviews(withEmails)
     } catch (e) {
       console.error('Error fetching reviews:', e)
     }

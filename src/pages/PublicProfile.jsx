@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import SeoHead from '../components/SeoHead'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -32,7 +32,13 @@ export default function PublicProfile() {
           supabase.from('user_profiles').select('*').eq('id', id).single(),
           supabase.from('history').select('*').eq('user_id', id).order('updated_at', { ascending: false }).limit(20),
           supabase.from('anime_lists').select('*').eq('user_id', id),
-          supabase.from('reviews').select('*, user:user_id(email)').eq('user_id', id).order('created_at', { ascending: false }).limit(10),
+          supabase
+            .from('reviews')
+            .select('*')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false })
+            .limit(10)
+            .then(async ({ data }) => ({ data: await attachUserEmails(data || []) })),
           supabase.from('manga_history').select('*').eq('user_id', id).order('updated_at', { ascending: false }).limit(20),
         ])
 

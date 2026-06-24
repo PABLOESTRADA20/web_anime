@@ -39,3 +39,15 @@ export const supabase: SupabaseClient | null = isValid
 export function isSupabaseReady(): boolean {
   return supabase !== null
 }
+
+export async function attachUserEmails(items: any[]): Promise<any[]> {
+  if (!items.length || !supabase) return items
+  const userIds = [...new Set(items.map((i: any) => i.user_id))]
+  if (!userIds.length) return items
+  const { data } = await supabase.rpc('get_user_emails', { user_ids: userIds })
+  if (data) {
+    const emailMap = Object.fromEntries(data.map((e: any) => [e.user_id, e.email]))
+    return items.map((item) => ({ ...item, user: { email: emailMap[item.user_id] || 'Unknown' } }))
+  }
+  return items
+}

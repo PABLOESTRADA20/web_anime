@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useComments(anilistId, mediaType = 'anime', episodeNumber = null) {
@@ -21,7 +21,6 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
         .select(
           `
           *,
-          user:user_id ( email ),
           likes:comment_likes ( count )
         `,
         )
@@ -37,15 +36,17 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
 
       if (err) throw err
 
+      const topWithEmails = await attachUserEmails(data || [])
+
       // Fetch replies separately for each top-level comment
       const commentsWithReplies = await Promise.all(
-        (data || []).map(async (comment) => {
+        topWithEmails.map(async (comment) => {
           const { data: replies } = await supabase
             .from('comments')
-            .select('*, user:user_id ( email )')
+            .select('*')
             .eq('parent_id', comment.id)
             .order('created_at', { ascending: true })
-          return { ...comment, replies: replies || [] }
+          return { ...comment, replies: await attachUserEmails(replies || []) }
         }),
       )
 

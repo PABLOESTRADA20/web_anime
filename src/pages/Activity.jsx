@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useI18n } from '../hooks/useI18n'
@@ -35,11 +35,11 @@ export default function Activity() {
     let cancelled = false
     supabase
       .from('reviews')
-      .select('*, user:user_id(email)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(50)
-      .then(({ data }) => {
-        if (!cancelled) setReviews(data || [])
+      .then(async ({ data }) => {
+        if (!cancelled) setReviews(await attachUserEmails(data || []))
       })
       .catch(() => {})
       .finally(() => {
