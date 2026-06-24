@@ -394,7 +394,7 @@ const GET_ANIME = `
         nodes { mediaRecommendation { id title { romaji english } coverImage { large } type format averageScore } }
       }
       nextAiringEpisode { airingAt episode }
-      externalLinks { url site siteName language color icon type isDisabled }
+      externalLinks { url site language color icon type isDisabled }
       streamingEpisodes { title thumbnail url site }
     }
   }`
