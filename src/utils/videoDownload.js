@@ -145,10 +145,6 @@ export function getVideoDownloads() {
   return getMeta()
 }
 
-export function getVideoDownload(id) {
-  return getMeta().find((d) => d.id === id) || null
-}
-
 export function removeVideoDownload(id) {
   const meta = getMeta().filter((d) => d.id !== id)
   setMeta(meta)
@@ -182,5 +178,3 @@ export async function isVideoCached(id) {
   const res = await cache.match(meta.segments[0])
   return !!res
 }
-
-export const VIDEO_CACHE_NAME = VIDEO_CACHE

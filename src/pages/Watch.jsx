@@ -17,6 +17,7 @@ import SeoHead from '../components/SeoHead'
 import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
 import { fetchSubtitle } from '../utils/proxy'
 import { downloadVideoEpisode, isVideoCached } from '../utils/videoDownload'
+import { formatSize } from '../utils/downloads'
 import { VideoCacheLoader } from '../utils/videoCacheLoader'
 import LanguageSelector from '../components/LanguageSelector'
 import { detectAudioOptions } from '../utils/detectAudio'
@@ -679,12 +680,6 @@ export default function Watch() {
     const m = Math.floor(s / 60)
     const sec = Math.floor(s % 60)
     return `${m}:${sec.toString().padStart(2, '0')}`
-  }
-
-  function formatSize(bytes) {
-    if (!bytes) return ''
-    const mb = bytes / (1024 * 1024)
-    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
   }
 
   const pageTitle = title ? `Episodio ${epNum} de ${title}` : 'Reproducir'

@@ -286,32 +286,6 @@ async function trySlug(slug) {
   return null
 }
 
-export async function getAnimeInfo(slug) {
-  return trySlug(slug)
-}
-
-export async function searchAnime(query) {
-  const slug = getSlug(query)
-  const data = await trySlug(slug)
-  if (data) {
-    return [
-      {
-        title: data.title,
-        slug,
-        synopsis: data.synopsis,
-        image: data.cover,
-        genres: data.genres,
-        episodes: data.episodes?.length || 0,
-        url: data.url,
-        rating: data.rating,
-        status: data.status,
-        related: data.related,
-      },
-    ]
-  }
-  return []
-}
-
 function getSlugVariants(slug, originalTitle) {
   const variants = [slug]
   const lowered = originalTitle?.toLowerCase() || ''

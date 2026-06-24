@@ -52,14 +52,3 @@ export async function getWatch(episodeId) {
     download: data.results.download || null,
   }
 }
-
-export function parseEpisodeId(episodeId) {
-  const parts = episodeId.split('/')
-  if (parts.length < 5) return null
-  return {
-    provider: parts[1],
-    anilistId: parseInt(parts[2], 10),
-    audio: parts[3],
-    epNum: parseInt(parts[4].split('-').pop(), 10),
-  }
-}

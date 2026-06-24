@@ -24,10 +24,6 @@ export async function getAnimeEpisodes(anilistId, provider = 'animepahe') {
   return fetchJSON(`${KENJITSU_BASE}/anilist/episodes/${anilistId}?provider=${provider}`)
 }
 
-export async function getEpisodeServers(episodeId) {
-  return fetchJSON(`${KENJITSU_BASE}/animepahe/episode/${episodeId}/servers`)
-}
-
 export async function getAnimepaheSources(episodeId, version = 'sub') {
   return fetchJSON(`${KENJITSU_BASE}/animepahe/sources/${episodeId}?version=${version}`)
 }

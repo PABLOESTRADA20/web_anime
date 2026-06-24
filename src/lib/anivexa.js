@@ -46,7 +46,7 @@ export function parseEpisodeId(episodeId) {
   }
 }
 
-export function detectSpanishAudio(watchData) {
+function detectSpanishAudio(watchData) {
   if (!watchData) return false
   const audioTracks = watchData.audio || watchData.audioTracks || []
   if (audioTracks.length > 0) {
@@ -125,33 +125,4 @@ export function normalizeStreams(watchData) {
   const audioLang = detectSpanishAudio(watchData) ? 'es' : null
 
   return { sources: streams, subtitles: filtered, audioLang }
-}
-
-let providerHealthCache = null
-let providerHealthCacheTime = 0
-const HEALTH_CACHE_TTL = 30000
-
-export async function pingProviders(anilistId, signal) {
-  const now = Date.now()
-  if (providerHealthCache && now - providerHealthCacheTime < HEALTH_CACHE_TTL) {
-    return providerHealthCache
-  }
-  const results = []
-  for (const p of PROVIDER_PRIORITY) {
-    try {
-      const data = await getWatch(anilistId, p, 1, 'sub', signal)
-      const { sources } = normalizeStreams(data)
-      results.push({ provider: p, alive: sources.length > 0 })
-    } catch {
-      results.push({ provider: p, alive: false })
-    }
-  }
-  providerHealthCache = results
-  providerHealthCacheTime = now
-  return results
-}
-
-export function clearProviderHealthCache() {
-  providerHealthCache = null
-  providerHealthCacheTime = 0
 }
