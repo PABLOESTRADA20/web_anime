@@ -449,7 +449,7 @@ export default function Watch() {
   }, [anilistId, provider, epNum, effectiveAudio, showSelector, selectedLanguage, audio])
 
   useEffect(() => {
-    if (subtitles.length === 0) {
+    if (subtitles.length === 0 || audioType === 'latam') {
       setActiveSubtitle(-1)
       return
     }
@@ -459,7 +459,7 @@ export default function Watch() {
     if (esIndex < 0) {
       toast('No hay subtítulos en español. Mostrando ' + subtitleLangLabel(subtitles[0]).toLowerCase() + '.', 'info', 4000)
     }
-  }, [subtitles, toast])
+  }, [subtitles, toast, audioType])
 
   useEffect(() => {
     const video = videoRef.current

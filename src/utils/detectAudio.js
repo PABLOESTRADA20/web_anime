@@ -60,6 +60,11 @@ export async function detectAudioOptions(anilistId, epNum, title) {
 
   await Promise.allSettled([anivexaPromise, miruroPromise, latamPromise])
 
+  // Si LATAM no se encontró vía VerAnime, revisar si Anivexa o Miruro tienen dub (usado para LATAM)
+  if (!results.spanish.available && results.english.available) {
+    Object.assign(results.spanish, { available: true, provider: results.english.provider })
+  }
+
   if (!results.japanese.available && !results.japanese.error) {
     results.japanese.error = 'No hay fuentes en japonés'
   }
