@@ -23,7 +23,7 @@ export default function AnimeCard({ anime, index = 0, progress }) {
             <div className="w-full h-full flex items-center justify-center bg-surface text-text-secondary/40 text-xs p-4 text-center">
               {title}
             </div>
-          ) : (
+          ) : image ? (
             <img
               src={image}
               alt={title}
@@ -31,6 +31,10 @@ export default function AnimeCard({ anime, index = 0, progress }) {
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               onError={() => setImgFailed(true)}
             />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-surface text-text-secondary/40 text-xs p-4 text-center">
+              {title}
+            </div>
           )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

@@ -45,6 +45,8 @@ function normalizeAnime(item) {
     title_es: item.title_es || null,
     synopsis_es: item.synopsis_es || null,
     genres_es: item.genres_es || null,
+    externalLinks: item.externalLinks || [],
+    streamingEpisodes: item.streamingEpisodes || [],
   }
 }
 

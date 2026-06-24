@@ -56,6 +56,26 @@ interface Media {
   relations?: { edges: RelationEdge[] }
   recommendations?: { nodes: RecommendationNode[] }
   nextAiringEpisode?: { airingAt: number; episode: number }
+  externalLinks?: ExternalLink[]
+  streamingEpisodes?: StreamingEpisode[]
+}
+
+interface ExternalLink {
+  url: string
+  site: string
+  siteName?: string
+  language?: string
+  color?: string
+  icon?: string
+  type?: string
+  isDisabled?: boolean
+}
+
+interface StreamingEpisode {
+  title: string
+  thumbnail: string
+  url: string
+  site: string
 }
 
 interface StaffEdge {
@@ -374,6 +394,8 @@ const GET_ANIME = `
         nodes { mediaRecommendation { id title { romaji english } coverImage { large } type format averageScore } }
       }
       nextAiringEpisode { airingAt episode }
+      externalLinks { url site siteName language color icon type isDisabled }
+      streamingEpisodes { title thumbnail url site }
     }
   }`
 

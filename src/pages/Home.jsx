@@ -117,6 +117,11 @@ export default function Home() {
         if (!ac.signal.aborted) {
           const filtered = (result.data || []).filter((a) => !interactedIds.has(a.id)).slice(0, 12)
           setRecommendations(filtered)
+          enrichAnimeBatch(filtered)
+            .then((enriched) => {
+              if (!ac.signal.aborted) setRecommendations(enriched)
+            })
+            .catch(() => {})
         }
       } catch {
         /* ignore */

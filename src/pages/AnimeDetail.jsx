@@ -22,6 +22,36 @@ import AddToCollectionBtn from '../components/AddToCollectionBtn'
 import SafeImage from '../components/SafeImage'
 import { useToast } from '../components/Toast'
 
+const SITE_COLORS = {
+  crunchyroll: '#f47521',
+  netflix: '#e50914',
+  hulu: '#1ce783',
+  'prime video': '#00a8e1',
+  'amazon prime video': '#00a8e1',
+  'amazon video': '#00a8e1',
+  disney: '#113cc2',
+  'disney+': '#113cc2',
+  funimation: '#5b208c',
+  hidive: '#6a0dad',
+  youtube: '#ff0000',
+  hbo: '#a78bfa',
+  'hbo max': '#5822b4',
+  max: '#5822b4',
+  twitter: '#1da1f2',
+  x: '#000000',
+  facebook: '#1877f2',
+  instagram: '#e4405f',
+  discord: '#5865f2',
+  twitch: '#9146ff',
+  wikipedia: '#636363',
+  anilist: '#02a9ff',
+  myanimelist: '#2e51a2',
+  anidb: '#b80606',
+  'anime news network': '#f15a24',
+  'crunchyroll es': '#f47521',
+  'funimation now': '#5b208c',
+}
+
 export default function AnimeDetail() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -472,6 +502,53 @@ export default function AnimeDetail() {
                 ))}
               </div>
             </FadeInStagger>
+          </section>
+        )}
+
+        {anime.externalLinks?.length > 0 && (
+          <section className="mb-12">
+            <FadeIn>
+              <GradientHeading variant="cyan" size="sm" className="mb-5">
+                Ver en
+              </GradientHeading>
+            </FadeIn>
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const streaming = anime.externalLinks.filter((l) => l.type === 'STREAMING' && !l.isDisabled)
+                const other = anime.externalLinks.filter((l) => l.type !== 'STREAMING' && !l.isDisabled)
+                const preferLang = ['ES', 'Spanish', 'en', 'EN', 'English']
+                const sortByLang = (a, b) => {
+                  const ai = preferLang.indexOf(a.language)
+                  const bi = preferLang.indexOf(b.language)
+                  return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+                }
+                streaming.sort(sortByLang)
+                other.sort(sortByLang)
+                const all = [...streaming, ...other]
+                return all.map((link, i) => {
+                  const site = link.site || link.siteName || ''
+                  const siteColor = SITE_COLORS[site.toLowerCase()] || link.color || '#666'
+                  const isInfo = link.type !== 'STREAMING'
+                  return (
+                    <a
+                      key={link.url + i}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border hover:scale-105"
+                      style={{
+                        backgroundColor: siteColor + '15',
+                        borderColor: siteColor + '40',
+                        color: siteColor,
+                      }}>
+                      <span className="text-base">{isInfo ? '🌐' : '▶'}</span>
+                      <span>{site}</span>
+                      {link.language && <span className="text-[10px] opacity-60 uppercase">{link.language}</span>}
+                    </a>
+                  )
+                })
+              })()}
+            </div>
           </section>
         )}
 

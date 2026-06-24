@@ -23,7 +23,18 @@ const RECOMMENDATION_QUERY = `
 export async function getRecommendations(genres, page = 1, perPage = 20) {
   if (!genres || genres.length === 0) return { data: [], hasNextPage: false }
   const data = await gql(RECOMMENDATION_QUERY, { genres, page, perPage })
-  return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
+  const normalized = (data.Page.media || []).map(normalizeRec)
+  return { data: normalized, hasNextPage: data.Page.pageInfo.hasNextPage }
+}
+
+function normalizeRec(item) {
+  if (!item) return item
+  return {
+    ...item,
+    anilistId: item.id,
+    image: item.image || item.coverImage?.large,
+    score: item.averageScore ?? null,
+  }
 }
 
 export async function getUserGenreProfile(userId) {
