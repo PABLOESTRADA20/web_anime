@@ -8,18 +8,19 @@ export function useProfile() {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = useCallback(async () => {
-    if (!user || !isSupabaseReady()) { setLoading(false); return }
+    if (!user || !isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
     setProfile(data || null)
     setLoading(false)
   }, [user])
 
-  useEffect(() => { fetchProfile() }, [fetchProfile])
+  useEffect(() => {
+    fetchProfile()
+  }, [fetchProfile])
 
   async function ensureProfile(userId) {
     if (!isSupabaseReady()) return null
@@ -40,7 +41,10 @@ export function useProfile() {
       .upsert({ id: user.id, ...updates, updated_at: new Date().toISOString() })
       .select()
       .single()
-    if (error) { setLoading(false); throw error }
+    if (error) {
+      setLoading(false)
+      throw error
+    }
     setProfile(data)
     setLoading(false)
     return data

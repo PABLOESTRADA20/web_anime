@@ -40,10 +40,13 @@ export function ToastProvider({ children }) {
             onClick={() => removeToast(t.id)}
             className={`pointer-events-auto px-4 py-2.5 rounded-xl text-sm font-medium shadow-xl cursor-pointer
               animate-[slideUp_0.3s_ease-out]
-              ${t.type === 'success' ? 'bg-green-600 text-white' :
-                t.type === 'error' ? 'bg-red-600 text-white' :
-                'bg-surface text-text-primary border border-white/10'}`}
-          >
+              ${
+                t.type === 'success'
+                  ? 'bg-green-600 text-white'
+                  : t.type === 'error'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-surface text-text-primary border border-white/10'
+              }`}>
             {t.message}
           </div>
         ))}

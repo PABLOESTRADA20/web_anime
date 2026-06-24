@@ -20,7 +20,7 @@ async function searchAPI(query) {
 
 export async function searchAnime(query) {
   const results = await searchAPI(query)
-  return results.map(r => ({
+  return results.map((r) => ({
     id: r.id,
     title: r.title,
     slug: r.slug,
@@ -74,12 +74,14 @@ export async function getEpisodeSource(serverUrl) {
   try {
     const data = await fetchJSON(`${SEARCH_API}/api/extract?url=${encodeURIComponent(serverUrl)}`)
     return {
-      sources: [{
-        url: data.url,
-        quality: data.quality || 'auto',
-        referer: serverUrl,
-        type: data.url.includes('.m3u8') ? 'hls' : 'mp4',
-      }],
+      sources: [
+        {
+          url: data.url,
+          quality: data.quality || 'auto',
+          referer: serverUrl,
+          type: data.url.includes('.m3u8') ? 'hls' : 'mp4',
+        },
+      ],
       subtitles: data.subtitles || [],
     }
   } catch {

@@ -15,14 +15,14 @@ export async function getEpisodes(anilistId, provider = 'kiwi') {
 
   const eps = data.results.providers[provider].episodes
   return {
-    sub: (eps.sub || []).map(ep => ({
+    sub: (eps.sub || []).map((ep) => ({
       episodeId: ep.id,
       number: ep.number,
       title: ep.title || '',
       image: ep.image || '',
       duration: ep.duration,
     })),
-    dub: (eps.dub || []).map(ep => ({
+    dub: (eps.dub || []).map((ep) => ({
       episodeId: ep.id,
       number: ep.number,
       title: ep.title || '',
@@ -37,8 +37,8 @@ export async function getWatch(episodeId) {
   if (!data?.success || !data?.results?.streams) throw new Error('Miruro: sin fuentes')
 
   const sources = data.results.streams
-    .filter(s => s.type === 'hls' || s.url?.includes('.m3u8'))
-    .map(s => ({
+    .filter((s) => s.type === 'hls' || s.url?.includes('.m3u8'))
+    .map((s) => ({
       url: s.url,
       quality: s.quality || 'auto',
       referer: s.referer || '',

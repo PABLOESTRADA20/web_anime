@@ -457,7 +457,7 @@ export async function gql<T>(query: string, variables: Record<string, unknown> =
   })
   if (res.status === 429) {
     const retryAfter = parseInt(res.headers.get('Retry-After') || '5', 10) * 1000
-    await new Promise(r => setTimeout(r, Math.min(retryAfter, 15000)))
+    await new Promise((r) => setTimeout(r, Math.min(retryAfter, 15000)))
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     return gql<T>(query, variables, signal)
   }
@@ -500,7 +500,13 @@ export async function getTopManga(category = 'TRENDING', page = 1, perPage = 20)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
 }
 
-export async function searchAnime(query: string, page = 1, perPage = 20, filters: DirectoryFilters = {}, signal?: AbortSignal): Promise<AnimeListResult> {
+export async function searchAnime(
+  query: string,
+  page = 1,
+  perPage = 20,
+  filters: DirectoryFilters = {},
+  signal?: AbortSignal,
+): Promise<AnimeListResult> {
   const vars: Record<string, unknown> = { page, perPage }
   if (query) vars.search = query
   if (filters.genre) vars.genre = filters.genre
@@ -555,7 +561,11 @@ export async function getCharacterInfo(id: number | string): Promise<Character> 
 }
 
 export async function getAnimeCharacters(animeId: number | string, page = 1, perPage = 50): Promise<CharactersResult> {
-  const data = await gql<{ Media: { characters: { edges: CharacterEdge[]; pageInfo: PageInfo } } }>(GET_ANIME_CHARACTERS, { id: Number(animeId), page, perPage })
+  const data = await gql<{ Media: { characters: { edges: CharacterEdge[]; pageInfo: PageInfo } } }>(GET_ANIME_CHARACTERS, {
+    id: Number(animeId),
+    page,
+    perPage,
+  })
   return { data: data.Media?.characters?.edges || [], pageInfo: data.Media?.characters?.pageInfo }
 }
 

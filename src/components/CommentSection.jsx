@@ -1,8 +1,14 @@
 import { useState } from 'react'
+import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useComments } from '../hooks/useComments'
 import { useAuth } from '../hooks/useAuth'
 import { Link } from 'react-router-dom'
+
+const commentSchema = z.object({
+  content: z.string().min(1, 'El comentario no puede estar vacío').max(2000, 'Máximo 2000 caracteres'),
+  rating: z.number().int().min(0).max(10).optional(),
+})
 
 function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
   const [showReply, setShowReply] = useState(false)
@@ -11,15 +17,18 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
   const email = comment.user?.email || 'Anónimo'
   const username = email.split('@')[0]
   const date = new Date(comment.created_at).toLocaleDateString('es-ES', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`${depth > 0 ? 'ml-6 pl-4 border-l border-white/10' : ''}`}
-    >
+      className={`${depth > 0 ? 'ml-6 pl-4 border-l border-white/10' : ''}`}>
       <div className="p-3 rounded-xl bg-surface/50">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-medium text-primary">{username}</span>
@@ -31,7 +40,9 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
         <p className="text-sm text-text-primary leading-relaxed">{comment.content}</p>
         <div className="flex gap-3 mt-2">
           {user && (
-            <button onClick={() => setShowReply(!showReply)} className="text-[11px] text-text-secondary hover:text-text-primary transition-colors">
+            <button
+              onClick={() => setShowReply(!showReply)}
+              className="text-[11px] text-text-secondary hover:text-text-primary transition-colors">
               Responder
             </button>
           )}
@@ -53,22 +64,31 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
               setShowReply(false)
             }
           }}
-          className="mt-2 ml-6 flex gap-2"
-        >
+          className="mt-2 ml-6 flex gap-2">
           <input
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Escribe una respuesta..."
             className="flex-1 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-xs placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
           />
-          <button type="submit" className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium">Enviar</button>
+          <button type="submit" className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium">
+            Enviar
+          </button>
         </form>
       )}
 
       {comment.replies?.length > 0 && (
         <div className="mt-2 space-y-2">
           {comment.replies.map((reply) => (
-            <CommentItem key={reply.id} comment={reply} onDelete={onDelete} onReply={onReply} onLike={onLike} user={user} depth={depth + 1} />
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              onDelete={onDelete}
+              onReply={onReply}
+              onLike={onLike}
+              user={user}
+              depth={depth + 1}
+            />
           ))}
         </div>
       )}
@@ -83,22 +103,36 @@ export default function CommentSection({ anilistId, mediaType = 'anime', episode
   const [rating, setRating] = useState(0)
   const [sending, setSending] = useState(false)
 
+  const [commentError, setCommentError] = useState('')
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!content.trim()) return
+    setCommentError('')
+
+    const parsed = commentSchema.safeParse({ content: content.trim(), rating: rating || undefined })
+    if (!parsed.success) {
+      setCommentError(parsed.error.issues[0].message)
+      return
+    }
+
     setSending(true)
     try {
       await addComment(content, rating > 0 ? rating : null)
       setContent('')
       setRating(0)
-    } catch (e) { console.error('Comment error:', e) }
+      setCommentError('')
+    } catch {
+      setCommentError('Error al enviar comentario')
+    }
     setSending(false)
   }
 
   async function handleReply(parentId, replyContent) {
     try {
       await addComment(replyContent, null, parentId)
-    } catch (e) { console.error('Reply error:', e) }
+    } catch (e) {
+      console.error('Reply error:', e)
+    }
   }
 
   return (
@@ -109,11 +143,14 @@ export default function CommentSection({ anilistId, mediaType = 'anime', episode
         <form onSubmit={handleSubmit} className="mb-6 p-4 rounded-xl bg-surface">
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setCommentError('')
+              setContent(e.target.value)
+            }}
             placeholder="Escribe un comentario..."
             rows={3}
             maxLength={2000}
-            className="w-full px-3 py-2 rounded-lg bg-background border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors resize-none"
+            className={`w-full px-3 py-2 rounded-lg bg-background border text-sm placeholder:text-text-secondary/50 focus:outline-none transition-colors resize-none ${commentError ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-neon-cyan/70'}`}
           />
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
@@ -125,17 +162,16 @@ export default function CommentSection({ anilistId, mediaType = 'anime', episode
                   onClick={() => setRating(rating === n ? 0 : n)}
                   className={`text-xs w-6 h-6 rounded-full transition-colors ${
                     rating >= n ? 'bg-primary text-white' : 'bg-surface-hover text-text-secondary hover:text-text-primary'
-                  }`}
-                >
+                  }`}>
                   {n}
                 </button>
               ))}
             </div>
+            {commentError && <p className="text-red-400 text-[11px]">{commentError}</p>}
             <button
               type="submit"
               disabled={sending || !content.trim()}
-              className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-            >
+              className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50">
               {sending ? 'Enviando...' : 'Comentar'}
             </button>
           </div>
@@ -143,14 +179,15 @@ export default function CommentSection({ anilistId, mediaType = 'anime', episode
       ) : (
         <div className="mb-6 p-4 rounded-xl bg-surface text-center">
           <p className="text-sm text-text-secondary">
-            <Link to="/login" className="text-primary hover:underline">Inicia sesión</Link> para comentar.
+            <Link to="/login" className="text-primary hover:underline">
+              Inicia sesión
+            </Link>{' '}
+            para comentar.
           </p>
         </div>
       )}
 
-      {error && (
-        <p className="text-red-400 text-xs mb-3">{error}</p>
-      )}
+      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (

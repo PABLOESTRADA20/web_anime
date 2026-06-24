@@ -8,17 +8,15 @@ export function useHistory() {
 
   const fetchHistory = useCallback(async () => {
     if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(50)
+    const { data } = await supabase.from('history').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(50)
     setHistory(data || [])
   }, [user])
 
   useEffect(() => {
-    if (!user) { setHistory([]); return }
+    if (!user) {
+      setHistory([])
+      return
+    }
     fetchHistory()
   }, [user, fetchHistory])
 

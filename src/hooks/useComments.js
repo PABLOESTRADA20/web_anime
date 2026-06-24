@@ -18,11 +18,13 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
     try {
       let query = supabase
         .from('comments')
-        .select(`
+        .select(
+          `
           *,
           user:user_id ( email ),
           likes:comment_likes ( count )
-        `)
+        `,
+        )
         .eq('anilist_id', anilistId)
         .eq('media_type', mediaType)
         .is('parent_id', null)
@@ -31,8 +33,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
         query = query.eq('episode_number', episodeNumber)
       }
 
-      const { data, error: err } = await query
-        .order('created_at', { ascending: false })
+      const { data, error: err } = await query.order('created_at', { ascending: false })
 
       if (err) throw err
 
@@ -45,7 +46,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
             .eq('parent_id', comment.id)
             .order('created_at', { ascending: true })
           return { ...comment, replies: replies || [] }
-        })
+        }),
       )
 
       setComments(commentsWithReplies)
@@ -72,11 +73,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
       }
       if (episodeNumber) insertData.episode_number = episodeNumber
 
-      const { data, error: err } = await supabase
-        .from('comments')
-        .insert(insertData)
-        .select()
-        .single()
+      const { data, error: err } = await supabase.from('comments').insert(insertData).select().single()
 
       if (err) throw err
       await fetchComments()
@@ -90,11 +87,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
   async function deleteComment(commentId) {
     if (!user || !isSupabaseReady()) return
     try {
-      const { error: err } = await supabase
-        .from('comments')
-        .delete()
-        .eq('id', commentId)
-        .eq('user_id', user.id)
+      const { error: err } = await supabase.from('comments').delete().eq('id', commentId).eq('user_id', user.id)
 
       if (err) throw err
       await fetchComments()

@@ -16,17 +16,18 @@ export function useNotificationPreferences() {
   const [loading, setLoading] = useState(true)
 
   const fetchPrefs = useCallback(async () => {
-    if (!user || !isSupabaseReady()) { setLoading(false); return }
-    const { data } = await supabase
-      .from('notification_preferences')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    if (!user || !isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
+    const { data } = await supabase.from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle()
     setPrefs(data || null)
     setLoading(false)
   }, [user])
 
-  useEffect(() => { fetchPrefs() }, [fetchPrefs])
+  useEffect(() => {
+    fetchPrefs()
+  }, [fetchPrefs])
 
   async function ensurePrefs() {
     if (!user || !isSupabaseReady()) return
@@ -39,14 +40,10 @@ export function useNotificationPreferences() {
     return data
   }
 
-  async function updatePref( key, value) {
+  async function updatePref(key, value) {
     if (!user || !isSupabaseReady()) throw new Error('Not authenticated')
     const updates = { user_id: user.id, [key]: value, updated_at: new Date().toISOString() }
-    const { data, error } = await supabase
-      .from('notification_preferences')
-      .upsert(updates, { onConflict: 'user_id' })
-      .select()
-      .single()
+    const { data, error } = await supabase.from('notification_preferences').upsert(updates, { onConflict: 'user_id' }).select().single()
     if (error) throw error
     setPrefs(data)
     return data

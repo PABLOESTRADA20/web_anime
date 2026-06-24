@@ -2,14 +2,9 @@ import { isCloudflareBlock, isLikelySubtitle } from './subtitles.js'
 
 const CLOUDFLARE_PROXY = '/api/proxy?url='
 
-const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=`
-  : null
+const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=` : null
 
-const PUBLIC_PROXIES = [
-  'https://api.allorigins.win/raw?url=',
-  'https://corsproxy.io/?url=',
-]
+const PUBLIC_PROXIES = ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']
 
 let proxyCache = new Map()
 const PROXY_CACHE_TTL = 600000
@@ -37,7 +32,7 @@ async function fetchDirect(url) {
       signal: controller.signal,
       mode: 'cors',
       headers: {
-        'Accept': 'text/vtt, text/plain, */*',
+        Accept: 'text/vtt, text/plain, */*',
       },
     })
     if (!res.ok) throw new Error(`Direct fetch ${res.status}`)

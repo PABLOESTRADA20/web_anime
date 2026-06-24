@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
-const API_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/community-episodes`
-  : null
+const API_URL = import.meta.env.VITE_SUPABASE_URL ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/community-episodes` : null
 
 const PROVIDER_NAMES = {
   mega: 'MEGA',
@@ -99,7 +97,9 @@ export function useSubmitEpisode() {
     if (!API_URL) throw new Error('API no configurada')
     setSubmitting(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Debes iniciar sesión')
 
       const provider_name = detectProvider(url)
@@ -138,9 +138,11 @@ export function useEpisodeVote() {
 
   const vote = useCallback(async (episodeId, value) => {
     if (!API_URL) throw new Error('API no configurada')
-    setVoting(prev => ({ ...prev, [episodeId]: true }))
+    setVoting((prev) => ({ ...prev, [episodeId]: true }))
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) throw new Error('Debes iniciar sesión')
 
       const res = await fetch(API_URL, {
@@ -158,7 +160,7 @@ export function useEpisodeVote() {
       if (!res.ok) throw new Error('Error al votar')
       return await res.json()
     } finally {
-      setVoting(prev => ({ ...prev, [episodeId]: false }))
+      setVoting((prev) => ({ ...prev, [episodeId]: false }))
     }
   }, [])
 

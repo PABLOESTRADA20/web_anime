@@ -1,10 +1,22 @@
-function normalizeLabel(sub) {
+export interface SubtitleData {
+  label?: string
+  language?: string
+  lang?: string
+  srclang?: string
+  name?: string
+  file?: string
+  url?: string
+  src?: string
+  index?: number
+}
+
+function normalizeLabel(sub: SubtitleData): string {
   return (sub.label || sub.language || sub.srclang || sub.name || '').toLowerCase()
 }
 
-function labelIncludes(sub, patterns) {
+function labelIncludes(sub: SubtitleData, patterns: string[]): boolean {
   const text = normalizeLabel(sub)
-  return patterns.some(p => {
+  return patterns.some((p) => {
     if (p.length <= 2) return text === p
     return text.includes(p)
   })
@@ -19,7 +31,7 @@ const AR_PATTERNS = ['arabic', 'ar']
 const KO_PATTERNS = ['korean', 'ko']
 const ZH_PATTERNS = ['chinese', 'zh', '中文']
 
-export function subtitleLangLabel(sub) {
+export function subtitleLangLabel(sub: SubtitleData): string {
   if (labelIncludes(sub, ES_PATTERNS)) return 'Español'
   if (labelIncludes(sub, EN_PATTERNS)) return 'English'
   if (labelIncludes(sub, JA_PATTERNS)) return '日本語'
@@ -31,7 +43,7 @@ export function subtitleLangLabel(sub) {
   return sub.label || sub.language || `Track ${sub.index || 0}`
 }
 
-export function subtitleSrcLang(sub) {
+export function subtitleSrcLang(sub: SubtitleData): string {
   if (sub.language) return sub.language
   if (labelIncludes(sub, ES_PATTERNS)) return 'es'
   if (labelIncludes(sub, EN_PATTERNS)) return 'en'
@@ -44,34 +56,36 @@ export function subtitleSrcLang(sub) {
   return 'en'
 }
 
-export function isCloudflareBlock(text) {
-  return text.includes('cf-browser-verification') ||
+export function isCloudflareBlock(text: string): boolean {
+  return (
+    text.includes('cf-browser-verification') ||
     text.includes('__cf_chl_') ||
     text.includes('Just a moment') ||
     text.includes('Attention Required') ||
     text.includes('Checking your browser') ||
     text.includes('cdn-cgi/challenge-platform')
+  )
 }
 
-export function isLikelySubtitle(text) {
+export function isLikelySubtitle(text: string): boolean {
   const trimmed = text.trim()
   return trimmed.startsWith('WEBVTT') || /^\d{2}:\d{2}/m.test(trimmed)
 }
 
-export function isSpanishSub(sub) {
+export function isSpanishSub(sub: SubtitleData): boolean {
   const language = (sub.language || sub.lang || sub.srclang || '').toLowerCase()
   const file = (sub.file || sub.url || sub.src || '').toLowerCase()
 
   if (language === 'es' || language === 'spa') return true
   if (labelIncludes(sub, ES_PATTERNS)) return true
 
-  const filePatterns = ['es.', 'spanish.', 'espanol.', 'español.', 'latino.', 'sub.es', '_es.']
-  if (filePatterns.some(p => file.includes(p))) return true
+  const filePatterns = ['es.', 'spanish.', 'espanol.', 'español.', 'latino.', 'spa-', '/es_', '.es_', 'sub.es', '_es.']
+  if (filePatterns.some((p) => file.includes(p))) return true
 
   return false
 }
 
-export function getSubtitleInfo(sub) {
+export function getSubtitleInfo(sub: SubtitleData) {
   return {
     label: subtitleLangLabel(sub),
     srcLang: subtitleSrcLang(sub),

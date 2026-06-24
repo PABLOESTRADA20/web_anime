@@ -37,10 +37,12 @@ export function useWatchParty(anilistId, episodeNumber, videoRef) {
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
-        const users = Object.values(state).flat().map((p) => ({
-          id: p.id,
-          email: p.email?.split('@')[0] || 'Anónimo',
-        }))
+        const users = Object.values(state)
+          .flat()
+          .map((p) => ({
+            id: p.id,
+            email: p.email?.split('@')[0] || 'Anónimo',
+          }))
         setParticipants(users)
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
@@ -102,16 +104,21 @@ export function useWatchParty(anilistId, episodeNumber, videoRef) {
     }
   }, [])
 
-  const broadcast = useCallback((action, time) => {
-    if (!channelRef.current || !connected) return
-    syncingRef.current = true
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'sync',
-      payload: { action, time },
-    })
-    setTimeout(() => { syncingRef.current = false }, 100)
-  }, [connected])
+  const broadcast = useCallback(
+    (action, time) => {
+      if (!channelRef.current || !connected) return
+      syncingRef.current = true
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'sync',
+        payload: { action, time },
+      })
+      setTimeout(() => {
+        syncingRef.current = false
+      }, 100)
+    },
+    [connected],
+  )
 
   return { join, leave, broadcast, participants, connected, partyId }
 }

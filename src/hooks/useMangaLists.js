@@ -9,17 +9,17 @@ export function useMangaLists() {
 
   const fetchLists = useCallback(async () => {
     if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('manga_lists')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
+    const { data } = await supabase.from('manga_lists').select('*').eq('user_id', user.id).order('updated_at', { ascending: false })
     setLists(data || [])
     setLoading(false)
   }, [user])
 
   useEffect(() => {
-    if (!user) { setLists([]); setLoading(false); return }
+    if (!user) {
+      setLists([])
+      setLoading(false)
+      return
+    }
     fetchLists()
   }, [user, fetchLists])
 

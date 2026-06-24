@@ -9,17 +9,17 @@ export function useWatchlist() {
 
   const fetchWatchlist = useCallback(async () => {
     if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('watchlist')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('watchlist').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
     setWatchlist(data || [])
     setLoading(false)
   }, [user])
 
   useEffect(() => {
-    if (!user) { setWatchlist([]); setLoading(false); return }
+    if (!user) {
+      setWatchlist([])
+      setLoading(false)
+      return
+    }
     fetchWatchlist()
   }, [user, fetchWatchlist])
 

@@ -34,14 +34,14 @@ export default function Random() {
         setTarget(1)
       }
     }
-    pick().catch(() => { if (!cancelled) setTarget(1) })
-    return () => { cancelled = true }
+    pick().catch(() => {
+      if (!cancelled) setTarget(1)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (target) return <Navigate to={`/anime/${target}`} replace />
-  return (
-    <div className="text-center py-20 text-text-secondary">
-      Buscando un anime aleatorio...
-    </div>
-  )
+  return <div className="text-center py-20 text-text-secondary">Buscando un anime aleatorio...</div>
 }

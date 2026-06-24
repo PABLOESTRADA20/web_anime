@@ -1,7 +1,8 @@
 import { Helmet } from 'react-helmet-async'
 
 const SITE_NAME = 'AnimeVerse'
-const DEFAULT_DESC = 'AnimeVerse — tu plataforma para ver anime y leer manga online. Descubre las últimas novedades, populares y en emisión.'
+const DEFAULT_DESC =
+  'AnimeVerse — tu plataforma para ver anime y leer manga online. Descubre las últimas novedades, populares y en emisión.'
 const DEFAULT_IMAGE = '/og-default.png'
 const BASE_URL = 'https://anime-app-e8p.pages.dev'
 

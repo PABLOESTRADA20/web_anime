@@ -6,6 +6,7 @@ import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+import SafeImage from '../components/SafeImage'
 
 export default function Staff() {
   const { id } = useParams()
@@ -14,13 +15,20 @@ export default function Staff() {
 
   useEffect(() => {
     setLoading(true)
-    getStaffInfo(id).then((data) => {
-      setStaff(data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    getStaffInfo(id)
+      .then((data) => {
+        setStaff(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [id])
 
-  if (loading && !staff) return <div className="pt-10"><GridSkeleton count={6} /></div>
+  if (loading && !staff)
+    return (
+      <div className="pt-10">
+        <GridSkeleton count={6} />
+      </div>
+    )
   if (!staff) return <EmptyState message="Staff no encontrado" />
 
   const mediaEdges = staff.staffMedia?.edges || []
@@ -31,8 +39,11 @@ export default function Staff() {
       <SeoHead title={staff.name.full} />
       <div className="flex flex-col sm:flex-row gap-6 mb-10">
         <div className="shrink-0">
-          <img src={staff.image?.large} alt={staff.name.full}
+          <SafeImage
+            src={staff.image?.large}
+            alt={staff.name.full}
             className="w-40 h-56 rounded-2xl object-cover ring-1 ring-white/10"
+            fallbackText={staff.name.full}
           />
         </div>
         <div className="flex-1 min-w-0">
@@ -47,9 +58,7 @@ export default function Staff() {
             {staff.homeTown && <span>Origen: {staff.homeTown}</span>}
             {staff.bloodType && <span>Blood: {staff.bloodType}</span>}
             {staff.favourites > 0 && <span>{staff.favourites} favoritos</span>}
-            {staff.dateOfBirth && (
-              <span>Cumpleaños: {[staff.dateOfBirth.month, staff.dateOfBirth.day].filter(Boolean).join('/')}</span>
-            )}
+            {staff.dateOfBirth && <span>Cumpleaños: {[staff.dateOfBirth.month, staff.dateOfBirth.day].filter(Boolean).join('/')}</span>}
           </div>
           {staff.description && (
             <div className="mt-4 text-sm text-text-secondary/80 leading-relaxed line-clamp-6">
@@ -84,8 +93,11 @@ export default function Staff() {
               <div key={edge.node.id} className="group rounded-2xl overflow-hidden bg-surface card-hover">
                 <Link to={`/character/${edge.node.id}`} className="block">
                   <div className="aspect-[3/4] overflow-hidden">
-                    <img src={edge.node.image?.large} alt={edge.node.name.full} loading="lazy"
+                    <SafeImage
+                      src={edge.node.image?.large}
+                      alt={edge.node.name.full}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      fallbackText={edge.node.name.full}
                     />
                   </div>
                   <div className="p-2.5 text-center">
@@ -104,7 +116,9 @@ export default function Staff() {
       )}
 
       <div className="mt-4">
-        <Link to="/characters" className="text-sm text-text-secondary hover:text-text-primary transition-colors">← Volver a personajes</Link>
+        <Link to="/characters" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+          ← Volver a personajes
+        </Link>
       </div>
     </motion.div>
   )

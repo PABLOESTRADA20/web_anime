@@ -18,7 +18,10 @@ export function useMangaHistory() {
   }, [user])
 
   useEffect(() => {
-    if (!user) { setMangaHistory([]); return }
+    if (!user) {
+      setMangaHistory([])
+      return
+    }
     fetchMangaHistory()
   }, [user, fetchMangaHistory])
 
@@ -33,36 +36,29 @@ export function useMangaHistory() {
       .maybeSingle()
 
     if (existing) {
-      await supabase
-        .from('manga_history')
-        .update({ updated_at: new Date().toISOString(), page })
-        .eq('id', existing.id)
+      await supabase.from('manga_history').update({ updated_at: new Date().toISOString(), page }).eq('id', existing.id)
     } else {
-      await supabase
-        .from('manga_history')
-        .insert({
-          user_id: user.id,
-          anilist_id: anilistId,
-          chapter_number: chapterNumber,
-          chapter_id: chapterId,
-          title,
-          image,
-          page,
-        })
+      await supabase.from('manga_history').insert({
+        user_id: user.id,
+        anilist_id: anilistId,
+        chapter_number: chapterNumber,
+        chapter_id: chapterId,
+        title,
+        image,
+        page,
+      })
     }
     fetchMangaHistory()
   }
 
   function getLatestChapter(anilistId) {
-    return mangaHistory
-      .filter((h) => h.anilist_id === parseInt(anilistId, 10))
-      .sort((a, b) => b.chapter_number - a.chapter_number)[0] || null
+    return (
+      mangaHistory.filter((h) => h.anilist_id === parseInt(anilistId, 10)).sort((a, b) => b.chapter_number - a.chapter_number)[0] || null
+    )
   }
 
   function isChapterRead(anilistId, chapterNumber) {
-    return mangaHistory.some(
-      (h) => h.anilist_id === parseInt(anilistId, 10) && h.chapter_number === chapterNumber
-    )
+    return mangaHistory.some((h) => h.anilist_id === parseInt(anilistId, 10) && h.chapter_number === chapterNumber)
   }
 
   return { mangaHistory, saveChapterProgress, getLatestChapter, isChapterRead }

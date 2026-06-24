@@ -16,15 +16,8 @@ export default function AnimeCard({ anime, index = 0, progress }) {
     : `/anime/${id}`
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-    >
-      <Link
-        to={linkTo}
-        className="group relative rounded-2xl overflow-hidden bg-surface card-hover block"
-      >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
+      <Link to={linkTo} className="group relative rounded-2xl overflow-hidden bg-surface card-hover block">
         <div className="aspect-[3/4] overflow-hidden relative">
           {imgFailed ? (
             <div className="w-full h-full flex items-center justify-center bg-surface text-text-secondary/40 text-xs p-4 text-center">
@@ -47,7 +40,9 @@ export default function AnimeCard({ anime, index = 0, progress }) {
 
         {score && (
           <span className="absolute top-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-neon-cyan font-mono text-xs font-bold px-2 py-1 rounded-lg border border-neon-cyan/20">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
             {score}
           </span>
         )}
@@ -58,7 +53,8 @@ export default function AnimeCard({ anime, index = 0, progress }) {
           </span>
         )}
         {format && (
-          <span className={`absolute ${anime.title_es ? 'top-10' : 'top-2'} left-2 bg-black/60 backdrop-blur-sm text-primary text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/20 tracking-wider uppercase`}>
+          <span
+            className={`absolute ${anime.title_es ? 'top-10' : 'top-2'} left-2 bg-black/60 backdrop-blur-sm text-primary text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/20 tracking-wider uppercase`}>
             {format}
           </span>
         )}
@@ -70,17 +66,12 @@ export default function AnimeCard({ anime, index = 0, progress }) {
         )}
 
         <div className="absolute bottom-0 left-0 right-0 p-3">
-          <h3 className="text-sm font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">
-            {title}
-          </h3>
+          <h3 className="text-sm font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">{title}</h3>
         </div>
 
         {progress !== undefined && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
-            <div
-              className="h-full bg-neon-cyan transition-all duration-300"
-              style={{ width: `${Math.min(progress * 100, 100)}%` }}
-            />
+            <div className="h-full bg-neon-cyan transition-all duration-300" style={{ width: `${Math.min(progress * 100, 100)}%` }} />
           </div>
         )}
 

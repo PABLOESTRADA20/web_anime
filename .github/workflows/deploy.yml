@@ -21,15 +21,16 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://szcpihgltvewnlrzydpe.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Xbz5cUzCE7umS3y6GaGOtw_gRNmiLgz' }}
-          VITE_ANIVEXA_URL: ${{ secrets.VITE_ANIVEXA_URL || 'https://anivexa-api.vercel.app' }}
-          VITE_CONSUMET_URL: ${{ secrets.VITE_CONSUMET_URL || 'https://consumet-api-production-3333.up.railway.app' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ANIVEXA_URL: ${{ secrets.VITE_ANIVEXA_URL }}
+          VITE_CONSUMET_URL: ${{ secrets.VITE_CONSUMET_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 8f8f9db043d3a2032fff18ab18ade54d
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name anime-app --branch main
           wranglerVersion: "4"

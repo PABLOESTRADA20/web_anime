@@ -22,7 +22,7 @@ export function I18nProvider({ children }) {
   const [strings, setStrings] = useState(null)
 
   useEffect(() => {
-    LOCALES[locale]().then(m => setStrings(m.default || m))
+    LOCALES[locale]().then((m) => setStrings(m.default || m))
   }, [locale])
 
   const setLocale = useCallback((l) => {
@@ -32,20 +32,23 @@ export function I18nProvider({ children }) {
     }
   }, [])
 
-  const t = useCallback((path, params) => {
-    if (!strings) return path
-    const keys = path.split('.')
-    let val = strings
-    for (const k of keys) {
-      if (!val || typeof val !== 'object') return path
-      val = val[k]
-    }
-    if (val === undefined || val === null) return path
-    if (typeof val === 'string' && params) {
-      return val.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`)
-    }
-    return val
-  }, [strings])
+  const t = useCallback(
+    (path, params) => {
+      if (!strings) return path
+      const keys = path.split('.')
+      let val = strings
+      for (const k of keys) {
+        if (!val || typeof val !== 'object') return path
+        val = val[k]
+      }
+      if (val === undefined || val === null) return path
+      if (typeof val === 'string' && params) {
+        return val.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`)
+      }
+      return val
+    },
+    [strings],
+  )
 
   return (
     <I18nContext.Provider value={{ locale, setLocale, locales: Object.keys(LOCALES), localeNames: LOCALE_NAMES, t, strings }}>

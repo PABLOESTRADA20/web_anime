@@ -8,21 +8,26 @@ export function useReviews(anilistId, mediaType = 'anime') {
   const [submitting, setSubmitting] = useState(false)
 
   const fetchReviews = useCallback(async () => {
-    if (!isSupabaseReady()) { setLoading(false); return }
+    if (!isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const { data, error } = await supabase
         .from('reviews')
-        .select('*, user:user_id(email), votes:review_votes(sum))')
+        .select('*, user:user_id(email), votes:review_votes(sum)')
         .eq('anilist_id', anilistId)
         .eq('media_type', mediaType)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user) {
-        const own = (data || []).find(r => r.user_id === user.id)
+        const own = (data || []).find((r) => r.user_id === user.id)
         setUserReview(own || null)
       }
 
@@ -33,7 +38,9 @@ export function useReviews(anilistId, mediaType = 'anime') {
     setLoading(false)
   }, [anilistId, mediaType])
 
-  useEffect(() => { fetchReviews() }, [fetchReviews])
+  useEffect(() => {
+    fetchReviews()
+  }, [fetchReviews])
 
   async function submitReview({ score, content, hasSpoilers }) {
     if (!isSupabaseReady()) return
@@ -69,11 +76,7 @@ export function useReviews(anilistId, mediaType = 'anime') {
   async function voteReview(reviewId, vote) {
     if (!isSupabaseReady()) return
     try {
-      const { data: existing } = await supabase
-        .from('review_votes')
-        .select('id, vote')
-        .eq('review_id', reviewId)
-        .single()
+      const { data: existing } = await supabase.from('review_votes').select('id, vote').eq('review_id', reviewId).single()
 
       if (existing) {
         if (existing.vote === vote) {
@@ -84,7 +87,9 @@ export function useReviews(anilistId, mediaType = 'anime') {
       } else {
         await supabase.from('review_votes').insert({ review_id: reviewId, vote })
       }
-    } catch { /* ignore unique violations */ }
+    } catch {
+      /* ignore unique violations */
+    }
   }
 
   return { reviews, userReview, loading, submitting, submitReview, deleteReview, voteReview, refresh: fetchReviews }

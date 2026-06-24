@@ -17,15 +17,22 @@ export default function Studio() {
 
   useEffect(() => {
     setLoading(true)
-    getStudioInfo(id, page).then((data) => {
-      setStudio(data)
-      setAllMedia(page === 1 ? data.media.nodes : prev => [...prev, ...data.media.nodes])
-      setHasNext(data.media.pageInfo.hasNextPage)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    getStudioInfo(id, page)
+      .then((data) => {
+        setStudio(data)
+        setAllMedia(page === 1 ? data.media.nodes : (prev) => [...prev, ...data.media.nodes])
+        setHasNext(data.media.pageInfo.hasNextPage)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [id, page])
 
-  if (loading && !studio) return <div className="pt-10"><GridSkeleton count={12} /></div>
+  if (loading && !studio)
+    return (
+      <div className="pt-10">
+        <GridSkeleton count={12} />
+      </div>
+    )
   if (!studio) return <EmptyState message="Estudio no encontrado" />
 
   return (
@@ -34,14 +41,14 @@ export default function Studio() {
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
           <h1 className="text-2xl font-bold">{studio.name}</h1>
-          {studio.favourites > 0 && (
-            <span className="text-xs text-text-secondary font-mono">{studio.favourites} favoritos</span>
-          )}
+          {studio.favourites > 0 && <span className="text-xs text-text-secondary font-mono">{studio.favourites} favoritos</span>}
         </div>
         {studio.isAnimationStudio && (
           <span className="text-[10px] text-primary font-mono uppercase tracking-wider">Estudio de animación</span>
         )}
-        <p className="text-xs text-text-secondary mt-2">{allMedia.length} anime{allMedia.length !== 1 ? 's' : ''}</p>
+        <p className="text-xs text-text-secondary mt-2">
+          {allMedia.length} anime{allMedia.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -53,17 +60,18 @@ export default function Studio() {
       {hasNext && (
         <div className="flex justify-center mt-8">
           <button
-            onClick={() => setPage(p => p + 1)}
+            onClick={() => setPage((p) => p + 1)}
             disabled={loading}
-            className="px-6 py-2.5 bg-surface hover:bg-surface-hover hover:text-neon-cyan rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50"
-          >
+            className="px-6 py-2.5 bg-surface hover:bg-surface-hover hover:text-neon-cyan rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50">
             {loading ? 'Cargando...' : 'Cargar más'}
           </button>
         </div>
       )}
 
       <div className="mt-8">
-        <Link to="/directorio" className="text-sm text-text-secondary hover:text-text-primary transition-colors">← Volver al directorio</Link>
+        <Link to="/directorio" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+          ← Volver al directorio
+        </Link>
       </div>
     </motion.div>
   )

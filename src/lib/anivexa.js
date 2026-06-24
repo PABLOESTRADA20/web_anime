@@ -50,7 +50,7 @@ export function detectSpanishAudio(watchData) {
   if (!watchData) return false
   const audioTracks = watchData.audio || watchData.audioTracks || []
   if (audioTracks.length > 0) {
-    return audioTracks.some(t => {
+    return audioTracks.some((t) => {
       const lang = (t.language || t.lang || t.srclang || '').toLowerCase()
       const label = (t.label || t.name || '').toLowerCase()
       return lang.startsWith('es') || /spanish|español|latino/i.test(label)
@@ -60,7 +60,7 @@ export function detectSpanishAudio(watchData) {
 }
 
 function hasSpanishSubs(subtitles) {
-  return subtitles.some(s => {
+  return subtitles.some((s) => {
     const lang = (s.language || s.lang || s.srclang || '').toLowerCase()
     const file = (s.file || s.url || s.src || '').toLowerCase()
     const label = (s.label || s.name || '').toLowerCase()
@@ -80,28 +80,28 @@ export function normalizeStreams(watchData) {
   const ssub = watchData.ssub || watchData.sdub
   if (ssub?.streams) {
     streams = ssub.streams
-      .filter(s => s.type === 'hls' || s.type === 'mp4')
-      .map(s => ({ ...s, url: s.url, quality: s.quality || 'auto', server: s.server, referer: s.referer || '' }))
+      .filter((s) => s.type === 'hls' || s.type === 'mp4')
+      .map((s) => ({ ...s, url: s.url, quality: s.quality || 'auto', server: s.server, referer: s.referer || '' }))
     subtitles = ssub.subtitles || ssub.subs || ssub.tracks || []
   } else if (watchData.streams) {
     streams = watchData.streams
-      .filter(s => s.type === 'hls' || s.type === 'hls-redirect' || s.type === 'mp4' || s.url?.includes('.m3u8'))
-      .filter(s => s.isActive !== false)
-      .map(s => ({ ...s, quality: s.quality || 'auto', referer: s.referer || '' }))
+      .filter((s) => s.type === 'hls' || s.type === 'hls-redirect' || s.type === 'mp4' || s.url?.includes('.m3u8'))
+      .filter((s) => s.isActive !== false)
+      .map((s) => ({ ...s, quality: s.quality || 'auto', referer: s.referer || '' }))
     subtitles = watchData.subtitles || watchData.subs || watchData.tracks || watchData.captions || []
   } else if (watchData.sources) {
-    streams = watchData.sources.filter(s =>
-      s.extractedUrl || s.url?.includes('.m3u8') || s.type === 'iframe'
-    ).map(s => ({
-      url: s.extractedUrl || s.url,
-      quality: s.name || 'auto',
-      referer: s.headers?.Referer || '',
-      type: s.type === 'iframe' ? 'iframe' : (s.url?.includes('.m3u8') ? 'hls' : 'direct'),
-    }))
+    streams = watchData.sources
+      .filter((s) => s.extractedUrl || s.url?.includes('.m3u8') || s.type === 'iframe')
+      .map((s) => ({
+        url: s.extractedUrl || s.url,
+        quality: s.name || 'auto',
+        referer: s.headers?.Referer || '',
+        type: s.type === 'iframe' ? 'iframe' : s.url?.includes('.m3u8') ? 'hls' : 'direct',
+      }))
     subtitles = watchData.subtitles || watchData.subs || watchData.tracks || watchData.captions || []
   }
 
-  const streamReferer = streams.find(s => s.referer)?.referer || ''
+  const streamReferer = streams.find((s) => s.referer)?.referer || ''
 
   subtitles = subtitles.map((s, idx) => {
     const lang = s.language || s.lang || s.srclang || ''
@@ -115,7 +115,7 @@ export function normalizeStreams(watchData) {
     }
   })
 
-  const filtered = subtitles.filter(s => s.file)
+  const filtered = subtitles.filter((s) => s.file)
 
   if (!filtered.length && ssub?.streams?.length && ssub.streams[0].url && !hasSpanishSubs(filtered)) {
     // Some Anivexa providers include subtitles directly in the HLS manifest

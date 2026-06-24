@@ -4,7 +4,9 @@ const CACHE_NAME = 'animeverse-offline-v1'
 function getStored() {
   try {
     return JSON.parse(localStorage.getItem(DB_KEY) || '[]')
-  } catch { return [] }
+  } catch {
+    return []
+  }
 }
 
 function setStored(items) {
@@ -16,24 +18,24 @@ export function getDownloads() {
 }
 
 export function getDownload(id) {
-  return getStored().find(d => d.id === id) || null
+  return getStored().find((d) => d.id === id) || null
 }
 
 export function addDownload(item) {
   const items = getStored()
-  if (items.some(d => d.id === item.id)) return false
+  if (items.some((d) => d.id === item.id)) return false
   items.unshift({ ...item, addedAt: Date.now() })
   setStored(items)
   return true
 }
 
 export function removeDownload(id) {
-  const items = getStored().filter(d => d.id !== id)
+  const items = getStored().filter((d) => d.id !== id)
   setStored(items)
   if ('caches' in window) {
-    caches.open(CACHE_NAME).then(cache => {
-      cache.keys().then(keys => {
-        keys.filter(k => k.url.includes(id)).forEach(k => cache.delete(k))
+    caches.open(CACHE_NAME).then((cache) => {
+      cache.keys().then((keys) => {
+        keys.filter((k) => k.url.includes(id)).forEach((k) => cache.delete(k))
       })
     })
   }

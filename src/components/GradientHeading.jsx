@@ -17,9 +17,7 @@ const sizes = {
 export default function GradientHeading({ children, variant = 'pink', size = 'md', as: Tag = 'h2', className = '' }) {
   return (
     <Tag className={`${className} tracking-tight font-heading font-bold`}>
-      <span className={`text-gradient ${variants[variant]} ${sizes[size]}`}>
-        {children}
-      </span>
+      <span className={`text-gradient ${variants[variant]} ${sizes[size]}`}>{children}</span>
     </Tag>
   )
 }

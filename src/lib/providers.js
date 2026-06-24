@@ -31,5 +31,3 @@ export async function getEpisodeServers(episodeId) {
 export async function getAnimepaheSources(episodeId, version = 'sub') {
   return fetchJSON(`${KENJITSU_BASE}/animepahe/sources/${episodeId}?version=${version}`)
 }
-
-

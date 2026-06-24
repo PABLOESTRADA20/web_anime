@@ -7,25 +7,30 @@ import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
+import SafeImage from '../components/SafeImage'
 
 function AnimeCardSmall({ anime, index = 0 }) {
   const title = anime.title?.romaji || anime.title?.english || 'Sin título'
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
       <Link
         to={`/anime/${anime.id}`}
-        className="group relative rounded-2xl overflow-hidden bg-surface hover:bg-surface-hover transition-all duration-300 border border-transparent hover:border-neon-cyan/30 block"
-      >
+        className="group relative rounded-2xl overflow-hidden bg-surface hover:bg-surface-hover transition-all duration-300 border border-transparent hover:border-neon-cyan/30 block">
         <div className="aspect-[3/4] overflow-hidden">
-          <img src={anime.coverImage?.large} alt={title} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+          <SafeImage
+            src={anime.coverImage?.large}
+            alt={title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            fallbackText={title}
+          />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
         {anime.averageScore && (
-          <span className="absolute top-2 right-2 bg-neon-cyan/20 text-neon-cyan font-mono text-xs font-bold px-2 py-1 rounded-lg" style={{boxShadow: '0 0 8px rgba(0,240,255,0.3)'}}>{anime.averageScore}</span>
+          <span
+            className="absolute top-2 right-2 bg-neon-cyan/20 text-neon-cyan font-mono text-xs font-bold px-2 py-1 rounded-lg"
+            style={{ boxShadow: '0 0 8px rgba(0,240,255,0.3)' }}>
+            {anime.averageScore}
+          </span>
         )}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <h3 className="text-sm font-heading font-medium text-white line-clamp-2 leading-tight">{title}</h3>
@@ -56,21 +61,25 @@ export default function Seasonal() {
     const ac = new AbortController()
     setLoading(true)
     setPage(1)
-    getSeasonalAnime(season, year).then((res) => {
-      if (ac.signal.aborted) return
-      const list = res.data || []
-      setAnimeList(list)
-      setHasNext(res.hasNextPage || false)
-      setLoading(false)
-      enrichAnimeBatch(list).then((enriched) => {
-        if (!ac.signal.aborted) setAnimeList(enriched)
-      }).catch(() => {})
-    }).catch(() => {
-      if (!ac.signal.aborted) {
+    getSeasonalAnime(season, year)
+      .then((res) => {
+        if (ac.signal.aborted) return
+        const list = res.data || []
+        setAnimeList(list)
+        setHasNext(res.hasNextPage || false)
         setLoading(false)
-        toast('Error al cargar temporada', 'error')
-      }
-    })
+        enrichAnimeBatch(list)
+          .then((enriched) => {
+            if (!ac.signal.aborted) setAnimeList(enriched)
+          })
+          .catch(() => {})
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setLoading(false)
+          toast('Error al cargar temporada', 'error')
+        }
+      })
     return () => ac.abort()
   }, [season, year, toast])
 
@@ -104,62 +113,59 @@ export default function Seasonal() {
       <SeoHead title={`Temporada ${season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} ${year}`} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <h1 className="text-xl font-bold mb-6">
-        Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
-      </h1>
+          Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
+        </h1>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {SEASONS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setSeason(s.id)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              season === s.id ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {SEASONS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSeason(s.id)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                season === s.id ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
+              }`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {years.map((y) => (
-          <button
-            key={y}
-            onClick={() => setYear(y)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              year === y ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {years.map((y) => (
+            <button
+              key={y}
+              onClick={() => setYear(y)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                year === y ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
+              }`}>
+              {y}
+            </button>
+          ))}
+        </div>
 
-      {loading && animeList.length === 0 ? (
-        <GridSkeleton count={12} />
-      ) : animeList.length === 0 ? (
-        <EmptyState message="No hay anime en esta temporada." />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {animeList.map((a, i) => (
-              <AnimeCardSmall key={a.id} anime={a} index={i} />
-            ))}
-          </div>
-          {hasNext && (
-            <div className="flex justify-center mt-8">
-              <button
-                onClick={loadMore}
-                disabled={loading}
-                className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50"
-              >
-                {loading ? 'Cargando...' : 'Cargar más'}
-              </button>
+        {loading && animeList.length === 0 ? (
+          <GridSkeleton count={12} />
+        ) : animeList.length === 0 ? (
+          <EmptyState message="No hay anime en esta temporada." />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {animeList.map((a, i) => (
+                <AnimeCardSmall key={a.id} anime={a} index={i} />
+              ))}
             </div>
-          )}
-        </>
-      )}
-    </motion.div>
+            {hasNext && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={loadMore}
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50">
+                  {loading ? 'Cargando...' : 'Cargar más'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </motion.div>
     </>
   )
 }

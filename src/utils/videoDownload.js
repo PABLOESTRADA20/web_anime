@@ -2,8 +2,11 @@ const VIDEO_CACHE = 'animeverse-video-v1'
 const META_KEY = 'animeverse_video_downloads'
 
 function getMeta() {
-  try { return JSON.parse(localStorage.getItem(META_KEY) || '[]') }
-  catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(META_KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 
 function setMeta(items) {
@@ -51,7 +54,7 @@ export async function downloadVideoEpisode({ id, title, image, episode, quality,
   if (!('caches' in window)) throw new Error('Cache API no disponible')
 
   const meta = getMeta()
-  if (meta.some(d => d.id === id)) throw new Error('Ya descargado')
+  if (meta.some((d) => d.id === id)) throw new Error('Ya descargado')
 
   const proxyUrl = m3u8Url.includes('/api/proxy')
     ? m3u8Url
@@ -67,10 +70,14 @@ export async function downloadVideoEpisode({ id, title, image, episode, quality,
   let finalQuality = quality
 
   if (parsed.type === 'master') {
-    const target = parsed.variants.find(v => v.quality === quality) || parsed.variants[0]
+    const target = parsed.variants.find((v) => v.quality === quality) || parsed.variants[0]
     if (!target) throw new Error('No se encontró calidad')
     finalQuality = target.quality
-    const levelRes = await fetch(target.url.includes('/api/proxy') ? target.url : `/api/proxy?url=${encodeURIComponent(target.url)}${referer ? `&referer=${encodeURIComponent(referer)}` : ''}`)
+    const levelRes = await fetch(
+      target.url.includes('/api/proxy')
+        ? target.url
+        : `/api/proxy?url=${encodeURIComponent(target.url)}${referer ? `&referer=${encodeURIComponent(referer)}` : ''}`,
+    )
     if (!levelRes.ok) throw new Error(`Error al obtener playlist de calidad`)
     const levelText = await levelRes.text()
     const levelParsed = parseM3U8(levelText, target.url)
@@ -103,13 +110,15 @@ export async function downloadVideoEpisode({ id, title, image, episode, quality,
 
   const cachedPlaylistKey = `__playlist__${id}`
   const playlistLines = playlistText.split('\n')
-  const modifiedPlaylist = playlistLines.map(line => {
-    const trimmed = line.trim()
-    if (trimmed && !trimmed.startsWith('#') && segments.includes(resolveUrl(trimmed, m3u8Url))) {
-      return resolveUrl(trimmed, m3u8Url)
-    }
-    return line
-  }).join('\n')
+  const modifiedPlaylist = playlistLines
+    .map((line) => {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('#') && segments.includes(resolveUrl(trimmed, m3u8Url))) {
+        return resolveUrl(trimmed, m3u8Url)
+      }
+      return line
+    })
+    .join('\n')
   await cache.put(cachedPlaylistKey, new Response(modifiedPlaylist, { headers: { 'Content-Type': 'application/vnd.apple.mpegurl' } }))
 
   const entry = {
@@ -137,16 +146,16 @@ export function getVideoDownloads() {
 }
 
 export function getVideoDownload(id) {
-  return getMeta().find(d => d.id === id) || null
+  return getMeta().find((d) => d.id === id) || null
 }
 
 export function removeVideoDownload(id) {
-  const meta = getMeta().filter(d => d.id !== id)
+  const meta = getMeta().filter((d) => d.id !== id)
   setMeta(meta)
   if ('caches' in window) {
-    caches.open(VIDEO_CACHE).then(cache => {
-      cache.keys().then(keys => {
-        keys.filter(k => k.url.includes(id) || k.url.includes(`__playlist__${id}`)).forEach(k => cache.delete(k))
+    caches.open(VIDEO_CACHE).then((cache) => {
+      cache.keys().then((keys) => {
+        keys.filter((k) => k.url.includes(id) || k.url.includes(`__playlist__${id}`)).forEach((k) => cache.delete(k))
       })
     })
   }
@@ -167,7 +176,7 @@ export async function getVideoCacheSize(id) {
 }
 
 export async function isVideoCached(id) {
-  const meta = getMeta().find(d => d.id === id)
+  const meta = getMeta().find((d) => d.id === id)
   if (!meta || !meta.segments?.length) return false
   const cache = await caches.open(VIDEO_CACHE)
   const res = await cache.match(meta.segments[0])

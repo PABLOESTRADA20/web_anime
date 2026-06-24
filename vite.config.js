@@ -2,13 +2,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://szcpihgltvewnlrzydpe.supabase.co'
+const supabaseUrl = process.env.VITE_SUPABASE_URL
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    ...(mode === 'analyze' ? [visualizer({ open: true, gzipSize: true, brotliSize: true })] : []),
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
@@ -31,11 +33,15 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
-          {
-            urlPattern: new RegExp('^' + supabaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/.*', 'i'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'supabase-api', expiration: { maxEntries: 50, maxAgeSeconds: 86400 } },
-          },
+          ...(supabaseUrl
+            ? [
+                {
+                  urlPattern: new RegExp('^' + supabaseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/.*', 'i'),
+                  handler: 'NetworkFirst',
+                  options: { cacheName: 'supabase-api', expiration: { maxEntries: 50, maxAgeSeconds: 86400 } },
+                },
+              ]
+            : []),
           {
             urlPattern: /^https:\/\/graphql\.anilist\.co\/.*/i,
             handler: 'NetworkFirst',
@@ -66,9 +72,11 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) return 'vendor-react'
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion'
+          if (id.includes('node_modules/hls.js')) return 'vendor-hls'
           if (id.includes('node_modules/@supabase')) return 'vendor-supabase'
+          if (id.includes('node_modules/@sentry')) return 'vendor-sentry'
         },
       },
     },
   },
-})
+}))

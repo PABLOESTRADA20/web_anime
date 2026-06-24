@@ -8,25 +8,22 @@ export function useAdmin() {
   const [loading, setLoading] = useState(true)
 
   const checkAdmin = useCallback(async () => {
-    if (!user || !isSupabaseReady()) { setLoading(false); return }
-    const { data } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    if (!user || !isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
+    const { data } = await supabase.from('admin_users').select('id').eq('user_id', user.id).maybeSingle()
     setIsAdmin(!!data)
     setLoading(false)
   }, [user])
 
-  useEffect(() => { checkAdmin() }, [checkAdmin])
+  useEffect(() => {
+    checkAdmin()
+  }, [checkAdmin])
 
   async function bootstrapAdmin() {
     if (!user || !isSupabaseReady()) throw new Error('Debes iniciar sesión')
-    const { data, error } = await supabase
-      .from('admin_users')
-      .insert({ user_id: user.id })
-      .select()
-      .single()
+    const { data, error } = await supabase.from('admin_users').insert({ user_id: user.id }).select().single()
     if (error) throw error
     setIsAdmin(true)
     return data
@@ -43,33 +40,30 @@ export function useModeration() {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase
-      .from('community_episodes')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (err) { setError(err.message); setEpisodes([]) }
-    else { setEpisodes(data || []) }
+    const { data, error: err } = await supabase.from('community_episodes').select('*').order('created_at', { ascending: false })
+    if (err) {
+      setError(err.message)
+      setEpisodes([])
+    } else {
+      setEpisodes(data || [])
+    }
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
 
   async function updateStatus(id, status) {
-    const { error } = await supabase
-      .from('community_episodes')
-      .update({ status })
-      .eq('id', id)
+    const { error } = await supabase.from('community_episodes').update({ status }).eq('id', id)
     if (error) throw error
-    setEpisodes(prev => prev.map(e => e.id === id ? { ...e, status } : e))
+    setEpisodes((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
   }
 
   async function removeEpisode(id) {
-    const { error } = await supabase
-      .from('community_episodes')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.from('community_episodes').delete().eq('id', id)
     if (error) throw error
-    setEpisodes(prev => prev.filter(e => e.id !== id))
+    setEpisodes((prev) => prev.filter((e) => e.id !== id))
   }
 
   return { episodes, loading, error, refetch: fetchAll, updateStatus, removeEpisode }

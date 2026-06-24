@@ -1,8 +1,6 @@
 import { useState, useCallback } from 'react'
 
-const API_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/animeflv-scraper`
-  : null
+const API_URL = import.meta.env.VITE_SUPABASE_URL ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/animeflv-scraper` : null
 
 export function useAnimeflvScraper() {
   const [loading, setLoading] = useState(false)
@@ -10,7 +8,10 @@ export function useAnimeflvScraper() {
   const [error, setError] = useState(null)
 
   const scrape = useCallback(async (slug) => {
-    if (!API_URL) { setError('API no configurada'); return }
+    if (!API_URL) {
+      setError('API no configurada')
+      return
+    }
     setLoading(true)
     setError(null)
     setSources([])
@@ -31,7 +32,10 @@ export function useAnimeflvScraper() {
   }, [])
 
   const scrapeById = useCallback(async (anilistId, episodeNumber) => {
-    if (!API_URL) { setError('API no configurada'); return }
+    if (!API_URL) {
+      setError('API no configurada')
+      return
+    }
     setLoading(true)
     setError(null)
     setSources([])

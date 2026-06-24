@@ -9,17 +9,17 @@ export function useAnimeFavorites() {
 
   const fetch = useCallback(async () => {
     if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('anime_favorites')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('anime_favorites').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
     setFavorites(data || [])
     setLoading(false)
   }, [user])
 
   useEffect(() => {
-    if (!user) { setFavorites([]); setLoading(false); return }
+    if (!user) {
+      setFavorites([])
+      setLoading(false)
+      return
+    }
     fetch()
   }, [user, fetch])
 

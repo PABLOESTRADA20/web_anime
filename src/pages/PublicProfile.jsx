@@ -5,6 +5,7 @@ import SeoHead from '../components/SeoHead'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useFollows } from '../hooks/useFollows'
+import SafeImage from '../components/SafeImage'
 
 export default function PublicProfile() {
   const { id } = useParams()
@@ -56,9 +57,9 @@ export default function PublicProfile() {
           setStats({
             episodesWatched: h.length,
             mangaRead: mh.length,
-            watching: l.filter(i => i.status === 'watching').length,
-            completed: l.filter(i => i.status === 'completed').length,
-            planToWatch: l.filter(i => i.status === 'plan_to_watch').length,
+            watching: l.filter((i) => i.status === 'watching').length,
+            completed: l.filter((i) => i.status === 'completed').length,
+            planToWatch: l.filter((i) => i.status === 'plan_to_watch').length,
             reviews: r.length,
           })
           setReviews(r)
@@ -68,18 +69,28 @@ export default function PublicProfile() {
           setLoading(false)
         }
       } catch {
-        if (!cancelled) { setLoading(false); toast('Error al cargar perfil', 'error') }
+        if (!cancelled) {
+          setLoading(false)
+          toast('Error al cargar perfil', 'error')
+        }
       }
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [id, toast])
 
-  if (loading) return <div className="max-w-2xl mx-auto"><div className="h-48 bg-surface rounded-2xl animate-pulse mb-6" /></div>
+  if (loading)
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="h-48 bg-surface rounded-2xl animate-pulse mb-6" />
+      </div>
+    )
   if (!profile) return <div className="text-center py-20 text-text-secondary">Usuario no encontrado.</div>
 
-  const watchingList = lists.filter(l => l.status === 'watching')
+  const watchingList = lists.filter((l) => l.status === 'watching')
 
   return (
     <>
@@ -89,7 +100,7 @@ export default function PublicProfile() {
           <div className="flex items-start gap-4 mb-4">
             <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 bg-primary/20">
               {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                <SafeImage src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-primary">
                   {profile.displayName[0].toUpperCase()}
@@ -102,7 +113,11 @@ export default function PublicProfile() {
                   <h1 className="text-xl font-bold truncate">{profile.displayName}</h1>
                   {profile.bio && <p className="text-sm text-text-secondary mt-1">{profile.bio}</p>}
                   {profile.website && (
-                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-xs text-neon-cyan hover:underline mt-1 inline-block truncate max-w-full">
+                    <a
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-neon-cyan hover:underline mt-1 inline-block truncate max-w-full">
                       {profile.website}
                     </a>
                   )}
@@ -114,7 +129,9 @@ export default function PublicProfile() {
                       try {
                         if (isFollowing) await unfollow()
                         else await follow()
-                      } catch (e) { toast.error(e.message) }
+                      } catch (e) {
+                        toast.error(e.message)
+                      }
                       setFollowActionLoading(false)
                     }}
                     disabled={followActionLoading || followsLoading}
@@ -122,15 +139,18 @@ export default function PublicProfile() {
                       isFollowing
                         ? 'bg-surface text-text-secondary border-white/10 hover:text-red-400 hover:border-red-500/30'
                         : 'bg-primary text-white border-primary hover:bg-primary-hover'
-                    }`}
-                  >
+                    }`}>
                     {followActionLoading ? '...' : isFollowing ? 'Siguiendo' : 'Seguir'}
                   </button>
                 )}
               </div>
               <div className="flex gap-4 mt-3">
-                <span className="text-xs text-text-secondary"><strong className="text-text-primary">{followerCount}</strong> seguidores</span>
-                <span className="text-xs text-text-secondary"><strong className="text-text-primary">{followingCount}</strong> siguiendo</span>
+                <span className="text-xs text-text-secondary">
+                  <strong className="text-text-primary">{followerCount}</strong> seguidores
+                </span>
+                <span className="text-xs text-text-secondary">
+                  <strong className="text-text-primary">{followingCount}</strong> siguiendo
+                </span>
               </div>
             </div>
           </div>
@@ -149,10 +169,10 @@ export default function PublicProfile() {
             <div className="mt-4">
               <p className="text-[10px] text-text-secondary uppercase tracking-wider mb-2">Viendo ahora</p>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {watchingList.map(item => (
+                {watchingList.map((item) => (
                   <Link key={item.id} to={`/anime/${item.anilist_id}`} className="shrink-0 w-16">
                     <div className="aspect-[3/4] rounded-lg overflow-hidden bg-surface-hover">
-                      {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
+                      <SafeImage src={item.image} alt="" className="w-full h-full object-cover" />
                     </div>
                   </Link>
                 ))}
@@ -163,19 +183,25 @@ export default function PublicProfile() {
 
         <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
           {reviews.length > 0 && (
-            <TabBtn active={tab === 'reviews'} onClick={() => setTab('reviews')}>Reseñas ({reviews.length})</TabBtn>
+            <TabBtn active={tab === 'reviews'} onClick={() => setTab('reviews')}>
+              Reseñas ({reviews.length})
+            </TabBtn>
           )}
           {history.length > 0 && (
-            <TabBtn active={tab === 'history'} onClick={() => setTab('history')}>Historial ({history.length})</TabBtn>
+            <TabBtn active={tab === 'history'} onClick={() => setTab('history')}>
+              Historial ({history.length})
+            </TabBtn>
           )}
           {mangaHistory.length > 0 && (
-            <TabBtn active={tab === 'manga'} onClick={() => setTab('manga')}>Manga ({mangaHistory.length})</TabBtn>
+            <TabBtn active={tab === 'manga'} onClick={() => setTab('manga')}>
+              Manga ({mangaHistory.length})
+            </TabBtn>
           )}
         </div>
 
         {tab === 'reviews' && reviews.length > 0 && (
           <div className="space-y-3">
-            {reviews.map(r => (
+            {reviews.map((r) => (
               <div key={r.id} className="p-4 rounded-2xl bg-surface/50 border border-white/5">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-bold text-primary">{r.score}/10</span>
@@ -191,16 +217,26 @@ export default function PublicProfile() {
 
         {tab === 'history' && history.length > 0 && (
           <div className="space-y-2">
-            {history.map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 hover:bg-surface-hover transition-colors group">
+            {history.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 hover:bg-surface-hover transition-colors group">
                 <Link to={`/anime/${item.anilist_id}`} className="shrink-0">
                   <div className="w-14 h-10 rounded-lg overflow-hidden bg-surface-hover">
-                    {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
+                    <SafeImage src={item.image} alt="" className="w-full h-full object-cover" />
                   </div>
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/anime/${item.anilist_id}`} className="text-xs font-medium truncate block hover:text-primary transition-colors">{item.title}</Link>
-                  <Link to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}`} className="text-[10px] text-text-secondary hover:text-primary transition-colors">Episodio {item.episode_number}</Link>
+                  <Link
+                    to={`/anime/${item.anilist_id}`}
+                    className="text-xs font-medium truncate block hover:text-primary transition-colors">
+                    {item.title}
+                  </Link>
+                  <Link
+                    to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}`}
+                    className="text-[10px] text-text-secondary hover:text-primary transition-colors">
+                    Episodio {item.episode_number}
+                  </Link>
                 </div>
               </div>
             ))}
@@ -209,23 +245,35 @@ export default function PublicProfile() {
 
         {tab === 'manga' && mangaHistory.length > 0 && (
           <div className="space-y-2">
-            {mangaHistory.map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 hover:bg-surface-hover transition-colors group">
+            {mangaHistory.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-surface/50 hover:bg-surface-hover transition-colors group">
                 <Link to={`/manga/${item.anilist_id}`} className="shrink-0">
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-surface-hover">
-                    {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
+                    <SafeImage src={item.image} alt="" className="w-full h-full object-cover" />
                   </div>
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/manga/${item.anilist_id}`} className="text-xs font-medium truncate block hover:text-primary transition-colors">{item.title}</Link>
-                  <Link to={`/manga/${item.anilist_id}/read?chapterId=${item.chapter_id}&chapter=${item.chapter_number}`} className="text-[10px] text-text-secondary hover:text-primary transition-colors">Capítulo {item.chapter_number}</Link>
+                  <Link
+                    to={`/manga/${item.anilist_id}`}
+                    className="text-xs font-medium truncate block hover:text-primary transition-colors">
+                    {item.title}
+                  </Link>
+                  <Link
+                    to={`/manga/${item.anilist_id}/read?chapterId=${item.chapter_id}&chapter=${item.chapter_number}`}
+                    className="text-[10px] text-text-secondary hover:text-primary transition-colors">
+                    Capítulo {item.chapter_number}
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        <Link to="/" className="text-sm text-primary hover:underline mt-6 inline-block">← Volver al inicio</Link>
+        <Link to="/" className="text-sm text-primary hover:underline mt-6 inline-block">
+          ← Volver al inicio
+        </Link>
       </div>
     </>
   )
@@ -242,7 +290,8 @@ function StatBox({ value, label, color }) {
 
 function TabBtn({ active, onClick, children }) {
   return (
-    <button onClick={onClick}
+    <button
+      onClick={onClick}
       className={`shrink-0 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${active ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'}`}>
       {children}
     </button>

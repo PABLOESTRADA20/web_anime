@@ -5,9 +5,7 @@ export default function Footer() {
         <p className="font-mono text-xs text-text-secondary tracking-wider">
           ANIMEVERSE // Los enlaces de video son proporcionados por terceros.
         </p>
-        <p className="font-mono text-xs text-text-secondary/60 mt-1">
-          Apoya a los creadores comprando el contenido original.
-        </p>
+        <p className="font-mono text-xs text-text-secondary/60 mt-1">Apoya a los creadores comprando el contenido original.</p>
       </div>
     </footer>
   )

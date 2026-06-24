@@ -28,7 +28,10 @@ export default function Activity() {
   const [filter, setFilter] = useState('all')
 
   useEffect(() => {
-    if (!isSupabaseReady()) { setLoading(false); return }
+    if (!isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     supabase
       .from('reviews')
@@ -39,13 +42,15 @@ export default function Activity() {
         if (!cancelled) setReviews(data || [])
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const filtered = filter === 'following' && followedIds.length > 0
-    ? reviews.filter(r => followedIds.includes(r.user_id))
-    : reviews
+  const filtered = filter === 'following' && followedIds.length > 0 ? reviews.filter((r) => followedIds.includes(r.user_id)) : reviews
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -54,11 +59,13 @@ export default function Activity() {
         <h1 className="text-xl font-bold">{t('home.activity')}</h1>
         {user && followedIds.length > 0 && (
           <div className="flex gap-1 bg-surface rounded-xl p-0.5 border border-white/10">
-            <button onClick={() => setFilter('all')}
+            <button
+              onClick={() => setFilter('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === 'all' ? 'bg-primary text-white' : 'text-text-secondary hover:text-text-primary'}`}>
               Todos
             </button>
-            <button onClick={() => setFilter('following')}
+            <button
+              onClick={() => setFilter('following')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === 'following' ? 'bg-primary text-white' : 'text-text-secondary hover:text-text-primary'}`}>
               Siguiendo
             </button>
@@ -68,7 +75,9 @@ export default function Activity() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-24 bg-surface rounded-xl animate-pulse" />)}
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-24 bg-surface rounded-xl animate-pulse" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState message={filter === 'following' ? 'No hay actividad de usuarios que sigues.' : 'No hay actividad reciente.'} />
@@ -79,10 +88,14 @@ export default function Activity() {
             return (
               <div key={r.id} className="p-4 rounded-2xl bg-surface/50 border border-white/5 hover:bg-surface-hover transition-colors">
                 <div className="flex items-center gap-2 mb-2">
-                  <Link to={`/profile/${r.user_id}`} className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold text-primary shrink-0 hover:ring-2 ring-primary/30 transition-all">
+                  <Link
+                    to={`/profile/${r.user_id}`}
+                    className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold text-primary shrink-0 hover:ring-2 ring-primary/30 transition-all">
                     {email[0].toUpperCase()}
                   </Link>
-                  <Link to={`/profile/${r.user_id}`} className="text-xs font-medium hover:text-primary transition-colors">{email}</Link>
+                  <Link to={`/profile/${r.user_id}`} className="text-xs font-medium hover:text-primary transition-colors">
+                    {email}
+                  </Link>
                   {followedIds.includes(r.user_id) && (
                     <span className="text-[8px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">Siguiendo</span>
                   )}

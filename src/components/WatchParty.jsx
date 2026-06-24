@@ -19,8 +19,7 @@ export default function WatchParty({ participants, connected, partyId, onJoin, o
     return (
       <button
         onClick={onJoin}
-        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors"
-      >
+        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors">
         Iniciar Watch Party
       </button>
     )
@@ -31,11 +30,8 @@ export default function WatchParty({ participants, connected, partyId, onJoin, o
       <button
         onClick={() => setShowPanel(!showPanel)}
         className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-2 ${
-          connected
-            ? 'bg-green-500/10 text-green-400 border-green-500/30'
-            : 'bg-surface text-text-secondary border-white/10'
-        }`}
-      >
+          connected ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-surface text-text-secondary border-white/10'
+        }`}>
         <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-text-secondary'}`} />
         {connected ? `${participants.length} viendo` : 'Watch Party'}
       </button>
@@ -46,8 +42,7 @@ export default function WatchParty({ participants, connected, partyId, onJoin, o
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute bottom-full mb-2 left-0 w-64 p-4 rounded-xl bg-surface border border-white/10 shadow-xl"
-          >
+            className="absolute bottom-full mb-2 left-0 w-64 p-4 rounded-xl bg-surface border border-white/10 shadow-xl">
             <p className="text-xs font-medium text-text-primary mb-2">Watch Party</p>
 
             {connected && (
@@ -69,22 +64,19 @@ export default function WatchParty({ participants, connected, partyId, onJoin, o
                 <>
                   <button
                     onClick={copyLink}
-                    className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-surface-hover text-text-secondary hover:text-text-primary transition-colors"
-                  >
+                    className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-surface-hover text-text-secondary hover:text-text-primary transition-colors">
                     {copied ? 'Copiado' : 'Copiar link'}
                   </button>
                   <button
                     onClick={onLeave}
-                    className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                  >
+                    className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
                     Salir
                   </button>
                 </>
               ) : (
                 <button
                   onClick={onJoin}
-                  className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-neon-cyan/10 text-neon-cyan hover:bg-neon-cyan/20 transition-colors"
-                >
+                  className="flex-1 px-3 py-1.5 rounded-lg text-[10px] font-medium bg-neon-cyan/10 text-neon-cyan hover:bg-neon-cyan/20 transition-colors">
                   Unirse
                 </button>
               )}

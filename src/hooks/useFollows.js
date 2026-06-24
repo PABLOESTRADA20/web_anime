@@ -20,7 +20,10 @@ export function useFollows(targetUserId) {
   }, [targetUserId])
 
   const checkFollow = useCallback(async () => {
-    if (!user || !targetUserId || !isSupabaseReady()) { setLoading(false); return }
+    if (!user || !targetUserId || !isSupabaseReady()) {
+      setLoading(false)
+      return
+    }
     const { data } = await supabase
       .from('user_follows')
       .select('id')
@@ -31,27 +34,27 @@ export function useFollows(targetUserId) {
     setLoading(false)
   }, [user, targetUserId])
 
-  useEffect(() => { fetchCounts() }, [fetchCounts])
-  useEffect(() => { checkFollow() }, [checkFollow])
+  useEffect(() => {
+    fetchCounts()
+  }, [fetchCounts])
+  useEffect(() => {
+    checkFollow()
+  }, [checkFollow])
 
   async function follow() {
     if (!user || !targetUserId) throw new Error('Debes iniciar sesión')
     const { error } = await supabase.from('user_follows').insert({ follower_id: user.id, following_id: targetUserId })
     if (error) throw error
     setIsFollowing(true)
-    setFollowerCount(prev => prev + 1)
+    setFollowerCount((prev) => prev + 1)
   }
 
   async function unfollow() {
     if (!user || !targetUserId) throw new Error('Debes iniciar sesión')
-    const { error } = await supabase
-      .from('user_follows')
-      .delete()
-      .eq('follower_id', user.id)
-      .eq('following_id', targetUserId)
+    const { error } = await supabase.from('user_follows').delete().eq('follower_id', user.id).eq('following_id', targetUserId)
     if (error) throw error
     setIsFollowing(false)
-    setFollowerCount(prev => Math.max(0, prev - 1))
+    setFollowerCount((prev) => Math.max(0, prev - 1))
   }
 
   return { isFollowing, followerCount, followingCount, loading, follow, unfollow, refetch: fetchCounts }
@@ -62,15 +65,17 @@ export function useFollowedUsers() {
   const [followedIds, setFollowedIds] = useState([])
 
   const fetchFollowed = useCallback(async () => {
-    if (!user || !isSupabaseReady()) { setFollowedIds([]); return }
-    const { data } = await supabase
-      .from('user_follows')
-      .select('following_id')
-      .eq('follower_id', user.id)
-    setFollowedIds(data?.map(f => f.following_id) || [])
+    if (!user || !isSupabaseReady()) {
+      setFollowedIds([])
+      return
+    }
+    const { data } = await supabase.from('user_follows').select('following_id').eq('follower_id', user.id)
+    setFollowedIds(data?.map((f) => f.following_id) || [])
   }, [user])
 
-  useEffect(() => { fetchFollowed() }, [fetchFollowed])
+  useEffect(() => {
+    fetchFollowed()
+  }, [fetchFollowed])
 
   return { followedIds, refetch: fetchFollowed }
 }

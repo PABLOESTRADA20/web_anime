@@ -58,10 +58,22 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const needsVerification = user && !user.email_confirmed_at && !user?.identities?.some(i => i.identity_provider !== 'email')
+  const needsVerification = user && !user.email_confirmed_at && !user?.identities?.some((i) => i.identity_provider !== 'email')
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, resetPassword, updatePassword, loginWithProvider, logout, isReady: isSupabaseReady(), needsVerification }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        resetPassword,
+        updatePassword,
+        loginWithProvider,
+        logout,
+        isReady: isSupabaseReady(),
+        needsVerification,
+      }}>
       {children}
     </AuthContext.Provider>
   )

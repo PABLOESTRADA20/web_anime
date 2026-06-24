@@ -1,5 +1,20 @@
+import { checkRateLimit } from '../_utils/rate-limit.js'
+
 export async function onRequest(context) {
   const { request } = context
+
+  const rateCheck = checkRateLimit(request, { maxRequests: 30, windowMs: 60000 })
+  if (!rateCheck.allowed) {
+    return new Response(JSON.stringify({ error: 'Demasiadas solicitudes. Intenta de nuevo en unos segundos.' }), {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Retry-After': String(rateCheck.retryAfter),
+      },
+    })
+  }
+
   const url = new URL(request.url)
 
   // Extract the path after /api/mangadex/
@@ -22,7 +37,7 @@ export async function onRequest(context) {
     const res = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'AnimeVerse/1.0 (https://anime-app-e8p.pages.dev)',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     })
 

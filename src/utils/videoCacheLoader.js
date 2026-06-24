@@ -65,7 +65,13 @@ export class VideoCacheLoader {
       }
       callbacks.onSuccess({ url, data }, stats, { type: 'frag', url }, null)
     } catch (e) {
-      callbacks.onError({ code: 0, text: e.message }, { type: 'frag', url }, null, { trequest: 0, tfirst: 0, tload: 0, loaded: 0, total: 0 })
+      callbacks.onError({ code: 0, text: e.message }, { type: 'frag', url }, null, {
+        trequest: 0,
+        tfirst: 0,
+        tload: 0,
+        loaded: 0,
+        total: 0,
+      })
     }
   }
 

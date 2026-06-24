@@ -16,9 +16,7 @@ export function FadeIn(props) {
         visible: { opacity: 1, y: 0 },
       }}
       transition={{ duration: 0.5 }}
-      {...(isInStaggerGroup
-        ? {}
-        : { initial: 'hidden', whileInView: 'visible', viewport })}
+      {...(isInStaggerGroup ? {} : { initial: 'hidden', whileInView: 'visible', viewport })}
       {...props}
     />
   )

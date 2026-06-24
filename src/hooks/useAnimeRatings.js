@@ -5,7 +5,9 @@ import { useAuth } from './useAuth'
 export function useAnimeRatings() {
   const { user } = useAuth()
   const userRef = useRef(user)
-  useEffect(() => { userRef.current = user }, [user])
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
   const [ratings, setRatings] = useState({})
 
   const fetchRating = useCallback(async (anilistId) => {
@@ -21,7 +23,9 @@ export function useAnimeRatings() {
       if (data) {
         setRatings((prev) => ({ ...prev, [anilistId]: data.rating }))
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   async function setRating(anilistId, rating) {
@@ -30,7 +34,11 @@ export function useAnimeRatings() {
     const existing = ratings[anilistId]
     if (existing === rating) {
       await supabase.from('anime_ratings').delete().eq('user_id', currentUser.id).eq('anilist_id', anilistId)
-      setRatings((prev) => { const n = { ...prev }; delete n[anilistId]; return n })
+      setRatings((prev) => {
+        const n = { ...prev }
+        delete n[anilistId]
+        return n
+      })
     } else {
       const { data } = await supabase
         .from('anime_ratings')
