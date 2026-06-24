@@ -3,7 +3,7 @@ import { getEpisodes as miruroGetEpisodes } from '../lib/miruro'
 import { getSlug } from '../lib/animeflv'
 import { getAnimeEpisodes as veranimeGetEpisodes } from '../lib/veranime'
 
-const TIMEOUT = 6000
+const TIMEOUT = 4000
 
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))])
@@ -49,13 +49,9 @@ export async function detectAudioOptions(anilistId, epNum, title) {
         results.spanish.error = 'No disponible en AnimeFLV'
         return
       }
-      results.spanish.provider = 'AnimeFLV'
+      results.spanish.provider = 'VerAnime'
       const data = await withTimeout(veranimeGetEpisodes(slug), TIMEOUT)
-      if (data?.providerEpisodes?.length > 0) {
-        results.spanish.available = true
-      } else {
-        results.spanish.available = true
-      }
+      results.spanish.available = data?.providerEpisodes?.length > 0
     } catch {
       if (getSlug(title)) results.spanish.available = true
       else results.spanish.error = 'LATAM no disponible'

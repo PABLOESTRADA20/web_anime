@@ -312,6 +312,7 @@ export default function Watch() {
   const [selectedLanguage, setSelectedLanguage] = useState(null)
   const [audioOptions, setAudioOptions] = useState(null)
   const [detectingAudio, setDetectingAudio] = useState(true)
+  const audioFallbackRef = useRef(null)
 
   const effectiveAudio = selectedLanguage || audio
 
@@ -344,6 +345,16 @@ export default function Watch() {
     if (!anilistId || !epNum) return
     let cancelled = false
     setDetectingAudio(true)
+
+    clearTimeout(audioFallbackRef.current)
+    audioFallbackRef.current = setTimeout(() => {
+      if (!cancelled) {
+        setDetectingAudio(false)
+        setSelectedLanguage('sub')
+        setShowSelector(false)
+      }
+    }, 10000)
+
     detectAudioOptions(anilistId, epNum, title)
       .then((options) => {
         if (!cancelled) {
@@ -356,6 +367,7 @@ export default function Watch() {
       })
     return () => {
       cancelled = true
+      clearTimeout(audioFallbackRef.current)
     }
   }, [anilistId, epNum, title])
 
@@ -683,6 +695,10 @@ export default function Watch() {
         options={audioOptions}
         loading={detectingAudio}
         animeInfo={{ title, image, episode: epNum }}
+        onSkip={() => {
+          setSelectedLanguage('sub')
+          setShowSelector(false)
+        }}
         onSelect={(lang) => {
           setSelectedLanguage(lang)
           setShowSelector(false)

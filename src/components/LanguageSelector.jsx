@@ -44,7 +44,7 @@ function LoadingSkeleton() {
   )
 }
 
-export default function LanguageSelector({ options, loading, animeInfo, onSelect }) {
+export default function LanguageSelector({ options, loading, animeInfo, onSelect, onSkip }) {
   const hasOptions = options && Object.values(options).some((o) => o.available || o.error)
 
   return (
@@ -76,52 +76,63 @@ export default function LanguageSelector({ options, loading, animeInfo, onSelect
           {loading ? (
             <LoadingSkeleton />
           ) : hasOptions ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-              {Object.entries(options).map(([key, opt], idx) => {
-                const info = LANG_INFO[key]
-                const Flag = FLAG_MAP[opt.flag]
-                const disabled = !opt.available
+            <div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                {Object.entries(options).map(([key, opt], idx) => {
+                  const info = LANG_INFO[key]
+                  const Flag = FLAG_MAP[opt.flag]
+                  const disabled = !opt.available
 
-                return (
-                  <motion.button
-                    key={key}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 + idx * 0.08 }}
-                    onClick={() => !disabled && onSelect(key)}
-                    disabled={disabled}
-                    className={`relative rounded-2xl p-6 flex flex-col items-center gap-3 transition-all border ${
-                      disabled
-                        ? 'bg-white/[0.02] border-white/5 opacity-40 cursor-not-allowed'
-                        : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 cursor-pointer group'
-                    }`}>
-                    {Flag && (
-                      <div className="relative">
-                        <Flag className="w-16 h-10 rounded-md shadow-lg" />
+                  return (
+                    <motion.button
+                      key={key}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 + idx * 0.08 }}
+                      onClick={() => !disabled && onSelect(key)}
+                      disabled={disabled}
+                      className={`relative rounded-2xl p-6 flex flex-col items-center gap-3 transition-all border ${
+                        disabled
+                          ? 'bg-white/[0.02] border-white/5 opacity-40 cursor-not-allowed'
+                          : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 cursor-pointer group'
+                      }`}>
+                      {Flag && (
+                        <div className="relative">
+                          <Flag className="w-16 h-10 rounded-md shadow-lg" />
+                        </div>
+                      )}
+
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-base font-semibold text-white">{info.label}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-secondary uppercase tracking-wider">
+                            {info.sublabel}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-secondary/60 mt-1">{info.desc}</p>
                       </div>
-                    )}
 
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span className="text-base font-semibold text-white">{info.label}</span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-text-secondary uppercase tracking-wider">
-                          {info.sublabel}
+                      <div className="flex items-center gap-2">
+                        <StatusIcon available={opt.available} error={opt.error} />
+                        <span className={`text-xs ${opt.available ? 'text-green-400' : 'text-red-400'}`}>
+                          {opt.available ? 'Disponible' : opt.error || 'No disponible'}
                         </span>
                       </div>
-                      <p className="text-xs text-text-secondary/60 mt-1">{info.desc}</p>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <StatusIcon available={opt.available} error={opt.error} />
-                      <span className={`text-xs ${opt.available ? 'text-green-400' : 'text-red-400'}`}>
-                        {opt.available ? 'Disponible' : opt.error || 'No disponible'}
-                      </span>
-                    </div>
-
-                    {opt.provider && opt.available && <span className="text-[10px] text-text-secondary/40 mt-1">{opt.provider}</span>}
-                  </motion.button>
-                )
-              })}
+                      {opt.provider && opt.available && <span className="text-[10px] text-text-secondary/40 mt-1">{opt.provider}</span>}
+                    </motion.button>
+                  )
+                })}
+              </div>
+              {Object.values(options).every((o) => !o.available) && (
+                <div className="mt-6 flex justify-center">
+                  <button
+                    onClick={() => onSkip?.()}
+                    className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white rounded-xl text-sm font-medium transition-colors border border-white/10 hover:border-white/20">
+                    Continuar con Sub (Japonés) por defecto
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-8">
