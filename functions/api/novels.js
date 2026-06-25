@@ -78,21 +78,21 @@ export async function onRequest(context) {
     const html = await res.text()
 
     const cover = html.match(/<div class="book">[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>/i)
-    const title = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
+    const title = html.match(/<h3 class="title">([\s\S]*?)<\/h3>/i)
     const desc = html.match(
       /<div class="desc-text[^"]*"[^>]*id="novel-description-content"[^>]*>([\s\S]*?)<\/div>\s*<button[^>]*class="btn-desc-toggle/i,
     )
 
-    const infoSection = html.match(/<div class="col-info">([\s\S]*?)<div class="col-xs-12 col-md-4">/i)
-    const infoHtml = infoSection ? infoSection[1] : html
+    const infoMeta = html.match(/<ul class="info info-meta">([\s\S]*?)<\/ul>/i)
+    const infoHtml = infoMeta ? infoMeta[1] : ''
 
     const genres = [...infoHtml.matchAll(/<a[^>]*href="https:\/\/novelbin\.com\/genre\/([^"]+)"[^>]*>([^<]+)<\/a>/gi)].map((g) =>
       g[2].trim(),
     )
 
-    const authorMatch = infoHtml.match(/<span[^>]*class="info"[^>]*>Author<\/span>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i)
+    const authorMatch = infoHtml.match(/<h3>Author:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)
 
-    const statusMatch = infoHtml.match(/<span[^>]*class="info"[^>]*>Status<\/span>[\s\S]*?(Ongoing|Completed)/i)
+    const statusMatch = infoHtml.match(/<h3>Status:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)
 
     return jsonResponse({
       slug,
@@ -105,7 +105,7 @@ export async function onRequest(context) {
             .trim()
         : '',
       author: authorMatch ? authorMatch[1].trim() : '',
-      status: statusMatch ? statusMatch[1] : 'Unknown',
+      status: statusMatch ? statusMatch[1].trim() : 'Unknown',
       genres,
     })
   }
