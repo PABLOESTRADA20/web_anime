@@ -46,7 +46,7 @@ export default function NovelRead() {
         setContent(data)
         setChapters(chs || [])
         setLoading(false)
-        saveProgress(slug, chapterNum, data.title || `Chapter ${chapterNum}`, null, null)
+        saveProgress(slug, chapterNum, data.title || `Chapter ${chapterNum}`, slug, null)
       })
       .catch((err) => {
         if (!ac.signal.aborted) {
