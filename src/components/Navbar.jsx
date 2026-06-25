@@ -81,6 +81,7 @@ export default function Navbar() {
     { to: '/directorio', label: t('nav.directory') },
     { to: '/search', label: t('nav.search') },
     { to: '/manga', label: t('nav.manga') },
+    { to: '/novel', label: 'Novelas' },
     { to: '/seasonal', label: t('nav.seasonal') },
     { to: '/schedule', label: t('nav.schedule') },
     { to: '/characters', label: t('nav.characters') },

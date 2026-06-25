@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
-export function useComments(anilistId, mediaType = 'anime', episodeNumber = null) {
+export function useComments(contentId, mediaType = 'anime', episodeNumber = null) {
   const { user } = useAuth()
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,7 +24,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
           likes:comment_likes ( count )
         `,
         )
-        .eq('anilist_id', anilistId)
+        .eq('anilist_id', typeof contentId === 'number' ? contentId : parseInt(contentId, 10))
         .eq('media_type', mediaType)
         .is('parent_id', null)
 
@@ -55,7 +55,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
       setError(e.message)
     }
     setLoading(false)
-  }, [anilistId, mediaType, episodeNumber])
+  }, [contentId, mediaType, episodeNumber])
 
   useEffect(() => {
     fetchComments()
@@ -66,7 +66,7 @@ export function useComments(anilistId, mediaType = 'anime', episodeNumber = null
     try {
       const insertData = {
         user_id: user.id,
-        anilist_id: parseInt(anilistId, 10),
+        anilist_id: typeof contentId === 'number' ? contentId : parseInt(contentId, 10),
         media_type: mediaType,
         content,
         rating,

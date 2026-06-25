@@ -14,6 +14,7 @@ const STORES: Record<string, StoreConfig> = {
   anilist: { ttl: 300000, version: 1 },
   mangadex: { ttl: 120000, version: 1 },
   provider: { ttl: 30000, version: 1 },
+  novels: { ttl: 300000, version: 1 },
 }
 
 function memoKey(key: string, store: string): string {

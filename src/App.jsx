@@ -20,6 +20,9 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 const Manga = lazy(() => import('./pages/Manga'))
 const MangaDetail = lazy(() => import('./pages/MangaDetail'))
 const MangaRead = lazy(() => import('./pages/MangaRead'))
+const Novels = lazy(() => import('./pages/Novels'))
+const NovelDetail = lazy(() => import('./pages/NovelDetail'))
+const NovelRead = lazy(() => import('./pages/NovelRead'))
 const Characters = lazy(() => import('./pages/Characters'))
 const CharacterDetail = lazy(() => import('./pages/CharacterDetail'))
 const Schedule = lazy(() => import('./pages/Schedule'))
@@ -131,6 +134,30 @@ export default function App() {
                       element={
                         <RouteGuard>
                           <MangaDetail />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/novel"
+                      element={
+                        <RouteGuard>
+                          <Novels />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/novel/:slug/read"
+                      element={
+                        <RouteGuard>
+                          <NovelRead />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/novel/:slug"
+                      element={
+                        <RouteGuard>
+                          <NovelDetail />
                         </RouteGuard>
                       }
                     />

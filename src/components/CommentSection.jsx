@@ -96,9 +96,9 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
   )
 }
 
-export default function CommentSection({ anilistId, mediaType = 'anime', episodeNumber }) {
+export default function CommentSection({ anilistId, contentId, mediaType = 'anime', episodeNumber }) {
   const { user } = useAuth()
-  const { comments, loading, error, addComment, deleteComment, toggleLike } = useComments(anilistId, mediaType, episodeNumber)
+  const { comments, loading, error, addComment, deleteComment, toggleLike } = useComments(contentId || anilistId, mediaType, episodeNumber)
   const [content, setContent] = useState('')
   const [rating, setRating] = useState(0)
   const [sending, setSending] = useState(false)
