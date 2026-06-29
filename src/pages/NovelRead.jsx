@@ -5,6 +5,7 @@ import { getChapterContent, getNovelChapters } from '../lib/novels'
 import { useNovelHistory } from '../hooks/useNovelHistory'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+import DOMPurify from 'dompurify'
 
 const THEMES = {
   dark: { bg: 'bg-[#1a1a2e]', text: 'text-gray-200', label: 'Oscuro', icon: '🌙' },
@@ -159,7 +160,7 @@ export default function NovelRead() {
               ref={contentRef}
               className="novel-content leading-relaxed max-w-3xl mx-auto"
               style={{ fontSize: `${fontSize}px`, fontFamily, lineHeight }}
-              dangerouslySetInnerHTML={{ __html: content?.content || '' }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content?.content || '') }}
             />
           )}
         </div>

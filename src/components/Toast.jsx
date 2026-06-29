@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 
 const ToastContext = createContext(null)
 
@@ -56,7 +56,15 @@ export function ToastProvider({ children }) {
 }
 
 export function useToast() {
-  const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast must be used within ToastProvider')
-  return ctx
+  const addToast = useContext(ToastContext)
+  if (!addToast) throw new Error('useToast must be used within ToastProvider')
+  return useMemo(
+    () =>
+      Object.assign((message, type = 'info', duration = 3000) => addToast(message, type, duration), {
+        success: (message, duration) => addToast(message, 'success', duration),
+        error: (message, duration) => addToast(message, 'error', duration),
+        info: (message, duration) => addToast(message, 'info', duration),
+      }),
+    [addToast],
+  )
 }

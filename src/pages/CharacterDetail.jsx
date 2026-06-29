@@ -6,6 +6,8 @@ import { getCharacterInfo } from '../lib/anilist'
 import SeoHead from '../components/SeoHead'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
+import ShareButton from '../components/ShareButton'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { useToast } from '../components/Toast'
 
 export default function CharacterDetail() {
@@ -59,13 +61,15 @@ export default function CharacterDetail() {
             <SafeImage src={image} alt={name} className="w-full rounded-2xl shadow-lg" fallbackText={name} />
           </div>
           <div className="flex-1 min-w-0">
+            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Personajes', href: '/directorio' }, { label: name }]} />
             <h1 className="text-2xl sm:text-3xl font-bold">{name}</h1>
             {character.name?.native && <p className="text-text-secondary text-sm mt-1">{character.name.native}</p>}
             {character.name?.alternative?.length > 0 && (
               <p className="text-xs text-text-secondary mt-1">También conocido como: {character.name.alternative.join(', ')}</p>
             )}
 
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <ShareButton title={name} />
               {character.gender && (
                 <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{character.gender}</span>
               )}

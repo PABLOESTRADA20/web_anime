@@ -22,6 +22,8 @@ import { useNovelLists } from '../hooks/useNovelLists'
 import { useAuth } from '../hooks/useAuth'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
+import ShareButton from '../components/ShareButton'
+import Breadcrumbs from '../components/Breadcrumbs'
 
 export default function NovelDetail() {
   const { slug } = useParams()
@@ -118,6 +120,7 @@ export default function NovelDetail() {
             <SafeImage src={novel.cover} alt={novel.title} className="w-full rounded-2xl shadow-lg" fallbackText={novel.title} />
           </div>
           <div className="flex-1">
+            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Novelas', href: '/directorio' }, { label: novel.title }]} />
             <h1 className="text-2xl font-bold mb-2">{novel.title}</h1>
             <div className="flex flex-wrap gap-2 mb-4">
               {novel.author && <span className="text-sm text-text-secondary">por {novel.author}</span>}
@@ -157,6 +160,7 @@ export default function NovelDetail() {
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${isFavorite(slug) ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-surface hover:bg-surface-hover text-text-secondary border-white/10'}`}>
                 {isFavorite(slug) ? '♥ Favorito' : '♡ Favorito'}
               </button>
+              <ShareButton title={novel?.title} />
             </div>
             {user && (
               <div className="mt-3 flex flex-wrap gap-1.5">

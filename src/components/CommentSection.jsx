@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useComments } from '../hooks/useComments'
 import { useAuth } from '../hooks/useAuth'
 import { Link } from 'react-router-dom'
+import EmptyState from './EmptyState'
 
 const commentSchema = z.object({
   content: z.string().min(1, 'El comentario no puede estar vacío').max(2000, 'Máximo 2000 caracteres'),
@@ -195,7 +196,7 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
           ))}
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-text-secondary text-sm">No hay comentarios aún. ¡Sé el primero!</p>
+        <EmptyState message="No hay comentarios aún. ¡Sé el primero!" />
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => (

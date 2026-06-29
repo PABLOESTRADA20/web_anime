@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 
@@ -10,6 +11,15 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [
+          sentryVitePlugin({
+            org: process.env.SENTRY_ORG || 'animeverse',
+            project: process.env.SENTRY_PROJECT || 'anime-app',
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+          }),
+        ]
+      : []),
     ...(mode === 'analyze' ? [visualizer({ open: true, gzipSize: true, brotliSize: true })] : []),
     VitePWA({
       registerType: 'autoUpdate',
@@ -67,6 +77,7 @@ export default defineConfig(({ mode }) => ({
     }),
   ],
   build: {
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks(id) {

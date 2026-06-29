@@ -10,6 +10,7 @@ import {
   getLanguageLabel,
 } from '../hooks/useCommunityEpisodes'
 import { useToast } from './Toast'
+import EmptyState from './EmptyState'
 
 export default function CommunityEpisodes({ anilistId, episodeNumber, title, onSelectUrl }) {
   const { user } = useAuth()
@@ -139,9 +140,9 @@ export default function CommunityEpisodes({ anilistId, episodeNumber, title, onS
       </AnimatePresence>
 
       {links.length === 0 ? (
-        <p className="text-xs text-text-secondary/60 text-center py-3">
-          {user ? 'No hay enlaces aún. ¡Sé el primero en aportar!' : 'No hay enlaces de la comunidad para este episodio.'}
-        </p>
+        <EmptyState
+          message={user ? 'No hay enlaces aún. ¡Sé el primero en aportar!' : 'No hay enlaces de la comunidad para este episodio.'}
+        />
       ) : (
         <div className="space-y-2">
           {links.map((link) => (

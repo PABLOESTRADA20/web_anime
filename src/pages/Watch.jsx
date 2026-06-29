@@ -23,6 +23,8 @@ import { VideoCacheLoader } from '../utils/videoCacheLoader'
 import LanguageSelector from '../components/LanguageSelector'
 import { detectAudioOptions } from '../utils/detectAudio'
 import { getSubtitlePrefs } from '../utils/subtitlePreferences'
+import ShareButton from '../components/ShareButton'
+import Breadcrumbs from '../components/Breadcrumbs'
 
 function useHls(videoRef, url, useCache, proxyFallbackUrl) {
   const hlsRef = useRef(null)
@@ -772,18 +774,16 @@ export default function Watch() {
       <SeoHead title={pageTitle} image={image} url={`/watch?anilistId=${anilistId}&ep=${epNum}`} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="max-w-5xl mx-auto">
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Link
-            to={`/anime/${anilistId}`}
-            className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors shrink-0 group">
-            <svg
-              className="w-4 h-4 transition-transform group-hover:-translate-x-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Volver
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: 'Inicio', href: '/' },
+              { label: 'Anime', href: '/directorio' },
+              { label: title || '...', href: `/anime/${anilistId}` },
+              { label: `Episodio ${epNum}` },
+            ]}
+          />
+
+          <ShareButton title={title} className="shrink-0" />
 
           <div className="flex-1" />
 

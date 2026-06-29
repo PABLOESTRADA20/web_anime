@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { parseSubtitles, findCurrentSubtitle } from '../utils/subtitleParser'
 
 const FONT_SIZE_CLASSES = {
@@ -72,7 +73,7 @@ export function SubtitleOverlay({
           wordWrap: 'break-word',
           lineHeight: '1.4',
         }}
-        dangerouslySetInnerHTML={{ __html: currentSub.text.replace(/\n/g, '<br/>') }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSub.text.replace(/\n/g, '<br/>')) }}
       />
     </div>
   )

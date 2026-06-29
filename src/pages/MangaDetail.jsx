@@ -14,6 +14,8 @@ import { useMangaLists } from '../hooks/useMangaLists'
 import { useAuth } from '../hooks/useAuth'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
+import ShareButton from '../components/ShareButton'
+import Breadcrumbs from '../components/Breadcrumbs'
 
 function formatChapterNum(n) {
   if (Number.isInteger(n)) return n.toString()
@@ -108,6 +110,7 @@ export default function MangaDetail() {
             <SafeImage src={image} alt={title} className="w-full rounded-2xl shadow-lg" fallbackText={title} />
           </div>
           <div className="flex-1 min-w-0">
+            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Manga', href: '/directorio' }, { label: title }]} />
             <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
             {manga.title?.native && <p className="text-text-secondary text-sm mt-1">{manga.title.native}</p>}
 
@@ -179,6 +182,7 @@ export default function MangaDetail() {
                 }}>
                 ▶ {latestFromHistory ? 'Continuar' : 'Leer'}
               </Link>
+              <ShareButton title={manga?.title?.romaji || manga?.title?.english || title} />
               {user && (
                 <button
                   onClick={async () => {

@@ -20,6 +20,8 @@ import { useHistory } from '../hooks/useHistory'
 import { useAnimeLists } from '../hooks/useAnimeLists'
 import AddToCollectionBtn from '../components/AddToCollectionBtn'
 import SafeImage from '../components/SafeImage'
+import ShareButton from '../components/ShareButton'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { useToast } from '../components/Toast'
 
 const SITE_COLORS = {
@@ -270,6 +272,7 @@ export default function AnimeDetail() {
           </div>
 
           <div className="flex-1 min-w-0">
+            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Anime', href: '/directorio' }, { label: title }]} />
             <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
 
             {anime.title?.native && <p className="text-text-secondary text-sm mt-1">{anime.title.native}</p>}
@@ -377,6 +380,7 @@ export default function AnimeDetail() {
                   ▶ Tráiler
                 </button>
               )}
+              <ShareButton title={anime?.title?.romaji || anime?.title?.english || ''} />
               {user && (
                 <>
                   <button

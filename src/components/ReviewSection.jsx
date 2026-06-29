@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useReviews } from '../hooks/useReviews'
 import { useI18n } from '../hooks/useI18n'
 import { useToast } from './Toast'
+import EmptyState from './EmptyState'
 import { Link } from 'react-router-dom'
 
 function timeAgo(dateStr, t) {
@@ -125,7 +126,7 @@ export default function ReviewSection({ anilistId, mediaType = 'anime' }) {
           ))}
         </div>
       ) : reviews.length === 0 ? (
-        !user && <p className="text-xs text-text-secondary/60 text-center py-4">{t('reviews.noReviews')}</p>
+        !user && <EmptyState message={t('reviews.noReviews')} />
       ) : (
         <div className="space-y-3">
           {reviews.map((review) => (
