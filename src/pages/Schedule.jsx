@@ -5,6 +5,7 @@ import { getSchedule } from '../lib/anilist'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
+import { ScheduleSkeleton } from '../components/Skeletons'
 import SafeImage from '../components/SafeImage'
 
 function formatAiringTime(timestamp) {
@@ -87,11 +88,7 @@ export default function Schedule() {
         </div>
 
         {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="h-16 bg-surface rounded-xl animate-pulse" />
-            ))}
-          </div>
+          <ScheduleSkeleton />
         ) : filtered.length === 0 ? (
           <EmptyState message="No hay episodios programados." />
         ) : (

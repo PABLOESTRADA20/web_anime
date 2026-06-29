@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { useToast } from './Toast'
 
-export default function ShareButton({ title, url, className = '' }) {
+const ShareButton = memo(function ShareButton({ title, url, className = '' }) {
   const toast = useToast()
   const fullUrl = url || window.location.href
 
@@ -37,4 +38,6 @@ export default function ShareButton({ title, url, className = '' }) {
       Compartir
     </button>
   )
-}
+})
+
+export default ShareButton

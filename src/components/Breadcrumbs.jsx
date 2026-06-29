@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 
-export default function Breadcrumbs({ items, className = '' }) {
+const Breadcrumbs = memo(function Breadcrumbs({ items, className = '' }) {
   if (!items?.length) return null
   return (
     <nav aria-label="breadcrumb" className={`flex items-center gap-1.5 text-xs text-text-secondary/60 mb-4 ${className}`}>
@@ -21,7 +22,9 @@ export default function Breadcrumbs({ items, className = '' }) {
       })}
     </nav>
   )
-}
+})
+
+export default Breadcrumbs
 
 function Chevron() {
   return (

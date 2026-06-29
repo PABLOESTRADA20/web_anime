@@ -47,7 +47,10 @@ export default function UpdatePrompt() {
         className="shrink-0 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-medium transition-colors">
         Actualizar
       </button>
-      <button onClick={() => setUpdateAvailable(false)} className="shrink-0 p-2 rounded-xl hover:bg-white/10 transition-colors text-xs">
+      <button
+        onClick={() => setUpdateAvailable(false)}
+        className="shrink-0 p-2 rounded-xl hover:bg-white/10 transition-colors text-xs"
+        aria-label="Cerrar">
         ✕
       </button>
     </div>

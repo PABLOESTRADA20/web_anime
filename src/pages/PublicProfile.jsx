@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useFollows } from '../hooks/useFollows'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
+import { ProfileSkeleton } from '../components/Skeletons'
 
 export default function PublicProfile() {
   const { id } = useParams()
@@ -92,7 +93,7 @@ export default function PublicProfile() {
   if (loading)
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="h-48 bg-surface rounded-2xl animate-pulse mb-6" />
+        <ProfileSkeleton />
       </div>
     )
   if (!profile) return <EmptyState icon="🔍" message="Usuario no encontrado." />

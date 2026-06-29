@@ -7,6 +7,7 @@ import EmptyState from '../components/EmptyState'
 import { useI18n } from '../hooks/useI18n'
 import { useAuth } from '../hooks/useAuth'
 import { useFollowedUsers } from '../hooks/useFollows'
+import { ActivitySkeleton } from '../components/Skeletons'
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -74,11 +75,7 @@ export default function Activity() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-24 bg-surface rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <ActivitySkeleton />
       ) : filtered.length === 0 ? (
         <EmptyState message={filter === 'following' ? 'No hay actividad de usuarios que sigues.' : 'No hay actividad reciente.'} />
       ) : (

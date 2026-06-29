@@ -1,6 +1,7 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 
-export default function EmptyState({ icon = '📭', message = 'Sin resultados', action }) {
+const EmptyState = memo(function EmptyState({ icon = '📭', message = 'Sin resultados', action }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -17,4 +18,6 @@ export default function EmptyState({ icon = '📭', message = 'Sin resultados', 
       )}
     </motion.div>
   )
-}
+})
+
+export default EmptyState

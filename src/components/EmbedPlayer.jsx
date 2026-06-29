@@ -184,7 +184,8 @@ export default function EmbedPlayer({ embeds, onBack, subtitles = [], subtitleSo
           <button
             onClick={() => setShowSettings((v) => !v)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface text-text-secondary border border-white/10 hover:text-text-primary"
-            title="Configuración de subtítulos">
+            title="Configuración de subtítulos"
+            aria-label="Configuración de subtítulos">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"

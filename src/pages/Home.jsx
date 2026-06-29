@@ -14,6 +14,7 @@ import { useHistory } from '../hooks/useHistory'
 import { useMangaHistory } from '../hooks/useMangaHistory'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
+import WelcomeDialog from '../components/WelcomeDialog'
 import SafeImage from '../components/SafeImage'
 import { getRecommendations, getUserGenreProfile, getUserInteractionIds } from '../lib/recommendations'
 
@@ -134,6 +135,13 @@ export default function Home() {
 
   const recentHistory = useMemo(() => history.slice(0, 8), [history])
 
+  const spanishAvailable = useMemo(() => {
+    const seen = new Set()
+    return [...trending, ...popular, ...airing]
+      .filter((a) => a.title_es && (a.anilistId || a.id) && !seen.has(a.anilistId || a.id) && seen.add(a.anilistId || a.id))
+      .slice(0, 12)
+  }, [trending, popular, airing])
+
   function progressPct(item) {
     if (!item.duration || item.duration <= 0) return 0
     return Math.min(100, Math.round((item.progress / item.duration) * 100))
@@ -141,6 +149,7 @@ export default function Home() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <WelcomeDialog />
       <SeoHead />
       <Hero />
 
@@ -387,6 +396,37 @@ export default function Home() {
           </FadeInStagger>
         )}
       </section>
+
+      {spanishAvailable.length > 0 && (
+        <section className="mb-12">
+          <FadeIn>
+            <SectionHeader
+              icon={
+                <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              }
+              title="Disponible en Español"
+              link="/search"
+              linkText="Ver todos"
+            />
+          </FadeIn>
+          <FadeInStagger>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {spanishAvailable.map((a, i) => (
+                <FadeIn key={a.anilistId || a.id}>
+                  <AnimeCard anime={a} index={i} />
+                </FadeIn>
+              ))}
+            </div>
+          </FadeInStagger>
+        </section>
+      )}
 
       <section className="mb-12">
         <FadeIn>

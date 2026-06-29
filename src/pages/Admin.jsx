@@ -4,6 +4,7 @@ import { useAdmin, useModeration } from '../hooks/useAdmin'
 import { useAuth } from '../hooks/useAuth'
 import SeoHead from '../components/SeoHead'
 import GradientHeading from '../components/GradientHeading'
+import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import { getProviderLabel, getProviderColor, getLanguageLabel } from '../hooks/useCommunityEpisodes'
 
@@ -135,9 +136,7 @@ export default function Admin() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-text-secondary">
-            No hay episodios {tab === 'pending' ? 'pendientes' : tab === 'approved' ? 'aprobados' : 'rechazados'}.
-          </div>
+          <EmptyState message={`No hay episodios ${tab === 'pending' ? 'pendientes' : tab === 'approved' ? 'aprobados' : 'rechazados'}.`} />
         ) : (
           <div className="space-y-3">
             {filtered.map((ep) => (

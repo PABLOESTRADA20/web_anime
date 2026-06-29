@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { FLAG_MAP } from './FlagIcon'
 
@@ -44,7 +45,7 @@ function LoadingSkeleton() {
   )
 }
 
-export default function LanguageSelector({ options, loading, animeInfo, onSelect, onSkip }) {
+const LanguageSelector = memo(function LanguageSelector({ options, loading, animeInfo, onSelect, onSkip }) {
   const hasOptions = options && Object.values(options).some((o) => o.available || o.error)
 
   return (
@@ -146,4 +147,6 @@ export default function LanguageSelector({ options, loading, animeInfo, onSelect
       </div>
     </motion.div>
   )
-}
+})
+
+export default LanguageSelector

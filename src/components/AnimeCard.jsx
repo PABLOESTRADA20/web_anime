@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
-export default function AnimeCard({ anime, index = 0, progress }) {
+const AnimeCard = memo(function AnimeCard({ anime, index = 0, progress }) {
   const id = anime.anilistId || anime.id
   const title = anime.title_es || anime.title?.romaji || anime.title?.english || anime.title?.native || anime.name || 'Sin título'
   const image = anime.image || anime.posterImage
@@ -83,4 +83,6 @@ export default function AnimeCard({ anime, index = 0, progress }) {
       </Link>
     </motion.div>
   )
-}
+})
+
+export default AnimeCard

@@ -11,6 +11,7 @@ import CommunityEpisodes from '../components/CommunityEpisodes'
 import EmbedPlayer from '../components/EmbedPlayer'
 import { SubtitleOverlay } from '../components/SubtitleOverlay'
 import WatchParty from '../components/WatchParty'
+import EpisodeNav from '../components/EpisodeNav'
 import { useWatchParty } from '../hooks/useWatchParty'
 import CommentSection from '../components/CommentSection'
 import { getProviderLabel } from '../hooks/useCommunityEpisodes'
@@ -294,7 +295,7 @@ export default function Watch() {
   const [error, setError] = useState(null)
   const [providerErrors, setProviderErrors] = useState([])
   const [episodesData, setEpisodesData] = useState(null)
-  const [episodesLoading, setEpisodesLoading] = useState(false)
+  const [, setEpisodesLoading] = useState(false)
   const [activeSubtitle, setActiveSubtitle] = useState(-1)
   const [subtitleSrc, setSubtitleSrc] = useState([])
   const subtitleBlobsRef = useRef([])
@@ -787,67 +788,15 @@ export default function Watch() {
 
           <div className="flex-1" />
 
-          {!episodesLoading && sortedEps.length > 0 && (
-            <>
-              <div className="flex items-center gap-1.5">
-                {prevEp ? (
-                  <button
-                    onClick={() => goToEpisode(prevEp)}
-                    aria-label={`Episodio anterior: ${prevEp.number}`}
-                    className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors border border-white/5">
-                    ← Ep. {prevEp.number}
-                  </button>
-                ) : (
-                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">← Ep. —</div>
-                )}
-
-                <button
-                  onClick={() => setShowEpisodes((v) => !v)}
-                  aria-label="Lista de episodios"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                    showEpisodes
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
-                  }`}>
-                  Ep. {epNum} {showEpisodes ? '↑' : '↓'}
-                </button>
-
-                {nextEp ? (
-                  <button
-                    onClick={() => goToEpisode(nextEp)}
-                    aria-label={`Siguiente episodio: ${nextEp.number}`}
-                    className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors border border-white/5">
-                    Ep. {nextEp.number} →
-                  </button>
-                ) : (
-                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">Ep. — →</div>
-                )}
-              </div>
-
-              {showEpisodes && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="w-full">
-                  <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5 max-h-48 overflow-y-auto p-2 rounded-xl bg-surface/50 border border-white/5">
-                    {sortedEps.map((ep) => (
-                      <button
-                        key={ep.number}
-                        onClick={() => {
-                          goToEpisode(ep)
-                          setShowEpisodes(false)
-                        }}
-                        aria-label={`Episodio ${ep.number}${ep.title ? `: ${ep.title}` : ''}`}
-                        className={`aspect-square rounded-lg text-xs font-medium transition-colors border flex items-center justify-center ${
-                          ep.number === epNum
-                            ? 'bg-primary text-white border-primary'
-                            : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-primary/30 hover:bg-surface-hover'
-                        }`}>
-                        {ep.number}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </>
-          )}
+          <EpisodeNav
+            sortedEps={sortedEps}
+            goToEpisode={goToEpisode}
+            prevEp={prevEp}
+            nextEp={nextEp}
+            epNum={epNum}
+            showEpisodes={showEpisodes}
+            setShowEpisodes={setShowEpisodes}
+          />
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">

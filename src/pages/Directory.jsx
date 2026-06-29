@@ -124,6 +124,8 @@ export default function Directory() {
   const [total, setTotal] = useState(0)
   const [searchText, setSearchText] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [spanishOnly, setSpanishOnly] = useState(false)
+  const [enriched, setEnriched] = useState(false)
   const toast = useToast()
   const acRef = useRef(null)
 
@@ -155,7 +157,10 @@ export default function Directory() {
         setTotal(res.total)
         setLoading(false)
         enrichAnimeBatch(list)
-          .then(setAnimeList)
+          .then((enrichedList) => {
+            setAnimeList(enrichedList)
+            setEnriched(true)
+          })
           .catch(() => {})
       })
       .catch(() => {
@@ -178,6 +183,7 @@ export default function Directory() {
   }
 
   const hasFilters = Object.keys(filters).length > 0 || Object.keys(_filters).length > 0
+  const displayList = spanishOnly && enriched ? animeList.filter((a) => a.title_es) : animeList
   const totalPages = Math.ceil(total / PER_PAGE)
 
   function randomAnime() {
@@ -305,6 +311,17 @@ export default function Directory() {
               </select>
             </FilterSection>
 
+            <FilterSection label="Idioma">
+              <FilterBtn
+                active={spanishOnly}
+                onClick={() => {
+                  setSpanishOnly(!spanishOnly)
+                  setPage(1)
+                }}>
+                Español
+              </FilterBtn>
+            </FilterSection>
+
             <FilterSection label="Letra">
               <div className="flex flex-wrap gap-1">
                 {LETTERS.map((l) => (
@@ -337,16 +354,21 @@ export default function Directory() {
           </motion.div>
         )}
 
-        {total > 0 && <p className="text-xs text-text-secondary mb-4">{total} animes encontrados</p>}
+        {total > 0 && (
+          <p className="text-xs text-text-secondary mb-4">
+            {spanishOnly ? displayList.length : total} animes encontrados
+            {spanishOnly && displayList.length !== total && ` (filtrados de ${total})`}
+          </p>
+        )}
 
         {loading ? (
           <GridSkeleton count={12} />
-        ) : animeList.length === 0 ? (
+        ) : displayList.length === 0 ? (
           <EmptyState message="No se encontraron animes con esos filtros." action={{ label: 'Limpiar filtros', onClick: clearFilters }} />
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {animeList.map((anime, i) => (
+              {displayList.map((anime, i) => (
                 <AnimeCard key={anime.id} anime={anime} index={i} />
               ))}
             </div>

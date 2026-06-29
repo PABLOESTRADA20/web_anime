@@ -154,7 +154,8 @@ export default function CommunityEpisodes({ anilistId, episodeNumber, title, onS
                   onClick={() => handleVote(link.id, 1)}
                   disabled={voting[link.id]}
                   className="text-[10px] text-text-secondary hover:text-green-400 transition-colors disabled:opacity-50"
-                  title="Útil">
+                  title="Útil"
+                  aria-label="Votar útil">
                   ▲
                 </button>
                 <span
@@ -165,7 +166,8 @@ export default function CommunityEpisodes({ anilistId, episodeNumber, title, onS
                   onClick={() => handleVote(link.id, -1)}
                   disabled={voting[link.id]}
                   className="text-[10px] text-text-secondary hover:text-red-400 transition-colors disabled:opacity-50"
-                  title="No útil">
+                  title="No útil"
+                  aria-label="Votar no útil">
                   ▼
                 </button>
               </div>

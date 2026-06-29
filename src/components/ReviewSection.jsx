@@ -170,7 +170,8 @@ function ReviewCard({ review, isOwn, onDelete, onVote, t }) {
             <button
               onClick={onDelete}
               className="p-1 text-text-secondary/50 hover:text-red-400 transition-colors"
-              title={t('reviews.delete')}>
+              title={t('reviews.delete')}
+              aria-label={t('reviews.delete')}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -205,11 +206,13 @@ function ReviewCard({ review, isOwn, onDelete, onVote, t }) {
         <span className="text-[10px] text-text-secondary/50">{t('reviews.helpful')}</span>
         <button
           onClick={() => onVote(1)}
+          aria-label="Votar positivo"
           className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] text-text-secondary hover:text-green-400 hover:bg-green-500/10 transition-colors">
           ▲ {votes > 0 ? votes : ''}
         </button>
         <button
           onClick={() => onVote(-1)}
+          aria-label="Votar negativo"
           className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors">
           ▼ {votes < 0 ? Math.abs(votes) : ''}
         </button>
