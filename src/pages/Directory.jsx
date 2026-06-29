@@ -5,6 +5,7 @@ import { enrichAnimeBatch } from '../lib/api'
 import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 
 const GENRES = [
@@ -341,12 +342,7 @@ export default function Directory() {
         {loading ? (
           <GridSkeleton count={12} />
         ) : animeList.length === 0 ? (
-          <div className="text-center py-20 text-text-secondary">
-            <p>No se encontraron animes con esos filtros.</p>
-            <button onClick={clearFilters} className="mt-3 text-primary hover:text-neon-cyan text-sm transition-colors">
-              Limpiar filtros
-            </button>
-          </div>
+          <EmptyState message="No se encontraron animes con esos filtros." action={{ label: 'Limpiar filtros', onClick: clearFilters }} />
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

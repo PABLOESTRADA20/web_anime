@@ -20,18 +20,21 @@ export function useHistory() {
     fetchHistory()
   }, [user, fetchHistory])
 
-  async function saveProgress(anilistId, episodeNumber, title, image, episodeId) {
+  async function saveProgress(anilistId, episodeNumber, title, image, episodeId, progress, duration) {
     if (!user || !isSupabaseReady()) return
     const { data: existing } = await supabase
       .from('history')
-      .select('id')
+      .select('id, progress, duration')
       .eq('user_id', user.id)
       .eq('anilist_id', anilistId)
       .eq('episode_number', episodeNumber)
       .maybeSingle()
 
     if (existing) {
-      await supabase.from('history').update({ updated_at: new Date().toISOString() }).eq('id', existing.id)
+      const update = { updated_at: new Date().toISOString() }
+      if (progress !== undefined) update.progress = progress
+      if (duration !== undefined) update.duration = duration
+      await supabase.from('history').update(update).eq('id', existing.id)
     } else {
       await supabase.from('history').insert({
         user_id: user.id,
@@ -40,6 +43,8 @@ export function useHistory() {
         title,
         image,
         episode_id: episodeId,
+        progress: progress || 0,
+        duration: duration || 0,
       })
     }
     fetchHistory()

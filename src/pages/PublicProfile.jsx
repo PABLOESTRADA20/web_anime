@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useFollows } from '../hooks/useFollows'
 import SafeImage from '../components/SafeImage'
+import EmptyState from '../components/EmptyState'
 
 export default function PublicProfile() {
   const { id } = useParams()
@@ -94,7 +95,7 @@ export default function PublicProfile() {
         <div className="h-48 bg-surface rounded-2xl animate-pulse mb-6" />
       </div>
     )
-  if (!profile) return <div className="text-center py-20 text-text-secondary">Usuario no encontrado.</div>
+  if (!profile) return <EmptyState icon="🔍" message="Usuario no encontrado." />
 
   const watchingList = lists.filter((l) => l.status === 'watching')
 

@@ -12,6 +12,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useMangaLists } from '../hooks/useMangaLists'
 import { useFollows } from '../hooks/useFollows'
 import SafeImage from '../components/SafeImage'
+import EmptyState from '../components/EmptyState'
 
 function AnilistImportForm({ onImport, importing, result, error }) {
   const [username, setUsername] = useState('')
@@ -154,7 +155,7 @@ export default function Profile() {
         {section === 'watching' && (
           <section>
             {watching.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún anime como "Mirando".</p>
+              <EmptyState message='No has marcado ningún anime como "Mirando".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {watching.map((item) => (
@@ -176,7 +177,7 @@ export default function Profile() {
         {section === 'plan_to_watch' && (
           <section>
             {planToWatch.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún anime como "Por ver".</p>
+              <EmptyState message='No has marcado ningún anime como "Por ver".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {planToWatch.map((item) => (
@@ -198,7 +199,7 @@ export default function Profile() {
         {section === 'completed' && (
           <section>
             {completed.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún anime como "Visto".</p>
+              <EmptyState message='No has marcado ningún anime como "Visto".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {completed.map((item) => (
@@ -220,7 +221,7 @@ export default function Profile() {
         {section === 'reading' && (
           <section>
             {reading.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún manga como "Leyendo".</p>
+              <EmptyState message='No has marcado ningún manga como "Leyendo".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {reading.map((item) => (
@@ -242,7 +243,7 @@ export default function Profile() {
         {section === 'plan_to_read' && (
           <section>
             {planToRead.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún manga como "Por leer".</p>
+              <EmptyState message='No has marcado ningún manga como "Por leer".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {planToRead.map((item) => (
@@ -264,7 +265,7 @@ export default function Profile() {
         {section === 'completed_manga' && (
           <section>
             {completedManga.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has marcado ningún manga como "Completado".</p>
+              <EmptyState message='No has marcado ningún manga como "Completado".' />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {completedManga.map((item) => (
@@ -286,7 +287,7 @@ export default function Profile() {
         {section === 'watchlist' && (
           <section>
             {watchlist.length === 0 ? (
-              <p className="text-text-secondary text-sm">No has agregado ningún anime aún.</p>
+              <EmptyState message="No has agregado ningún anime aún." />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {watchlist.map((item) => (
@@ -308,7 +309,7 @@ export default function Profile() {
         {section === 'favorites' && (
           <section>
             {favorites.length === 0 ? (
-              <p className="text-text-secondary text-sm">No tienes favoritos aún.</p>
+              <EmptyState message="No tienes favoritos aún." />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {favorites.map((item) => (
@@ -330,7 +331,7 @@ export default function Profile() {
         {section === 'history' && (
           <section>
             {history.length === 0 ? (
-              <p className="text-text-secondary text-sm">No hay episodios vistos aún.</p>
+              <EmptyState message="No hay episodios vistos aún." />
             ) : (
               <div className="space-y-2">
                 {history.map((item) => (
@@ -362,7 +363,7 @@ export default function Profile() {
         {section === 'manga' && (
           <section>
             {mangaHistory.length === 0 ? (
-              <p className="text-text-secondary text-sm">No hay capítulos leídos aún.</p>
+              <EmptyState message="No hay capítulos leídos aún." />
             ) : (
               <div className="space-y-2">
                 {mangaHistory.map((item) => (

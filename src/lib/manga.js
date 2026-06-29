@@ -44,7 +44,7 @@ async function findMangaDexId(anilistId, titleVariants) {
     if (!title) continue
     try {
       const data = await fetchJSON(
-        `${MANGADEX_API}/manga?title=${encodeURIComponent(title)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+        `${MANGADEX_API}?path=${encodeURIComponent('/manga')}&title=${encodeURIComponent(title)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
         `search:${title}`,
       )
       if (data?.data?.length) {
@@ -66,7 +66,7 @@ async function findMangaDexId(anilistId, titleVariants) {
 async function fetchFeed(mdId, language) {
   try {
     const data = await fetchJSON(
-      `${MANGADEX_API}/manga/${mdId}/feed?translatedLanguage[]=${language}&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+      `${MANGADEX_API}?path=${encodeURIComponent(`/manga/${mdId}/feed`)}&translatedLanguage[]=${language}&limit=500&offset=0&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
       `feed:${mdId}:${language}`,
     )
     return data?.data || []
@@ -132,7 +132,7 @@ export async function getMangaChapters(anilistId, anilistData) {
 }
 
 export async function getMangaChapterPages(chapterId) {
-  const data = await fetchJSON(`${MANGADEX_API}/at-home/server/${chapterId}`)
+  const data = await fetchJSON(`${MANGADEX_API}?path=${encodeURIComponent(`/at-home/server/${chapterId}`)}`)
   const baseUrl = data.baseUrl || MANGADEX_CDN
   const hash = data.chapter?.hash
   const pages = data.chapter?.data || []
@@ -145,7 +145,7 @@ export async function getMangaChapterPages(chapterId) {
 export async function getRecentChapters(limit = 20) {
   await rateLimit()
   const chapterRes = await fetch(
-    `${MANGADEX_API}/chapter?limit=${limit}&order[readableAt]=desc&translatedLanguage[]=en&translatedLanguage[]=es&includes[]=manga&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+    `${MANGADEX_API}?path=${encodeURIComponent('/chapter')}&limit=${limit}&order[readableAt]=desc&translatedLanguage[]=en&translatedLanguage[]=es&includes[]=manga&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
   )
   if (!chapterRes.ok) throw new Error(`Manga API error ${chapterRes.status}`)
   const chapterData = await chapterRes.json()
@@ -155,7 +155,7 @@ export async function getRecentChapters(limit = 20) {
   const mangaIds = [...new Set(chapters.map((ch) => ch.relationships.find((r) => r.type === 'manga')?.id).filter(Boolean))]
 
   const mangaRes = await fetchJSON(
-    `${MANGADEX_API}/manga?limit=${mangaIds.length}&includes[]=cover_art&${mangaIds.map((id) => `ids[]=${id}`).join('&')}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
+    `${MANGADEX_API}?path=${encodeURIComponent('/manga')}&limit=${mangaIds.length}&includes[]=cover_art&${mangaIds.map((id) => `ids[]=${id}`).join('&')}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`,
   )
 
   const mangaMap = {}

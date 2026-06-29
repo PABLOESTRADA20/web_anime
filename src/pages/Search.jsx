@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AnimeCard from '../components/AnimeCard'
@@ -6,6 +6,29 @@ import { GridSkeleton } from '../components/Skeletons'
 import { searchAnime, enrichAnimeBatch } from '../lib/api'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+
+const RECENT_SEARCHES_KEY = 'anime_recent_searches'
+const MAX_RECENT = 8
+
+function getRecentSearches() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function addRecentSearch(query) {
+  if (!query?.trim()) return
+  const searches = getRecentSearches().filter((s) => s !== query)
+  searches.unshift(query.trim())
+  if (searches.length > MAX_RECENT) searches.length = MAX_RECENT
+  try {
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches))
+  } catch {
+    /* noop */
+  }
+}
 
 const GENRES = [
   'Action',
@@ -51,6 +74,7 @@ export default function Search() {
       setHasSearched(false)
       return
     }
+    if (query) addRecentSearch(query)
     const ac = new AbortController()
     setLoading(true)
     setPage(1)
@@ -88,6 +112,17 @@ export default function Search() {
   }
 
   const filterCount = [filters.genre, filters.format, filters.year, filters.minScore].filter(Boolean).length
+  const [recentSearches, setRecentSearches] = useState(getRecentSearches)
+
+  const removeRecent = useCallback((q) => {
+    const updated = getRecentSearches().filter((s) => s !== q)
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated))
+    } catch {
+      /* noop */
+    }
+    setRecentSearches(updated)
+  }, [])
 
   if (!hasSearched) {
     return (
@@ -96,6 +131,31 @@ export default function Search() {
           <h1 className="text-2xl font-bold mb-2">Explorar anime</h1>
           <p className="text-text-secondary text-sm">Selecciona un género o usa los filtros para descubrir anime</p>
         </div>
+
+        {recentSearches.length > 0 && (
+          <div className="mb-8">
+            <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">Búsquedas recientes</p>
+            <div className="flex flex-wrap gap-2">
+              {recentSearches.map((q) => (
+                <span
+                  key={q}
+                  className="group inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-surface hover:bg-surface-hover text-sm transition-colors border border-white/5">
+                  <Link to={`/search?q=${encodeURIComponent(q)}`} className="text-text-secondary hover:text-neon-cyan transition-colors">
+                    {q}
+                  </Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      removeRecent(q)
+                    }}
+                    className="text-text-secondary/40 hover:text-red-400 transition-colors text-xs">
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mb-8">
           <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">Explorar por género</p>

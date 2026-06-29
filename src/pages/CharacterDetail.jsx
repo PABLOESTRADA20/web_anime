@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
-import SeoHead from '../components/SeoHead'
 import { getCharacterInfo } from '../lib/anilist'
+import SeoHead from '../components/SeoHead'
 import SafeImage from '../components/SafeImage'
+import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 
 export default function CharacterDetail() {
@@ -39,13 +40,7 @@ export default function CharacterDetail() {
         <DetailSkeleton />
       </>
     )
-  if (!character)
-    return (
-      <>
-        <SeoHead title="Personaje no encontrado" />
-        <div className="text-center py-20 text-text-secondary">Personaje no encontrado.</div>
-      </>
-    )
+  if (!character) return <EmptyState icon="🔍" message="Personaje no encontrado." />
 
   const name = character.name?.full || 'Sin nombre'
   const image = character.image?.large

@@ -9,18 +9,20 @@ import { useHistory } from '../hooks/useHistory'
 import { useToast } from '../components/Toast'
 import CommunityEpisodes from '../components/CommunityEpisodes'
 import EmbedPlayer from '../components/EmbedPlayer'
+import { SubtitleOverlay } from '../components/SubtitleOverlay'
 import WatchParty from '../components/WatchParty'
 import { useWatchParty } from '../hooks/useWatchParty'
 import CommentSection from '../components/CommentSection'
 import { getProviderLabel } from '../hooks/useCommunityEpisodes'
 import SeoHead from '../components/SeoHead'
-import { subtitleLangLabel, subtitleSrcLang, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
+import { subtitleLangLabel, isCloudflareBlock, isSpanishSub } from '../utils/subtitles'
 import { fetchSubtitle } from '../utils/proxy'
 import { downloadVideoEpisode, isVideoCached } from '../utils/videoDownload'
 import { formatSize } from '../utils/downloads'
 import { VideoCacheLoader } from '../utils/videoCacheLoader'
 import LanguageSelector from '../components/LanguageSelector'
 import { detectAudioOptions } from '../utils/detectAudio'
+import { getSubtitlePrefs } from '../utils/subtitlePreferences'
 
 function useHls(videoRef, url, useCache, proxyFallbackUrl) {
   const hlsRef = useRef(null)
@@ -292,8 +294,8 @@ export default function Watch() {
   const [episodesData, setEpisodesData] = useState(null)
   const [episodesLoading, setEpisodesLoading] = useState(false)
   const [activeSubtitle, setActiveSubtitle] = useState(-1)
-  const [subtitleSrc, setSubtitleSrc] = useState({})
-  const subtitleBlobsRef = useRef({})
+  const [subtitleSrc, setSubtitleSrc] = useState([])
+  const subtitleBlobsRef = useRef([])
   const [providerUsed, setProviderUsed] = useState(null)
   const [backendUsed, setBackendUsed] = useState(null)
   const [activeServer, setActiveServer] = useState(null)
@@ -309,6 +311,9 @@ export default function Watch() {
   const [isCached, setIsCached] = useState(false)
   const [useCachePlayback, setUseCachePlayback] = useState(false)
 
+  const [translatedSub, setTranslatedSub] = useState(null)
+  const [translating, setTranslating] = useState(false)
+  const [translateProgress, setTranslateProgress] = useState(null)
   const [showSelector, setShowSelector] = useState(true)
   const [selectedLanguage, setSelectedLanguage] = useState(null)
   const [audioOptions, setAudioOptions] = useState(null)
@@ -398,6 +403,10 @@ export default function Watch() {
     setSubtitles([])
     setDownloads([])
     setActiveServer(null)
+    setTranslatedSub((prev) => {
+      if (prev?.blob) URL.revokeObjectURL(prev.blob)
+      return null
+    })
 
     getWatchWithFallback(anilistId, provider, epNum, effectiveAudio)
       .then((result) => {
@@ -488,12 +497,16 @@ export default function Watch() {
   useEffect(() => {
     let cancelled = false
 
-    Object.values(subtitleBlobsRef.current).forEach((u) => URL.revokeObjectURL(u))
-    subtitleBlobsRef.current = {}
-    setSubtitleSrc({})
+    subtitleBlobsRef.current.forEach((u) => u && URL.revokeObjectURL(u))
+    subtitleBlobsRef.current = []
+    setSubtitleSrc([])
+    setTranslatedSub((prev) => {
+      if (prev?.blob) URL.revokeObjectURL(prev.blob)
+      return null
+    })
 
     async function loadAll() {
-      const blobs = {}
+      const blobs = []
       const referer = sources.find((s) => s.referer)?.referer || ''
       await Promise.all(
         subtitles.map(async (sub, i) => {
@@ -506,7 +519,7 @@ export default function Watch() {
       )
 
       if (cancelled) {
-        Object.values(blobs).forEach((u) => URL.revokeObjectURL(u))
+        blobs.forEach((u) => u && URL.revokeObjectURL(u))
         return
       }
 
@@ -523,14 +536,32 @@ export default function Watch() {
 
   useEffect(() => {
     return () => {
-      Object.values(subtitleBlobsRef.current).forEach((u) => URL.revokeObjectURL(u))
-      subtitleBlobsRef.current = {}
+      subtitleBlobsRef.current.forEach((u) => u && URL.revokeObjectURL(u))
+      subtitleBlobsRef.current = []
+      setTranslatedSub((prev) => {
+        if (prev?.blob) URL.revokeObjectURL(prev.blob)
+        return null
+      })
     }
   }, [])
 
   useEffect(() => {
-    if (anilistId) {
-      saveProgress(anilistId, epNum, title, image, episodeId)
+    if (!anilistId) return
+    saveProgress(anilistId, epNum, title, image, episodeId, 0, 0)
+
+    const interval = setInterval(() => {
+      const v = videoRef.current
+      if (v && v.currentTime > 10) {
+        saveProgress(anilistId, epNum, title, image, episodeId, v.currentTime, v.duration || 0)
+      }
+    }, 15000)
+
+    const vCleanup = videoRef.current
+    return () => {
+      clearInterval(interval)
+      if (vCleanup && vCleanup.currentTime > 10) {
+        saveProgress(anilistId, epNum, title, image, episodeId, vCleanup.currentTime, vCleanup.duration || 0)
+      }
     }
   }, [anilistId, epNum, episodeId, saveProgress, title, image])
 
@@ -620,6 +651,46 @@ export default function Watch() {
     }
   }
 
+  const handleAutoTranslate = useCallback(async () => {
+    const engIdx = subtitles.findIndex(
+      (s) => (s.language || '').toLowerCase() === 'en' || (s.label || '').toLowerCase().includes('english'),
+    )
+    if (engIdx < 0 || !subtitles[engIdx]?.file) return
+
+    if (import.meta.env.DEV) {
+      toast('Traducción no disponible en desarrollo. Desplegar para usar.', 'info', 5000)
+      return
+    }
+
+    setTranslating(true)
+    setTranslateProgress({ current: 0, total: 0 })
+    try {
+      const url = subtitles[engIdx].file
+      const referer = sources.find((s) => s.referer)?.referer || ''
+      const params = new URLSearchParams({ url, referer, from: 'english', to: 'spanish' })
+      const res = await fetch(`/api/translate-subtitles?${params}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Translation failed' }))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      const blob = URL.createObjectURL(new Blob([await res.text()], { type: 'text/vtt' }))
+      setTranslatedSub({ blob, label: 'Español (AI)', language: 'es' })
+      setActiveSubtitle(subtitles.length)
+      setTranslateProgress(null)
+      toast('Subtítulos traducidos al español', 'success', 3000)
+    } catch (e) {
+      setTranslateProgress(null)
+      toast('Error al traducir: ' + e.message, 'error', 5000)
+    } finally {
+      setTranslating(false)
+    }
+  }, [subtitles, sources, toast])
+
+  const hasSpanishSub = subtitles.some(isSpanishSub)
+  const englishSubIdx = subtitles.findIndex(
+    (s) => (s.language || '').toLowerCase() === 'en' || (s.label || '').toLowerCase().includes('english'),
+  )
+
   const switchProvider = useCallback(
     (newProvider) => {
       if (!anilistId || !epNum) return
@@ -662,12 +733,6 @@ export default function Watch() {
   const onNextEpRef = useRef(null)
   onNextEpRef.current = nextEp ? () => goToEpisode(nextEp) : null
   useKeyboardShortcuts(videoRef, onNextEpRef, setPlaybackRate)
-
-  const defaultSubIdx = (() => {
-    if (subtitles.length === 0) return -1
-    const es = subtitles.findIndex(isSpanishSub)
-    return es >= 0 ? es : 0
-  })()
 
   function formatDate(timestamp) {
     if (!timestamp) return ''
@@ -829,6 +894,18 @@ export default function Watch() {
                     <span className="relative z-10">{subtitleLangLabel(sub)}</span>
                   </button>
                 ))}
+                {translatedSub && (
+                  <button
+                    onClick={() => setActiveSubtitle(subtitles.length)}
+                    className={`relative px-2 py-1.5 text-[10px] font-medium transition-colors rounded-lg ${
+                      activeSubtitle === subtitles.length ? 'text-white' : 'text-text-secondary hover:text-text-primary'
+                    }`}>
+                    {activeSubtitle === subtitles.length && (
+                      <motion.span layoutId="sub-watch" className="absolute inset-0 bg-neon-cyan rounded-lg" />
+                    )}
+                    <span className="relative z-10">{translatedSub.label}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => selectSubtitleTrack(-1)}
                   className={`relative px-2 py-1.5 text-[10px] font-medium transition-colors rounded-lg ${
@@ -838,6 +915,31 @@ export default function Watch() {
                   <span className="relative z-10">OFF</span>
                 </button>
               </div>
+              {!hasSpanishSub && englishSubIdx >= 0 && !translatedSub && (
+                <button
+                  onClick={handleAutoTranslate}
+                  disabled={translating}
+                  className="px-2 py-1.5 rounded-lg text-[10px] font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors flex items-center gap-1 disabled:opacity-50">
+                  {translating ? (
+                    <>
+                      <span className="w-3 h-3 border border-neon-cyan border-t-transparent rounded-full animate-spin" />
+                      {translateProgress ? `${translateProgress.current}/${translateProgress.total}` : 'Trad.'}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 5h12M9 3v2m0 4a7 7 0 016.392 4.042M14 17l3 3m0 0l3-3m-3 3v-6"
+                        />
+                      </svg>{' '}
+                      Auto ES
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -994,6 +1096,10 @@ export default function Watch() {
           {!loading && !error && isIframeSource && (
             <EmbedPlayer
               embeds={sources.map((s) => ({ url: s.url, name: s.quality }))}
+              subtitles={subtitles}
+              subtitleSources={subtitleSrc}
+              activeSubtitle={activeSubtitle}
+              onSubtitleChange={setActiveSubtitle}
               onBack={() => {
                 selectedUrl && setIsIframeSource(false)
               }}
@@ -1023,54 +1129,53 @@ export default function Watch() {
           )}
 
           {!loading && !error && !isIframeSource && (
-            <video
-              ref={videoRef}
-              controls
-              autoPlay
-              className="w-full h-full"
-              playsInline
-              crossOrigin="anonymous"
-              preload="metadata"
-              playbackRate={playbackRate}
-              onPlay={() => party.broadcast('play', videoRef.current?.currentTime || 0)}
-              onPause={() => party.broadcast('pause', videoRef.current?.currentTime || 0)}
-              onSeeked={() => party.broadcast('seek', videoRef.current?.currentTime || 0)}
-              onTimeUpdate={() => {
-                const v = videoRef.current
-                if (v) setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
-              }}
-              onLoadedMetadata={() => {
-                const v = videoRef.current
-                if (v) {
-                  v.playbackRate = playbackRate
-                  setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
-                }
-              }}
-              onEnded={() => {
-                if (nextEp) {
-                  setAutoplayCountdown(5)
-                }
-              }}
-              onError={() => {
-                if (selectedUrl) {
-                  toast('Error al reproducir el video. Intenta con otro proveedor.', 'error', 5000)
-                }
-              }}>
-              {subtitles.map((sub, i) => {
-                const trackSrc = subtitleSrc[i]
-                if (!trackSrc) return null
-                return (
-                  <track
-                    key={i}
-                    kind="subtitles"
-                    src={trackSrc}
-                    srcLang={subtitleSrcLang(sub)}
-                    label={subtitleLangLabel(sub)}
-                    default={i === defaultSubIdx}
-                  />
-                )
-              })}
-            </video>
+            <div className="relative w-full h-full">
+              <video
+                ref={videoRef}
+                controls
+                autoPlay
+                className="w-full h-full"
+                playsInline
+                crossOrigin="anonymous"
+                preload="metadata"
+                playbackRate={playbackRate}
+                onPlay={() => party.broadcast('play', videoRef.current?.currentTime || 0)}
+                onPause={() => party.broadcast('pause', videoRef.current?.currentTime || 0)}
+                onSeeked={() => party.broadcast('seek', videoRef.current?.currentTime || 0)}
+                onTimeUpdate={() => {
+                  const v = videoRef.current
+                  if (v) setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
+                }}
+                onLoadedMetadata={() => {
+                  const v = videoRef.current
+                  if (v) {
+                    v.playbackRate = playbackRate
+                    setTimeDisplay({ current: v.currentTime, duration: v.duration || 0 })
+                  }
+                }}
+                onEnded={() => {
+                  if (nextEp) {
+                    setAutoplayCountdown(5)
+                  }
+                }}
+                onError={() => {
+                  if (selectedUrl) {
+                    toast('Error al reproducir el video. Intenta con otro proveedor.', 'error', 5000)
+                  }
+                }}
+              />
+              {subtitles.length > 0 &&
+                activeSubtitle >= 0 &&
+                (() => {
+                  const prefs = getSubtitlePrefs()
+                  const subProps = { ...prefs, currentTime: timeDisplay.current }
+                  return activeSubtitle < subtitles.length && subtitleSrc[activeSubtitle] ? (
+                    <SubtitleOverlay subtitleUrl={subtitleSrc[activeSubtitle]} {...subProps} />
+                  ) : translatedSub && activeSubtitle === subtitles.length ? (
+                    <SubtitleOverlay subtitleUrl={translatedSub.blob} {...subProps} />
+                  ) : null
+                })()}
+            </div>
           )}
         </div>
 

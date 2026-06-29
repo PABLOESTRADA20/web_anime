@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
 import CommentSection from '../components/CommentSection'
@@ -21,11 +21,15 @@ import { useNovelFavorites } from '../hooks/useNovelFavorites'
 import { useNovelLists } from '../hooks/useNovelLists'
 import { useAuth } from '../hooks/useAuth'
 import SafeImage from '../components/SafeImage'
+import EmptyState from '../components/EmptyState'
 
 export default function NovelDetail() {
   const { slug } = useParams()
+  const [searchParams] = useSearchParams()
+  const source = searchParams.get('source') || ''
   const [novel, setNovel] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [chapters, setChapters] = useState([])
   const [chaptersLoading, setChaptersLoading] = useState(true)
   const [chapterLimit, setChapterLimit] = useState(30)
@@ -40,28 +44,30 @@ export default function NovelDetail() {
   useEffect(() => {
     const ac = new AbortController()
     setLoading(true)
+    setError(null)
     setChapters([])
-    getNovelInfo(slug)
+    getNovelInfo(slug, source)
       .then(async (data) => {
         if (ac.signal.aborted) return
         setNovel(data)
         setLoading(false)
         try {
-          const chs = await getNovelChapters(slug)
+          const chs = await getNovelChapters(slug, source)
           if (!ac.signal.aborted) setChapters(chs || [])
         } catch {
           /* no chapters */
         }
         setChaptersLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
         if (!ac.signal.aborted) {
+          setError(err.message)
           setLoading(false)
           setChaptersLoading(false)
         }
       })
     return () => ac.abort()
-  }, [slug])
+  }, [slug, source])
 
   async function handleToggleFavorite() {
     if (!user) {
@@ -95,6 +101,11 @@ export default function NovelDetail() {
 
   const latestChapter = getLatestChapter(slug)
   const listStatus = getListStatus(slug)
+
+  if (error) {
+    const msg = error.includes('caído') ? 'NovelBin está temporalmente caído.' : error
+    return <EmptyState message={msg} action={{ label: 'Reintentar', onClick: () => window.location.reload() }} />
+  }
 
   if (loading) return <DetailSkeleton />
 
@@ -130,13 +141,13 @@ export default function NovelDetail() {
             <div className="flex flex-wrap gap-2">
               {latestChapter && (
                 <Link
-                  to={`/novel/${slug}/read?chapter=${latestChapter.chapter_number}`}
+                  to={`/novel/${slug}/read?chapter=${latestChapter.chapter_number}${source ? `&source=${source}` : ''}`}
                   className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors">
                   Continuar capítulo {latestChapter.chapter_number}
                 </Link>
               )}
               <Link
-                to={`/novel/${slug}/read?chapter=1`}
+                to={`/novel/${slug}/read?chapter=1${source ? `&source=${source}` : ''}`}
                 className="px-4 py-2 bg-surface hover:bg-surface-hover text-text-primary rounded-xl text-sm font-medium transition-colors border border-white/10">
                 {chapters.length > 0 ? `Comenzar` : `Capítulo 1`}
               </Link>
@@ -166,14 +177,14 @@ export default function NovelDetail() {
         {chaptersLoading ? (
           <div className="text-center py-8 text-text-secondary">Cargando capítulos...</div>
         ) : chapters.length === 0 ? (
-          <div className="text-center py-8 text-text-secondary">No se encontraron capítulos.</div>
+          <EmptyState message="No se encontraron capítulos." />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
               {chapters.slice(0, chapterLimit).map((ch) => (
                 <Link
                   key={ch.number}
-                  to={`/novel/${slug}/read?chapter=${ch.number}`}
+                  to={`/novel/${slug}/read?chapter=${ch.number}${source ? `&source=${source}` : ''}`}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isChapterRead(slug, ch.number) ? 'bg-neon-cyan/5 text-text-secondary' : 'bg-surface/50 hover:bg-surface text-text-primary'}`}>
                   <span className="font-mono text-xs text-primary">{ch.number}.</span>
                   <span className="truncate">{ch.title}</span>

@@ -6,6 +6,7 @@ import { I18nProvider } from './hooks/useI18n'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import Navbar from './components/Navbar'
+import MobileBottomNav from './components/MobileBottomNav'
 import Footer from './components/Footer'
 import UpdatePrompt from './components/UpdatePrompt'
 import { GridSkeleton } from './components/Skeletons'
@@ -79,7 +80,7 @@ export default function App() {
                 </a>
                 <VerifyBanner />
                 <Navbar />
-                <main id="main-content" className="flex-1 max-w-7xl mx-auto w-full px-4 pt-24 pb-8">
+                <main id="main-content" className="flex-1 max-w-7xl mx-auto w-full px-4 pt-24 pb-20 sm:pb-8">
                   <Routes>
                     <Route
                       path="/"
@@ -307,6 +308,7 @@ export default function App() {
                     />
                   </Routes>
                 </main>
+                <MobileBottomNav />
                 <Footer />
                 <UpdatePrompt />
               </div>

@@ -6,6 +6,7 @@ import { useMangaHistory } from '../hooks/useMangaHistory'
 import { addDownload, cacheUrls, getDownload } from '../utils/downloads'
 import { useToast } from '../components/Toast'
 import SeoHead from '../components/SeoHead'
+import EmptyState from '../components/EmptyState'
 
 export default function MangaRead() {
   const { id } = useParams()
@@ -351,12 +352,7 @@ export default function MangaRead() {
               ))}
             </div>
           ) : error ? (
-            <div className="text-center py-20">
-              <p className="text-text-secondary mb-4">{error}</p>
-              <Link to={`/manga/${id}`} className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm transition-colors">
-                Volver al manga
-              </Link>
-            </div>
+            <EmptyState message={error} action={{ label: 'Volver al manga', onClick: () => navigate(`/manga/${id}`) }} />
           ) : (
             <div
               ref={pagesContainerRef}

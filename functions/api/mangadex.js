@@ -16,16 +16,15 @@ export async function onRequest(context) {
   }
 
   const url = new URL(request.url)
+  const path = url.searchParams.get('path') || ''
+  const params = new URLSearchParams(url.search)
+  params.delete('path')
+  const cleanSearch = params.toString() ? '?' + params.toString() : ''
+  const targetUrl = `https://api.mangadex.org${path}${cleanSearch}`
 
-  // Extract the path after /api/mangadex/
-  const mangaDexPath = url.pathname.replace(/^\/api\/mangadex/, '')
-  const targetUrl = `https://api.mangadex.org${mangaDexPath}${url.search ? '?' + url.searchParams.toString() : ''}`
-
-  // Cache key based on the full target URL
   const cacheKey = new Request(targetUrl, request)
   const cache = caches.default
 
-  // Check cache first
   const cached = await cache.match(cacheKey)
   if (cached) {
     const response = new Response(cached.body, cached)
@@ -41,14 +40,12 @@ export async function onRequest(context) {
       },
     })
 
-    // Clone the response to add CORS headers and cache
     const response = new Response(res.body, res)
     response.headers.set('Access-Control-Allow-Origin', '*')
     response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type')
     response.headers.set('X-Cache', 'MISS')
 
-    // Cache successful GET responses for 5 minutes
     if (request.method === 'GET' && res.status === 200) {
       const cacheResponse = new Response(response.clone().body, {
         status: response.status,
@@ -64,10 +61,7 @@ export async function onRequest(context) {
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), {
       status: 502,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     })
   }
 }

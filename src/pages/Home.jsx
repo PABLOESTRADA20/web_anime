@@ -12,6 +12,7 @@ import { getRecentChapters } from '../lib/manga'
 import { useAuth } from '../hooks/useAuth'
 import { useHistory } from '../hooks/useHistory'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import SafeImage from '../components/SafeImage'
 import { getRecommendations, getUserGenreProfile, getUserInteractionIds } from '../lib/recommendations'
@@ -133,6 +134,11 @@ export default function Home() {
 
   const recentHistory = useMemo(() => history.slice(0, 8), [history])
 
+  function progressPct(item) {
+    if (!item.duration || item.duration <= 0) return 0
+    return Math.min(100, Math.round((item.progress / item.duration) * 100))
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       <SeoHead />
@@ -160,38 +166,52 @@ export default function Home() {
                   linkText="Ver más"
                 />
                 <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
-                  {recentHistory.map((item) => (
-                    <Link
-                      key={item.id}
-                      to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
-                      className="snap-start shrink-0 w-40 group relative rounded-2xl overflow-hidden bg-surface card-hover block">
-                      <div className="aspect-[3/4] overflow-hidden relative">
-                        {item.image ? (
-                          <SafeImage
-                            src={item.image}
-                            alt={item.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            fallbackText={item.title}
-                          />
+                  {recentHistory.map((item) => {
+                    const pct = progressPct(item)
+                    return (
+                      <Link
+                        key={item.id}
+                        to={`/watch?anilistId=${item.anilist_id}&ep=${Math.max(1, item.episode_number - (pct > 90 ? 0 : 0))}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
+                        className="snap-start shrink-0 w-40 group relative rounded-2xl overflow-hidden bg-surface card-hover block">
+                        <div className="aspect-[3/4] overflow-hidden relative">
+                          {item.image ? (
+                            <SafeImage
+                              src={item.image}
+                              alt={item.title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              fallbackText={item.title}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-secondary/40 text-xs p-4 text-center">
+                              {item.title}
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                          {pct > 0 && pct < 90 && (
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                              <div className="h-full bg-neon-cyan transition-all duration-300" style={{ width: pct + '%' }} />
+                            </div>
+                          )}
+                        </div>
+                        {pct > 90 ? (
+                          <span className="absolute top-2 right-2 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-emerald-400/40">
+                            Visto
+                          </span>
                         ) : (
-                          <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-secondary/40 text-xs p-4 text-center">
-                            {item.title}
-                          </div>
+                          <span className="absolute top-2 right-2 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/40">
+                            Ep. {item.episode_number}
+                          </span>
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                      </div>
-                      <span className="absolute top-2 right-2 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/40">
-                        Ep. {item.episode_number}
-                      </span>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <h3 className="text-xs font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">
-                          {item.title}
-                        </h3>
-                      </div>
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <h3 className="text-xs font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">
+                            {item.title}
+                          </h3>
+                        </div>
 
-                      <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
-                    </Link>
-                  ))}
+                        <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
             </FadeIn>
@@ -383,7 +403,9 @@ export default function Home() {
         </FadeIn>
         {recentLoading ? (
           <GridSkeleton count={6} />
-        ) : recentChapters.length === 0 ? null : (
+        ) : recentChapters.length === 0 ? (
+          <EmptyState message="No hay capítulos recientes." />
+        ) : (
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {recentChapters.map((ch) => (

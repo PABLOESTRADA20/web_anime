@@ -13,6 +13,7 @@ import { useMangaFavorites } from '../hooks/useMangaFavorites'
 import { useMangaLists } from '../hooks/useMangaLists'
 import { useAuth } from '../hooks/useAuth'
 import SafeImage from '../components/SafeImage'
+import EmptyState from '../components/EmptyState'
 
 function formatChapterNum(n) {
   if (Number.isInteger(n)) return n.toString()
@@ -330,7 +331,7 @@ export default function MangaDetail() {
               ))}
             </div>
           ) : chapters.length === 0 ? (
-            <p className="text-text-secondary text-sm">No hay capítulos disponibles.</p>
+            <EmptyState message="No hay capítulos disponibles." />
           ) : (
             <>
               <div className="space-y-1.5">

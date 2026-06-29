@@ -21,14 +21,20 @@ export async function searchNovels(query) {
   return fetchJSON('search', { q: query })
 }
 
-export async function getNovelInfo(slug) {
-  return fetchJSON('info', { slug })
+export async function getNovelInfo(slug, source) {
+  const params = { slug }
+  if (source) params.source = source
+  return fetchJSON('info', params)
 }
 
-export async function getNovelChapters(slug) {
-  return fetchJSON('chapters', { slug })
+export async function getNovelChapters(slug, source) {
+  const params = { slug }
+  if (source) params.source = source
+  return fetchJSON('chapters', params)
 }
 
-export async function getChapterContent(path) {
-  return fetchJSON('chapter-content', { path })
+export async function getChapterContent(path, source) {
+  const params = { path }
+  if (source) params.source = source
+  return fetchJSON('chapter-content', params)
 }
