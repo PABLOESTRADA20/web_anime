@@ -49,6 +49,13 @@ Ensure titles are real, popular anime that match the given genres.`
       temperature: 0.7,
     })
 
+    if (result == null) {
+      return new Response(JSON.stringify({ error: 'Workers AI not available on this account', recommendations: [] }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      })
+    }
+
     let text = ''
     if (typeof result === 'string') {
       text = result
@@ -60,6 +67,7 @@ Ensure titles are real, popular anime that match the given genres.`
       text = JSON.stringify(result)
     }
 
+    if (typeof text !== 'string') text = String(text)
     text = text
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
