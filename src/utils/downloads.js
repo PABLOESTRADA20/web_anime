@@ -83,3 +83,28 @@ export function formatSize(bytes) {
   const mb = bytes / (1024 * 1024)
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
 }
+
+function novelCacheKey(path) {
+  return `animeverse-novel:${path}`
+}
+
+export async function cacheNovelContent(path, html) {
+  if (!('caches' in window)) throw new Error('Cache API no disponible')
+  const cache = await caches.open(CACHE_NAME)
+  const blob = new Blob([html], { type: 'text/html; charset=utf-8' })
+  const res = new Response(blob, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  await cache.put(novelCacheKey(path), res)
+}
+
+export async function getCachedNovelContent(path) {
+  if (!('caches' in window)) return null
+  const cache = await caches.open(CACHE_NAME)
+  const res = await cache.match(novelCacheKey(path))
+  if (!res) return null
+  return res.text()
+}
+
+export async function isNovelCached(path) {
+  const html = await getCachedNovelContent(path)
+  return !!html
+}

@@ -7,8 +7,10 @@ import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import SafeImage from '../components/SafeImage'
+import { useI18n } from '../hooks/useI18n'
 
 export default function Characters() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const queryFromUrl = searchParams.get('q') || ''
   const [query, setQuery] = useState(queryFromUrl)
@@ -36,7 +38,7 @@ export default function Characters() {
         setHasNext(res.hasNextPage || false)
       }
     } catch {
-      if (!ac.signal.aborted) toast('Error al buscar personajes', 'error')
+      if (!ac.signal.aborted) toast(t('errors.unexpected'), 'error')
     }
     if (!ac.signal.aborted) setLoading(false)
   }
@@ -50,29 +52,29 @@ export default function Characters() {
       setHasNext(res.hasNextPage || false)
       setPage(next)
     } catch {
-      toast('Error al cargar más', 'error')
+      toast(t('errors.unexpected'), 'error')
     }
     setLoading(false)
   }
 
   return (
     <>
-      <SeoHead title={queryFromUrl ? `"${queryFromUrl}" — Personajes` : 'Personajes'} />
+      <SeoHead title={queryFromUrl ? `"${queryFromUrl}" — ${t('character.title')}` : t('character.title')} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <h1 className="text-xl font-bold mb-6">Personajes</h1>
+        <h1 className="text-xl font-bold mb-6">{t('character.title')}</h1>
 
         <form onSubmit={handleSearch} className="mb-6">
           <div className="flex gap-2">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar personaje..."
+              placeholder={t('character.search')}
               className="flex-1 px-4 py-2.5 rounded-xl bg-surface border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
             />
             <button
               type="submit"
               className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium text-sm transition-colors">
-              Buscar
+              {t('nav.search')}
             </button>
           </div>
         </form>
@@ -80,14 +82,14 @@ export default function Characters() {
         {loading && results.length === 0 ? (
           <GridSkeleton count={12} />
         ) : !searched ? (
-          <p className="text-text-secondary text-sm">Busca un personaje por nombre.</p>
+          <p className="text-text-secondary text-sm">{t('character.searchHint')}</p>
         ) : results.length === 0 ? (
-          <EmptyState message="No se encontraron personajes." />
+          <EmptyState message={t('character.noResults')} />
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {results.map((char, i) => {
-                const name = char.name?.full || 'Sin nombre'
+                const name = char.name?.full || t('common.unnamed')
                 return (
                   <motion.div
                     key={char.id}
@@ -120,7 +122,7 @@ export default function Characters() {
                   onClick={loadMore}
                   disabled={loading}
                   className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50">
-                  {loading ? 'Cargando...' : 'Cargar más'}
+                  {loading ? t('common.loading') : t('common.loadMore')}
                 </button>
               </div>
             )}

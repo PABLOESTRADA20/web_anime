@@ -16,7 +16,9 @@ import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import WelcomeDialog from '../components/WelcomeDialog'
 import SafeImage from '../components/SafeImage'
-import { getRecommendations, getUserGenreProfile, getUserInteractionIds } from '../lib/recommendations'
+import { getRecommendations, getUserGenreProfile, getUserInteractionIds, getAiRecommendations } from '../lib/recommendations'
+import { useI18n } from '../hooks/useI18n'
+import { Link000 } from '../components/ui/skiper-ui/skiper40'
 
 function SectionHeader({ icon, title, link, linkText }) {
   return (
@@ -27,14 +29,20 @@ function SectionHeader({ icon, title, link, linkText }) {
           {title}
         </GradientHeading>
       </div>
-      <Link to={link} className="text-xs text-neon-cyan hover:text-primary transition-colors font-medium">
+      <Link000 to={link} className="text-xs text-neon-cyan font-medium">
         {linkText}
-      </Link>
+      </Link000>
     </div>
   )
 }
 
+function progressPct(item) {
+  if (!item.duration || item.duration <= 0) return 0
+  return Math.min(100, Math.round((item.progress / item.duration) * 100))
+}
+
 export default function Home() {
+  const { t, locale } = useI18n()
   const { user } = useAuth()
   const { history } = useHistory()
   const { mangaHistory } = useMangaHistory()
@@ -46,6 +54,8 @@ export default function Home() {
   const [recentLoading, setRecentLoading] = useState(true)
   const [recommendations, setRecommendations] = useState([])
   const [recsLoading, setRecsLoading] = useState(false)
+  const [aiRecs, setAiRecs] = useState([])
+  const [aiRecsLoading, setAiRecsLoading] = useState(false)
   const toast = useToast()
   const acRef = useRef(null)
 
@@ -78,12 +88,12 @@ export default function Home() {
       .catch(() => {
         if (!signal.aborted) {
           setLoading(false)
-          toast('Error al cargar el inicio', 'error')
+          toast(t('home.error.message'), 'error')
         }
       })
 
     return () => ac.abort()
-  }, [toast])
+  }, [toast, t])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -133,6 +143,32 @@ export default function Home() {
     return () => ac.abort()
   }, [user])
 
+  useEffect(() => {
+    if (!user) {
+      setAiRecs([])
+      return
+    }
+    const controller = new AbortController()
+    setAiRecsLoading(true)
+    ;(async () => {
+      try {
+        const genres = await getUserGenreProfile(user.id)
+        if (controller.signal.aborted || genres.length === 0) {
+          setAiRecsLoading(false)
+          return
+        }
+        const result = await getAiRecommendations(genres, locale)
+        if (!controller.signal.aborted) {
+          setAiRecs(result)
+        }
+      } catch {
+        /* ignore */
+      }
+      setAiRecsLoading(false)
+    })()
+    return () => controller.abort()
+  }, [user, locale])
+
   const recentHistory = useMemo(() => history.slice(0, 8), [history])
 
   const spanishAvailable = useMemo(() => {
@@ -141,11 +177,6 @@ export default function Home() {
       .filter((a) => a.title_es && (a.anilistId || a.id) && !seen.has(a.anilistId || a.id) && seen.add(a.anilistId || a.id))
       .slice(0, 12)
   }, [trending, popular, airing])
-
-  function progressPct(item) {
-    if (!item.duration || item.duration <= 0) return 0
-    return Math.min(100, Math.round((item.progress / item.duration) * 100))
-  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -170,9 +201,9 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   }
-                  title="Continuar viendo"
+                  title={t('home.continueWatching')}
                   link="/search"
-                  linkText="Ver más"
+                  linkText={t('home.viewMore')}
                 />
                 <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
                   {recentHistory.map((item) => {
@@ -204,11 +235,11 @@ export default function Home() {
                         </div>
                         {pct > 90 ? (
                           <span className="absolute top-2 right-2 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-emerald-400/40">
-                            Visto
+                            {t('anime.watched')}
                           </span>
                         ) : (
                           <span className="absolute top-2 right-2 bg-primary/90 backdrop-blur-sm text-white text-[10px] font-mono font-semibold px-2 py-1 rounded-lg border border-primary/40">
-                            Ep. {item.episode_number}
+                            {t('anime.detail.ep')} {item.episode_number}
                           </span>
                         )}
                         <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -240,9 +271,9 @@ export default function Home() {
                       />
                     </svg>
                   }
-                  title="Continuar leyendo"
+                  title={t('home.continueReading')}
                   link="/manga"
-                  linkText="Ver todos"
+                  linkText={t('home.seeAll')}
                 />
                 <div className="space-y-2">
                   {mangaHistory.slice(0, 8).map((item) => (
@@ -263,7 +294,7 @@ export default function Home() {
                         <Link
                           to={`/manga/${item.anilist_id}/read?chapterId=${item.chapter_id}&chapter=${item.chapter_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
                           className="inline-flex items-center gap-1 mt-1 text-xs text-text-secondary hover:text-neon-cyan transition-colors">
-                          Capítulo {item.chapter_number}
+                          {t('manga.chapter')} {item.chapter_number}
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -287,9 +318,9 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               }
-              title="Recomendado para ti"
+              title={t('home.recommendations')}
               link="/search"
-              linkText="Ver más"
+              linkText={t('home.viewMore')}
             />
           </FadeIn>
           {recsLoading ? (
@@ -299,7 +330,57 @@ export default function Home() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {recommendations.map((a, i) => (
                   <FadeIn key={a.anilistId || a.id}>
-                    <AnimeCard anime={a} index={i} />
+                    <AnimeCard anime={a} index={i} glow="accent" />
+                  </FadeIn>
+                ))}
+              </div>
+            </FadeInStagger>
+          )}
+        </section>
+      )}
+
+      {user && (aiRecs.length > 0 || aiRecsLoading) && (
+        <section className="mb-12">
+          <FadeIn>
+            <SectionHeader
+              icon={
+                <svg className="w-4 h-4 text-neon-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+              }
+              title={t('home.aiRecommendations')}
+              link="/search"
+              linkText={t('home.seeAll')}
+            />
+          </FadeIn>
+          {aiRecsLoading ? (
+            <GridSkeleton count={6} />
+          ) : (
+            <FadeInStagger>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {aiRecs.map((rec, i) => (
+                  <FadeIn key={rec.title + i}>
+                    <div className="p-4 rounded-xl bg-surface border border-neon-cyan/10 hover:border-neon-cyan/30 transition-all card-hover">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-text-primary">{rec.title}</h3>
+                        <span className="text-xs font-mono font-bold text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded-full">
+                          {rec.score}/10
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {rec.genres?.map((g) => (
+                          <span key={g} className="text-[10px] bg-surface-hover text-text-secondary px-2 py-0.5 rounded-full">
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                      {rec.reason && <p className="text-xs text-text-secondary leading-relaxed italic">&ldquo;{rec.reason}&rdquo;</p>}
+                    </div>
                   </FadeIn>
                 ))}
               </div>
@@ -316,9 +397,9 @@ export default function Home() {
                 <path d="M12 23c-1.5 0-3.1-.8-4.2-2.1-1.9-2.3-1.5-5.7.9-7.5.1-.1.3.1.2.2-1.3 2.1-.5 5 1.7 6.2.2.1.3-.1.2-.3-1.3-2.2-.6-4.7 1.2-6 .1-.1.3 0 .2.2-1 2.2-.4 5.1 1.5 6.4.2.1.3-.1.2-.3-1.1-2.1-.6-4.5.8-6.1.1-.1.3 0 .2.2-1.1 2.3-.5 4.9 1.2 6.4 1.4 1.2 2.2 2.9 2.2 4.7 0 3.9-3.4 6.9-7.4 6.5-.4 0-.8-.1-1.1-.2 1-1.5 1.7-3.2 1.8-5.1 0-.2-.2-.3-.3-.2-1.2 1.6-3 2.7-5 2.7-1.8 0-3.5-.8-4.7-2.1-1.4-1.5-2.1-3.5-2.1-5.5 0-4.9 3.9-8.7 7.2-11.1.3-.2.7 0 .7.4v.4c0 1.6.5 3.1 1.4 4.4.2.3.6.2.6-.1-.1-2 .2-4.1 1.3-6 .3-.5.8-.9 1.3-1.2.3-.2.7 0 .7.3 0 1.1.4 2.1 1 3 .1.1.2.2.3.3 1.1-1.3 2.3-2.6 3.7-3.7.3-.2.7 0 .6.4-.2 1.5.1 2.9.7 4.2.8 1.7 2.1 3.1 3.6 4.2 1.3 1 2.1 2.5 2.1 4.2 0 3.5-2.8 6.5-6.3 6.7z" />
               </svg>
             }
-            title="En tendencia"
+            title={t('home.trending')}
             link="/search"
-            linkText="Ver más"
+            linkText={t('home.viewMore')}
           />
         </FadeIn>
         {loading ? (
@@ -328,7 +409,7 @@ export default function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {trending.slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
-                  <AnimeCard anime={a} index={i} />
+                  <AnimeCard anime={a} index={i} glow="accent" />
                 </FadeIn>
               ))}
             </div>
@@ -344,9 +425,9 @@ export default function Home() {
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
             }
-            title="Más populares"
+            title={t('home.popular')}
             link="/search"
-            linkText="Ver más"
+            linkText={t('home.viewMore')}
           />
         </FadeIn>
         {loading ? (
@@ -356,7 +437,7 @@ export default function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {popular.slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
-                  <AnimeCard anime={a} index={i} />
+                  <AnimeCard anime={a} index={i} glow="anime" />
                 </FadeIn>
               ))}
             </div>
@@ -377,9 +458,9 @@ export default function Home() {
                 />
               </svg>
             }
-            title="Emitiendo ahora"
+            title={t('home.airingNow')}
             link="/schedule"
-            linkText="Ver horario"
+            linkText={t('home.viewSchedule')}
           />
         </FadeIn>
         {loading ? (
@@ -389,7 +470,7 @@ export default function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {airing.slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
-                  <AnimeCard anime={a} index={i} />
+                  <AnimeCard anime={a} index={i} glow="manga" />
                 </FadeIn>
               ))}
             </div>
@@ -411,16 +492,16 @@ export default function Home() {
                   />
                 </svg>
               }
-              title="Disponible en Español"
+              title={t('home.spanishAvailable')}
               link="/search"
-              linkText="Ver todos"
+              linkText={t('home.seeAll')}
             />
           </FadeIn>
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {spanishAvailable.map((a, i) => (
                 <FadeIn key={a.anilistId || a.id}>
-                  <AnimeCard anime={a} index={i} />
+                  <AnimeCard anime={a} index={i} glow="manga" />
                 </FadeIn>
               ))}
             </div>
@@ -436,15 +517,15 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             }
-            title="Últimos capítulos"
+            title={t('home.latestChapters')}
             link="/manga"
-            linkText="Ver todos"
+            linkText={t('home.seeAll')}
           />
         </FadeIn>
         {recentLoading ? (
           <GridSkeleton count={6} />
         ) : recentChapters.length === 0 ? (
-          <EmptyState message="No hay capítulos recientes." />
+          <EmptyState message={t('home.noRecentChapters')} />
         ) : (
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -461,7 +542,7 @@ export default function Home() {
                         />
                       ) : (
                         <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-secondary text-xs">
-                          Sin imagen
+                          {t('common.noImage')}
                         </div>
                       )}
                     </div>
@@ -475,7 +556,7 @@ export default function Home() {
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                       </svg>
-                      Cap. {ch.chapterNumber}
+                      {t('manga.reader.chapterX', { n: ch.chapterNumber })}
                     </span>
                     <div className="absolute bottom-0 left-0 right-0 p-3">
                       <h3 className="text-sm font-heading font-semibold text-white line-clamp-2 leading-tight drop-shadow-lg">

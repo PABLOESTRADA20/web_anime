@@ -3,10 +3,13 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getMangaChapterPages, getMangaChapters } from '../lib/manga'
 import { useMangaHistory } from '../hooks/useMangaHistory'
+import { useI18n } from '../hooks/useI18n'
 import { addDownload, cacheUrls, getDownload } from '../utils/downloads'
 import { useToast } from '../components/Toast'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 export default function MangaRead() {
   const { id } = useParams()
@@ -34,7 +37,10 @@ export default function MangaRead() {
   const [rtl, setRtl] = useState(false)
 
   const { saveChapterProgress } = useMangaHistory()
+  const { t } = useI18n()
   const toast = useToast()
+  const { addXp } = useGamification()
+  const awardedChRef = useRef(new Set())
   const [downloading, setDownloading] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
 
@@ -53,9 +59,9 @@ export default function MangaRead() {
       addDownload({
         id: chapterId,
         type: 'manga',
-        title: title || `Capítulo ${chapterNum}`,
+        title: title || t('manga.reader.chapterX', { n: chapterNum }),
         chapter: chapterNum,
-        chapterLabel: `Capítulo ${chapterNum}`,
+        chapterLabel: t('manga.reader.chapterX', { n: chapterNum }),
         anilistId: parseInt(id, 10),
         image,
         pages: urls,
@@ -63,9 +69,9 @@ export default function MangaRead() {
         size: 0,
       })
       setDownloaded(true)
-      toast(`Capítulo descargado (${ok}/${urls.length} páginas)`, 'success', 3000)
+      toast(t('manga.reader.downloaded', { ok, total: urls.length }), 'success', 3000)
     } catch (e) {
-      toast('Error al descargar: ' + e.message, 'error', 4000)
+      toast(t('manga.reader.downloadError', { error: e.message }), 'error', 4000)
     }
     setDownloading(false)
   }
@@ -111,12 +117,23 @@ export default function MangaRead() {
   useEffect(() => {
     if (!chapterId || currentPage === lastSavedPage.current) return
     lastSavedPage.current = currentPage
-    saveChapterProgress(parseInt(id, 10), parseFloat(chapterNum || '0'), chapterId, title || `Capítulo ${chapterNum}`, image, currentPage)
-  }, [currentPage, chapterId, id, chapterNum, title, image, saveChapterProgress])
+    saveChapterProgress(
+      parseInt(id, 10),
+      parseFloat(chapterNum || '0'),
+      chapterId,
+      title || t('manga.reader.chapterX', { n: chapterNum }),
+      image,
+      currentPage,
+    )
+    if (chapterId && !awardedChRef.current.has(chapterId)) {
+      awardedChRef.current.add(chapterId)
+      addXp(XP_VALUES.READ_MANGA_CHAPTER, 'manga')
+    }
+  }, [currentPage, chapterId, id, chapterNum, title, image, saveChapterProgress, addXp, t])
 
   useEffect(() => {
     if (!chapterId) {
-      setError('No se especificó el capítulo.')
+      setError(t('manga.reader.noChapterSpecified'))
       setLoading(false)
       return
     }
@@ -134,10 +151,10 @@ export default function MangaRead() {
         setLoading(false)
       })
       .catch(() => {
-        setError('Error al cargar las páginas del capítulo.')
+        setError(t('manga.reader.error'))
         setLoading(false)
       })
-  }, [chapterId])
+  }, [chapterId, t])
 
   useEffect(() => {
     getMangaChapters(id)
@@ -209,7 +226,10 @@ export default function MangaRead() {
 
   return (
     <>
-      <SeoHead title={title ? `${title} — Capítulo ${chapterNum || ''}` : 'Lector de manga'} image={image} />
+      <SeoHead
+        title={title ? `${title} — ${t('manga.reader.chapterX', { n: chapterNum || '' })}` : t('manga.reader.reader')}
+        image={image}
+      />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -226,7 +246,7 @@ export default function MangaRead() {
           {/* Top bar */}
           <div className="flex items-center justify-between gap-2 mb-4">
             <Link to={`/manga/${id}`} className="text-sm text-text-secondary hover:text-text-primary transition-colors shrink-0">
-              ← Volver
+              ← {t('manga.reader.back')}
             </Link>
 
             {!chaptersLoading && sortedChapters.length > 0 && (
@@ -235,10 +255,10 @@ export default function MangaRead() {
                   <Link
                     to={buildChapterUrl(prevChapter)}
                     className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors">
-                    ← Cap. {formatChapterNum(prevChapter.chapterNumber)}
+                    ← {t('manga.reader.chapterX', { n: formatChapterNum(prevChapter.chapterNumber) })}
                   </Link>
                 ) : (
-                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">← Cap. —</div>
+                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">← {t('manga.reader.chapterX', { n: '—' })}</div>
                 )}
 
                 <select
@@ -250,7 +270,7 @@ export default function MangaRead() {
                   className="bg-surface text-text-primary text-xs font-medium px-2 py-1.5 rounded-lg border border-white/10 cursor-pointer">
                   {sortedChapters.map((ch) => (
                     <option key={ch.chapterId} value={ch.chapterId}>
-                      Cap. {formatChapterNum(ch.chapterNumber)}
+                      {t('manga.reader.chapterX', { n: formatChapterNum(ch.chapterNumber) })}
                     </option>
                   ))}
                 </select>
@@ -259,15 +279,17 @@ export default function MangaRead() {
                   <Link
                     to={buildChapterUrl(nextChapter)}
                     className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-colors">
-                    Cap. {formatChapterNum(nextChapter.chapterNumber)} →
+                    {t('manga.reader.chapterX', { n: formatChapterNum(nextChapter.chapterNumber) })} →
                   </Link>
                 ) : (
-                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">Cap. — →</div>
+                  <div className="px-3 py-1.5 text-xs text-text-secondary/40">{t('manga.reader.chapterX', { n: '—' })} →</div>
                 )}
               </div>
             )}
 
-            <h1 className="text-sm font-medium truncate mx-4 text-center hidden sm:block">{title || `Capítulo ${chapterNum}`}</h1>
+            <h1 className="text-sm font-medium truncate mx-4 text-center hidden sm:block">
+              {title || t('manga.reader.chapterX', { n: chapterNum })}
+            </h1>
 
             <div className="shrink-0 w-20 hidden sm:block" />
           </div>
@@ -275,7 +297,7 @@ export default function MangaRead() {
           {/* Reader controls */}
           <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-surface rounded-xl">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary">Brillo</span>
+              <span className="text-[10px] text-text-secondary">{t('manga.reader.brightness')}</span>
               <input
                 type="range"
                 min="50"
@@ -290,17 +312,17 @@ export default function MangaRead() {
               <button
                 onClick={() => setFitMode('width')}
                 className={`px-2.5 py-1 text-[10px] font-medium transition-colors ${fitMode === 'width' ? 'bg-primary text-white' : 'bg-surface-hover text-text-secondary'}`}>
-                Ancho
+                {t('manga.reader.fitWidth')}
               </button>
               <button
                 onClick={() => setFitMode('height')}
                 className={`px-2.5 py-1 text-[10px] font-medium transition-colors ${fitMode === 'height' ? 'bg-primary text-white' : 'bg-surface-hover text-text-secondary'}`}>
-                Alto
+                {t('manga.reader.fitHeight')}
               </button>
               <button
                 onClick={() => setFitMode('original')}
                 className={`px-2.5 py-1 text-[10px] font-medium transition-colors ${fitMode === 'original' ? 'bg-primary text-white' : 'bg-surface-hover text-text-secondary'}`}>
-                Original
+                {t('manga.reader.fitOriginal')}
               </button>
             </div>
 
@@ -309,7 +331,7 @@ export default function MangaRead() {
               className={`px-3 py-1 rounded-lg text-[10px] font-medium transition-colors border border-white/10 ${
                 rtl ? 'bg-primary text-white' : 'bg-surface-hover text-text-secondary'
               }`}>
-              {rtl ? 'RTL' : 'LTR'}
+              {rtl ? t('manga.reader.rtl') : t('manga.reader.ltr')}
             </button>
 
             <button
@@ -317,7 +339,7 @@ export default function MangaRead() {
               className={`px-3 py-1 rounded-lg text-[10px] font-medium transition-colors border border-white/10 ${
                 scrollMode === 'scroll' ? 'bg-accent text-white border-accent/30' : 'bg-surface-hover text-text-secondary'
               }`}>
-              {scrollMode === 'scroll' ? 'Scroll ∞' : 'Página'}
+              {scrollMode === 'scroll' ? t('manga.reader.scroll') : t('manga.reader.singlePage')}
             </button>
 
             <button
@@ -328,7 +350,7 @@ export default function MangaRead() {
                   ? 'bg-green-500/10 text-green-400 border-green-500/30'
                   : 'bg-surface-hover text-text-secondary hover:text-text-primary'
               } disabled:opacity-40`}
-              title={downloaded ? 'Descargado' : 'Descargar para offline'}>
+              title={downloaded ? t('manga.reader.downloadedLabel') : t('manga.reader.downloadOffline')}>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -337,11 +359,13 @@ export default function MangaRead() {
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              {downloading ? '...' : downloaded ? 'Descargado' : 'Offline'}
+              {downloading ? '...' : downloaded ? t('manga.reader.downloadedLabel') : t('manga.reader.downloadOffline')}
             </button>
 
             <span className="text-[10px] text-text-secondary ml-auto">
-              {scrollMode === 'scroll' ? `${Math.round(scrollProgress * 100)}%` : `${currentPage} / ${pages.length}`}
+              {scrollMode === 'scroll'
+                ? t('manga.reader.progress', { progress: Math.round(scrollProgress * 100) })
+                : t('manga.reader.pageOf', { current: currentPage, total: pages.length })}
             </span>
           </div>
 
@@ -352,7 +376,7 @@ export default function MangaRead() {
               ))}
             </div>
           ) : error ? (
-            <EmptyState message={error} action={{ label: 'Volver al manga', onClick: () => navigate(`/manga/${id}`) }} />
+            <EmptyState message={error} action={{ label: t('manga.reader.goBack'), onClick: () => navigate(`/manga/${id}`) }} />
           ) : (
             <div
               ref={pagesContainerRef}
@@ -373,12 +397,12 @@ export default function MangaRead() {
                   }}>
                   {failedPages.has(page.pageNumber) ? (
                     <div className="flex items-center justify-center h-64 text-text-secondary text-sm">
-                      Error al cargar página {page.pageNumber}
+                      {t('manga.reader.pageError', { n: page.pageNumber })}
                     </div>
                   ) : (
                     <img
                       src={page.url}
-                      alt={`Página ${page.pageNumber}`}
+                      alt={t('manga.reader.pageX', { n: page.pageNumber })}
                       loading="lazy"
                       className={fitMode === 'width' ? 'w-full' : fitMode === 'height' ? 'h-full w-auto max-w-full' : ''}
                       onError={() => setFailedPages((prev) => new Set(prev).add(page.pageNumber))}
@@ -389,8 +413,8 @@ export default function MangaRead() {
               {scrollMode === 'scroll' && nextChapter && (
                 <div ref={scrollSentinelRef} className="flex justify-center py-8">
                   <div className="flex items-center gap-2 text-sm text-text-secondary">
-                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    Cargando siguiente capítulo...
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-cosmic-spin" />
+                    {t('manga.reader.autoLoadNext')}
                   </div>
                 </div>
               )}

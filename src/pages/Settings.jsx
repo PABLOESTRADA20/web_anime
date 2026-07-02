@@ -8,15 +8,24 @@ import SeoHead from '../components/SeoHead'
 import GradientHeading from '../components/GradientHeading'
 import { useToast } from '../components/Toast'
 import SafeImage from '../components/SafeImage'
-
-const profileSchema = z.object({
-  display_name: z.string().max(100, 'Máximo 100 caracteres').optional(),
-  bio: z.string().max(500, 'Máximo 500 caracteres').optional(),
-  website: z.string().url('URL inválida').optional().or(z.literal('')),
-  avatar_url: z.string().url('URL de avatar inválida').optional().or(z.literal('')),
-})
+import { useI18n } from '../hooks/useI18n'
 
 export default function Settings() {
+  const { t } = useI18n()
+
+  const profileSchema = z.object({
+    display_name: z
+      .string()
+      .max(100, t('validation.maxChars', { max: 100 }))
+      .optional(),
+    bio: z
+      .string()
+      .max(500, t('validation.maxChars', { max: 500 }))
+      .optional(),
+    website: z.string().url(t('validation.invalidUrl')).optional().or(z.literal('')),
+    avatar_url: z.string().url(t('validation.invalidAvatarUrl')).optional().or(z.literal('')),
+  })
+
   const { user } = useAuth()
   const { profile, loading, updateProfile, ensureProfile } = useProfile()
   const { prefs, ensurePrefs, updatePref } = useNotificationPreferences()
@@ -85,7 +94,7 @@ export default function Settings() {
         website: parsed.data.website || null,
         avatar_url: parsed.data.avatar_url || null,
       })
-      toast.success('Perfil actualizado')
+      toast.success(t('settings.profileUpdated'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -100,18 +109,18 @@ export default function Settings() {
   if (!user) {
     return (
       <>
-        <SeoHead title="Configuración" />
-        <div className="max-w-xl mx-auto py-12 text-center text-text-secondary">Inicia sesión para editar tu perfil.</div>
+        <SeoHead title={t('settings.title')} />
+        <div className="max-w-xl mx-auto py-12 text-center text-text-secondary">{t('settings.loginRequired')}</div>
       </>
     )
   }
 
   return (
     <>
-      <SeoHead title="Configuración del perfil" />
+      <SeoHead title={t('settings.profileSettings')} />
       <div className="max-w-xl mx-auto">
         <GradientHeading variant="pink" size="lg" className="mb-8">
-          Configuración del perfil
+          {t('settings.profileSettings')}
         </GradientHeading>
 
         <form onSubmit={handleSave} className="space-y-6">
@@ -132,7 +141,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">URL del avatar</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">{t('settings.avatarUrl')}</label>
             <input
               type="url"
               value={avatarUrl}
@@ -140,14 +149,14 @@ export default function Settings() {
                 setErrors((p) => ({ ...p, avatar_url: undefined }))
                 handleAvatarChange(e.target.value)
               }}
-              placeholder="https://ejemplo.com/avatar.jpg"
+              placeholder={t('settings.avatarUrlPlaceholder')}
               className={`w-full px-4 py-2.5 rounded-xl bg-surface border text-sm placeholder:text-text-secondary/40 focus:outline-none transition-all ${errors.avatar_url ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-primary/50'}`}
             />
             {errors.avatar_url && <p className="text-red-400 text-[11px] mt-1">{errors.avatar_url}</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Nombre público</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">{t('settings.displayName')}</label>
             <input
               type="text"
               value={displayName}
@@ -155,7 +164,7 @@ export default function Settings() {
                 setErrors((p) => ({ ...p, display_name: undefined }))
                 setDisplayName(e.target.value)
               }}
-              placeholder="Tu nombre"
+              placeholder={t('settings.displayNamePlaceholder')}
               maxLength={100}
               className={`w-full px-4 py-2.5 rounded-xl bg-surface border text-sm placeholder:text-text-secondary/40 focus:outline-none transition-all ${errors.display_name ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-primary/50'}`}
             />
@@ -164,7 +173,7 @@ export default function Settings() {
 
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Biografía <span className="text-text-secondary/50">({bio.length}/500)</span>
+              {t('settings.bio')} <span className="text-text-secondary/50">({bio.length}/500)</span>
             </label>
             <textarea
               value={bio}
@@ -172,7 +181,7 @@ export default function Settings() {
                 setErrors((p) => ({ ...p, bio: undefined }))
                 setBio(e.target.value)
               }}
-              placeholder="Cuéntanos sobre ti..."
+              placeholder={t('settings.bioPlaceholder')}
               maxLength={500}
               rows={4}
               className={`w-full px-4 py-2.5 rounded-xl bg-surface border text-sm placeholder:text-text-secondary/40 focus:outline-none transition-all resize-none ${errors.bio ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-primary/50'}`}
@@ -181,7 +190,7 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Sitio web</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">{t('settings.website')}</label>
             <input
               type="url"
               value={website}
@@ -189,7 +198,7 @@ export default function Settings() {
                 setErrors((p) => ({ ...p, website: undefined }))
                 setWebsite(e.target.value)
               }}
-              placeholder="https://tusitio.com"
+              placeholder={t('settings.websitePlaceholder')}
               className={`w-full px-4 py-2.5 rounded-xl bg-surface border text-sm placeholder:text-text-secondary/40 focus:outline-none transition-all ${errors.website ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-primary/50'}`}
             />
             {errors.website && <p className="text-red-400 text-[11px] mt-1">{errors.website}</p>}
@@ -199,13 +208,13 @@ export default function Settings() {
             type="submit"
             disabled={saving || loading}
             className="w-full py-3 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-40">
-            {saving ? 'Guardando...' : 'Guardar cambios'}
+            {saving ? t('common.saving') : t('settings.save')}
           </button>
         </form>
 
         <div className="mt-12">
           <GradientHeading variant="pink" size="md" className="mb-4">
-            Notificaciones push
+            {t('settings.pushNotifications')}
           </GradientHeading>
           <div className="bg-surface rounded-2xl p-6 space-y-2">
             {push.supported ? (
@@ -217,30 +226,30 @@ export default function Settings() {
                     ? 'bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20'
                     : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary'
                 }`}>
-                {push.loading ? '...' : push.subscribed ? '🔔 Notificaciones activadas' : '🔕 Activar notificaciones'}
+                {push.loading
+                  ? '...'
+                  : push.subscribed
+                    ? `🔔 ${t('settings.notificationsEnabled')}`
+                    : `🔕 ${t('settings.activateNotifications')}`}
               </button>
             ) : (
-              <p className="text-sm text-text-secondary text-center py-2">
-                Las notificaciones push no están disponibles en este navegador.
-              </p>
+              <p className="text-sm text-text-secondary text-center py-2">{t('settings.pushNotAvailable')}</p>
             )}
-            {push.permission === 'denied' && (
-              <p className="text-xs text-red-400 text-center">Permiso denegado. Actívalo en la configuración del navegador.</p>
-            )}
+            {push.permission === 'denied' && <p className="text-xs text-red-400 text-center">{t('settings.permissionDenied')}</p>}
           </div>
         </div>
 
         <div className="mt-10 mb-12">
           <GradientHeading variant="pink" size="md" className="mb-4">
-            Preferencias de notificación
+            {t('settings.notificationPreferences')}
           </GradientHeading>
           <div className="bg-surface rounded-2xl p-6 space-y-4">
             {[
-              { key: 'new_episode', label: 'Nuevo episodio', desc: 'Cuando un anime que estás viendo estrena episodio' },
-              { key: 'new_review', label: 'Nueva reseña', desc: 'Cuando alguien reseña un anime que has visto' },
-              { key: 'comment_reply', label: 'Respuesta a comentario', desc: 'Cuando alguien responde tu comentario' },
-              { key: 'review_vote', label: 'Voto en reseña', desc: 'Cuando alguien vota tu reseña' },
-              { key: 'weekly_digest', label: 'Resumen semanal', desc: 'Resumen de actividad de la semana' },
+              { key: 'new_episode', label: t('settings.notification.newEpisode'), desc: t('settings.notification.newEpisodeDesc') },
+              { key: 'new_review', label: t('settings.notification.newReview'), desc: t('settings.notification.newReviewDesc') },
+              { key: 'comment_reply', label: t('settings.notification.commentReply'), desc: t('settings.notification.commentReplyDesc') },
+              { key: 'review_vote', label: t('settings.notification.reviewVote'), desc: t('settings.notification.reviewVoteDesc') },
+              { key: 'weekly_digest', label: t('settings.notification.weeklyDigest'), desc: t('settings.notification.weeklyDigestDesc') },
             ].map((item) => (
               <label key={item.key} className="flex items-center justify-between gap-4 py-2">
                 <div className="flex-1 min-w-0">
@@ -256,7 +265,7 @@ export default function Settings() {
                       const newVal = !(prefs?.[item.key] ?? true)
                       await updatePref(item.key, newVal)
                     } catch {
-                      toast.error('Error al actualizar')
+                      toast.error(t('common.errorUpdate'))
                     }
                   }}
                   className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${

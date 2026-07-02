@@ -6,6 +6,7 @@ import { GridSkeleton } from '../components/Skeletons'
 import { searchAnime, enrichAnimeBatch } from '../lib/api'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+import { useI18n } from '../hooks/useI18n'
 
 const RECENT_SEARCHES_KEY = 'anime_recent_searches'
 const MAX_RECENT = 8
@@ -58,6 +59,7 @@ function useFilters(initial) {
 }
 
 export default function Search() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const query = searchParams.get('q') || ''
   const { filters, set: setFilter, clear: clearFilters, hasAny } = useFilters({})
@@ -128,13 +130,13 @@ export default function Search() {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">Explorar anime</h1>
-          <p className="text-text-secondary text-sm">Selecciona un género o usa los filtros para descubrir anime</p>
+          <h1 className="text-2xl font-bold mb-2">{t('search.explore')}</h1>
+          <p className="text-text-secondary text-sm">{t('search.exploreHint')}</p>
         </div>
 
         {recentSearches.length > 0 && (
           <div className="mb-8">
-            <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">Búsquedas recientes</p>
+            <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">{t('search.recentSearches')}</p>
             <div className="flex flex-wrap gap-2">
               {recentSearches.map((q) => (
                 <span
@@ -158,17 +160,17 @@ export default function Search() {
         )}
 
         <div className="mb-8">
-          <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">Explorar por género</p>
+          <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">{t('search.exploreGenre')}</p>
           <div className="flex flex-wrap gap-2">
             <Link
               to="/search?q=popular"
               className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors">
-              🌟 Más populares
+              🌟 {t('search.mostPopular')}
             </Link>
             <Link
               to="/search?q=trending"
               className="px-4 py-2 rounded-xl bg-accent/20 text-accent text-sm font-medium hover:bg-accent/30 transition-colors">
-              🔥 En tendencia
+              🔥 {t('search.trending')}
             </Link>
             {GENRES.map((g) => (
               <Link
@@ -182,14 +184,14 @@ export default function Search() {
         </div>
 
         <div>
-          <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">Filtrar</p>
+          <p className="text-xs text-text-secondary mb-3 uppercase tracking-wider font-medium">{t('search.filters')}</p>
           <button
             onClick={() => {
               setShowFilters(true)
               setHasSearched(true)
             }}
             className="px-4 py-2 bg-surface hover:bg-surface-hover text-text-secondary rounded-xl text-sm font-medium transition-colors border border-white/10">
-            Abrir filtros
+            {t('search.openFilters')}
           </button>
         </div>
       </motion.div>
@@ -198,16 +200,18 @@ export default function Search() {
 
   return (
     <>
-      <SeoHead title={query ? `"${query}" — Buscar anime` : 'Buscar anime'} />
+      <SeoHead title={query ? t('search.titleWithQuery', { query }) : t('search.title')} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">
             {query ? (
               <>
-                Resultados para: <span className="text-primary">"{query}"</span>
+                {t('search.resultsFor')} <span className="text-primary">"{query}"</span>
               </>
             ) : (
-              <>Explorar {filterCount > 0 ? `(${filterCount} filtros)` : ''}</>
+              <>
+                {t('search.explore')} {filterCount > 0 ? `(${t('search.filterCount', { count: filterCount })})` : ''}
+              </>
             )}
           </h1>
           <button
@@ -215,7 +219,8 @@ export default function Search() {
             className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
               hasAny ? 'bg-primary text-white border-primary' : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan'
             }`}>
-            Filtros {hasAny ? `(${filterCount})` : ''}
+            {t('search.filters')}
+            {hasAny ? ` (${filterCount})` : ''}
           </button>
         </div>
 
@@ -225,7 +230,7 @@ export default function Search() {
             animate={{ opacity: 1, height: 'auto' }}
             className="mb-6 p-4 bg-surface rounded-2xl space-y-4 overflow-hidden">
             <div>
-              <p className="text-xs text-text-secondary mb-2">Género</p>
+              <p className="text-xs text-text-secondary mb-2">{t('search.genre')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {GENRES.map((g) => (
                   <button
@@ -241,7 +246,7 @@ export default function Search() {
             </div>
 
             <div>
-              <p className="text-xs text-text-secondary mb-2">Formato</p>
+              <p className="text-xs text-text-secondary mb-2">{t('anime.detail.format')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {FORMATS.map((f) => (
                   <button
@@ -258,12 +263,12 @@ export default function Search() {
 
             <div className="flex flex-wrap gap-4">
               <div>
-                <p className="text-xs text-text-secondary mb-1.5">Año</p>
+                <p className="text-xs text-text-secondary mb-1.5">{t('common.year')}</p>
                 <select
                   value={filters.year ?? ''}
                   onChange={(e) => setFilter('year', e.target.value ? parseInt(e.target.value, 10) : undefined)}
                   className="bg-surface-hover text-text-primary text-xs px-3 py-1.5 rounded-lg border border-white/10">
-                  <option value="">Todos</option>
+                  <option value="">{t('common.all')}</option>
                   {Array.from({ length: 30 }, (_, i) => CURRENT_YEAR - i).map((y) => (
                     <option key={y} value={y}>
                       {y}
@@ -272,12 +277,12 @@ export default function Search() {
                 </select>
               </div>
               <div>
-                <p className="text-xs text-text-secondary mb-1.5">Puntaje mínimo</p>
+                <p className="text-xs text-text-secondary mb-1.5">{t('search.minScore')}</p>
                 <select
                   value={filters.minScore ?? ''}
                   onChange={(e) => setFilter('minScore', e.target.value ? parseInt(e.target.value, 10) : undefined)}
                   className="bg-surface-hover text-text-primary text-xs px-3 py-1.5 rounded-lg border border-white/10">
-                  <option value="">Cualquiera</option>
+                  <option value="">{t('search.any')}</option>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
                     <option key={s} value={s}>
                       {s}&#9733;+
@@ -289,7 +294,7 @@ export default function Search() {
 
             {hasAny && (
               <button onClick={clearFilters} className="text-xs text-red-400 hover:text-red-300 transition-colors">
-                Limpiar filtros
+                {t('search.clearFilters')}
               </button>
             )}
           </motion.div>
@@ -299,14 +304,12 @@ export default function Search() {
           <GridSkeleton count={12} />
         ) : results.length === 0 ? (
           <EmptyState
-            message="No se encontraron resultados."
-            action={hasAny ? { label: 'Limpiar filtros', onClick: clearFilters } : undefined}
+            message={t('search.noResults')}
+            action={hasAny ? { label: t('search.clearFilters'), onClick: clearFilters } : undefined}
           />
         ) : (
           <>
-            <p className="text-xs text-text-secondary mb-4">
-              {results.length} resultado{results.length !== 1 ? 's' : ''}
-            </p>
+            <p className="text-xs text-text-secondary mb-4">{t('search.resultCount', { count: results.length })}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {results.map((a, i) => (
                 <AnimeCard key={a.anilistId || a.id || i} anime={a} index={i} />
@@ -321,7 +324,7 @@ export default function Search() {
                   className="px-6 py-2.5 bg-surface hover:bg-surface-hover hover:text-neon-cyan
                            rounded-xl font-medium text-sm transition-colors border border-white/10
                            disabled:opacity-50">
-                  {loading ? 'Cargando...' : 'Cargar más'}
+                  {loading ? t('common.loading') : t('common.loadMore')}
                 </button>
               </div>
             )}

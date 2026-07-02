@@ -462,6 +462,25 @@ const DIRECTORY_QUERY = `
     }
   }`
 
+const MANGA_DIRECTORY = `
+  query ($page: Int, $perPage: Int, $search: String, $genre: String, $genre_in: [String], $year: Int, $format: MediaFormat, $status: MediaStatus, $sort: [MediaSort]) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo { hasNextPage total }
+      media(type: MANGA, isAdult: false, search: $search, genre: $genre, genre_in: $genre_in, seasonYear: $year, format: $format, status: $status, sort: $sort) {
+        id
+        title { romaji english }
+        coverImage { large }
+        averageScore
+        genres
+        format
+        chapters
+        volumes
+        status
+        startDate { year }
+      }
+    }
+  }`
+
 function gqlCacheKey(query: string, variables: Record<string, unknown> = {}): string {
   return query.trim().slice(0, 80) + ':' + JSON.stringify(variables)
 }
@@ -520,6 +539,24 @@ export async function getTopManga(category = 'TRENDING', page = 1, perPage = 20)
   const status = statusMap[category] || null
   const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(TOP_MANGA, { page, perPage, sort: sorts, status })
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage }
+}
+
+export async function getMangaDirectory(
+  page = 1,
+  perPage = 30,
+  filters: DirectoryFilters = {},
+  signal?: AbortSignal,
+): Promise<AnimeListResult> {
+  const vars: Record<string, unknown> = { page, perPage }
+  if (filters.search) vars.search = filters.search
+  if (filters.genre) vars.genre = filters.genre
+  if (filters.genre_in?.length) vars.genre_in = filters.genre_in
+  if (filters.year) vars.year = filters.year
+  if (filters.format) vars.format = filters.format
+  if (filters.status) vars.status = filters.status
+  vars.sort = filters.sort || ['TRENDING_DESC', 'POPULARITY_DESC']
+  const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(MANGA_DIRECTORY, vars, signal)
+  return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
 }
 
 export async function searchAnime(
@@ -720,6 +757,21 @@ export async function getDirectory(page = 1, perPage = 30, filters: DirectoryFil
   vars.sort = filters.sort || ['TRENDING_DESC', 'POPULARITY_DESC']
   const data = await gql<{ Page: { media: Media[]; pageInfo: PageInfo } }>(DIRECTORY_QUERY, vars, signal)
   return { data: data.Page.media, hasNextPage: data.Page.pageInfo.hasNextPage, total: data.Page.pageInfo.total }
+}
+
+export async function searchMangaByTitle(title: string): Promise<Media | null> {
+  try {
+    const result = await searchManga(title, 1, 5)
+    const lower = title.toLowerCase()
+    const match = result.data.find((m) => {
+      const romaji = m.title?.romaji?.toLowerCase() || ''
+      const english = m.title?.english?.toLowerCase() || ''
+      return romaji.includes(lower) || english.includes(lower) || lower.includes(romaji) || lower.includes(english)
+    })
+    return match || result.data[0] || null
+  } catch {
+    return null
+  }
 }
 
 function getCurrentSeason(): string {

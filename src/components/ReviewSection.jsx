@@ -5,6 +5,8 @@ import { useI18n } from '../hooks/useI18n'
 import { useToast } from './Toast'
 import EmptyState from './EmptyState'
 import { Link } from 'react-router-dom'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 function timeAgo(dateStr, t) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -22,6 +24,7 @@ export default function ReviewSection({ anilistId, mediaType = 'anime' }) {
   const { t } = useI18n()
   const { reviews, userReview, loading, submitting, submitReview, deleteReview, voteReview } = useReviews(anilistId, mediaType)
   const toast = useToast()
+  const { addXp, checkAchievements } = useGamification()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ score: 7, content: '', hasSpoilers: false })
   const [formError, setFormError] = useState('')
@@ -30,17 +33,22 @@ export default function ReviewSection({ anilistId, mediaType = 'anime' }) {
     e.preventDefault()
     setFormError('')
     if (form.content.length < 10) {
-      setFormError('La reseña debe tener al menos 10 caracteres')
+      setFormError(t('reviews.minLength', { min: 10 }))
       return
     }
     if (form.content.length > 5000) {
-      setFormError('La reseña no puede exceder 5000 caracteres')
+      setFormError(t('reviews.maxLength', { max: 5000 }))
       return
     }
     try {
+      const isNew = !userReview
       await submitReview(form)
       setShowForm(false)
-      toast(userReview ? 'Reseña actualizada' : 'Reseña publicada', 'success')
+      toast(isNew ? t('reviews.published') : t('reviews.updated'), 'success')
+      if (isNew) {
+        addXp(XP_VALUES.WRITE_REVIEW, 'review')
+        checkAchievements({ reviewsWritten: 1 })
+      }
     } catch (err) {
       setFormError(err.message)
     }
@@ -148,7 +156,7 @@ export default function ReviewSection({ anilistId, mediaType = 'anime' }) {
 function ReviewCard({ review, isOwn, onDelete, onVote, t }) {
   const [showSpoiler, setShowSpoiler] = useState(false)
   const votes = review.votes?.reduce((s, v) => s + (v.sum || 0), 0) || 0
-  const email = review.user?.email?.split('@')[0] || 'Anónimo'
+  const email = review.user?.email?.split('@')[0] || t('reviews.anonymous')
 
   return (
     <div className="p-4 rounded-2xl bg-surface/50 border border-white/5">
@@ -206,13 +214,13 @@ function ReviewCard({ review, isOwn, onDelete, onVote, t }) {
         <span className="text-[10px] text-text-secondary/50">{t('reviews.helpful')}</span>
         <button
           onClick={() => onVote(1)}
-          aria-label="Votar positivo"
+          aria-label={t('reviews.voteUp')}
           className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] text-text-secondary hover:text-green-400 hover:bg-green-500/10 transition-colors">
           ▲ {votes > 0 ? votes : ''}
         </button>
         <button
           onClick={() => onVote(-1)}
-          aria-label="Votar negativo"
+          aria-label={t('reviews.voteDown')}
           className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors">
           ▼ {votes < 0 ? Math.abs(votes) : ''}
         </button>

@@ -1,7 +1,11 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
+import { useI18n } from '../hooks/useI18n'
 
-const EmptyState = memo(function EmptyState({ icon = '📭', message = 'Sin resultados', action }) {
+const EmptyState = memo(function EmptyState({ icon = '📭', message: messageProp, action }) {
+  const { t } = useI18n()
+  const message = messageProp ?? t('common.noResults')
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

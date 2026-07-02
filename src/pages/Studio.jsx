@@ -6,8 +6,10 @@ import AnimeCard from '../components/AnimeCard'
 import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
+import { useI18n } from '../hooks/useI18n'
 
 export default function Studio() {
+  const { t } = useI18n()
   const { id } = useParams()
   const [studio, setStudio] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -33,7 +35,7 @@ export default function Studio() {
         <GridSkeleton count={12} />
       </div>
     )
-  if (!studio) return <EmptyState message="Estudio no encontrado" />
+  if (!studio) return <EmptyState message={t('studio.notFound')} />
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -41,13 +43,17 @@ export default function Studio() {
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
           <h1 className="text-2xl font-bold">{studio.name}</h1>
-          {studio.favourites > 0 && <span className="text-xs text-text-secondary font-mono">{studio.favourites} favoritos</span>}
+          {studio.favourites > 0 && (
+            <span className="text-xs text-text-secondary font-mono">
+              {studio.favourites} {t('staff.favorites')}
+            </span>
+          )}
         </div>
         {studio.isAnimationStudio && (
-          <span className="text-[10px] text-primary font-mono uppercase tracking-wider">Estudio de animación</span>
+          <span className="text-[10px] text-primary font-mono uppercase tracking-wider">{t('studio.detail.animationStudio')}</span>
         )}
         <p className="text-xs text-text-secondary mt-2">
-          {allMedia.length} anime{allMedia.length !== 1 ? 's' : ''}
+          {allMedia.length} {t('studio.detail.anime')}
         </p>
       </div>
 
@@ -63,14 +69,14 @@ export default function Studio() {
             onClick={() => setPage((p) => p + 1)}
             disabled={loading}
             className="px-6 py-2.5 bg-surface hover:bg-surface-hover hover:text-neon-cyan rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50">
-            {loading ? 'Cargando...' : 'Cargar más'}
+            {loading ? t('common.loading') : t('studio.loadMore')}
           </button>
         </div>
       )}
 
       <div className="mt-8">
         <Link to="/directorio" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-          ← Volver al directorio
+          {t('studio.goBack')}
         </Link>
       </div>
     </motion.div>

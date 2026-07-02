@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useI18n } from '../hooks/useI18n'
 
 const RANDOM_QUERY = `
   query ($page: Int, $perPage: Int) {
@@ -14,6 +15,7 @@ const RANDOM_QUERY = `
 const ANILIST_API = 'https://graphql.anilist.co'
 
 export default function Random() {
+  const { t } = useI18n()
   const [target, setTarget] = useState(null)
 
   useEffect(() => {
@@ -43,5 +45,5 @@ export default function Random() {
   }, [])
 
   if (target) return <Navigate to={`/anime/${target}`} replace />
-  return <div className="text-center py-20 text-text-secondary">Buscando un anime aleatorio...</div>
+  return <div className="text-center py-20 text-text-secondary">{t('random.searching')}</div>
 }

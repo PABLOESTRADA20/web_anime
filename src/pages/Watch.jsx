@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { parseEpisodeId } from '../lib/anivexa'
 import { getAnimeEpisodes, getWatchWithFallback } from '../lib/api'
+import { useI18n } from '../hooks/useI18n'
 
 import { getAnimeInfo } from '../lib/anilist'
 import { useHistory } from '../hooks/useHistory'
@@ -26,6 +27,8 @@ import { detectAudioOptions } from '../utils/detectAudio'
 import { getSubtitlePrefs } from '../utils/subtitlePreferences'
 import ShareButton from '../components/ShareButton'
 import Breadcrumbs from '../components/Breadcrumbs'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 function useHls(videoRef, url, useCache, proxyFallbackUrl) {
   const hlsRef = useRef(null)
@@ -286,6 +289,9 @@ export default function Watch() {
   const videoRef = useRef(null)
   const { saveProgress } = useHistory()
   const toast = useToast()
+  const { t, locale, localeNames } = useI18n()
+  const { addXp } = useGamification()
+  const awardedEpRef = useRef(new Set())
 
   const [sources, setSources] = useState([])
   const [subtitles, setSubtitles] = useState([])
@@ -364,7 +370,7 @@ export default function Watch() {
       }
     }, 10000)
 
-    detectAudioOptions(anilistId, epNum, title)
+    detectAudioOptions(anilistId, t)
       .then((options) => {
         if (!cancelled) {
           setAudioOptions(options)
@@ -378,7 +384,7 @@ export default function Watch() {
       cancelled = true
       clearTimeout(audioFallbackRef.current)
     }
-  }, [anilistId, epNum, title])
+  }, [anilistId, epNum, title, t])
 
   const [proxyFallbackUrl, setProxyFallbackUrl] = useState(null)
 
@@ -392,7 +398,7 @@ export default function Watch() {
   useEffect(() => {
     if (showSelector || !anilistId || !epNum) {
       if (!anilistId || !epNum) {
-        setError('Falta información del episodio.')
+        setError(t('watch.error.missingInfo'))
         setLoading(false)
       }
       return
@@ -443,7 +449,7 @@ export default function Watch() {
         setProviderUsed(null)
         setBackendUsed(null)
         setProviderErrors(err.providerErrors || [])
-        setError('No se pudo cargar video de ningún proveedor.')
+        setError(t('video.error'))
         setLoading(false)
       })
 
@@ -458,7 +464,7 @@ export default function Watch() {
     return () => {
       cancelled = true
     }
-  }, [anilistId, provider, epNum, effectiveAudio, showSelector, selectedLanguage, audio])
+  }, [anilistId, provider, epNum, effectiveAudio, showSelector, selectedLanguage, audio, t])
 
   useEffect(() => {
     if (subtitles.length === 0 || audioType === 'latam') {
@@ -469,9 +475,9 @@ export default function Watch() {
     const preferred = esIndex >= 0 ? esIndex : 0
     setActiveSubtitle(preferred)
     if (esIndex < 0) {
-      toast('No hay subtítulos en español. Mostrando ' + subtitleLangLabel(subtitles[0]).toLowerCase() + '.', 'info', 4000)
+      toast(t('audio.noSpanishSubs', { lang: subtitleLangLabel(subtitles[0]).toLowerCase() }), 'info', 4000)
     }
-  }, [subtitles, toast, audioType])
+  }, [subtitles, toast, audioType, t])
 
   useEffect(() => {
     const video = videoRef.current
@@ -551,6 +557,10 @@ export default function Watch() {
   useEffect(() => {
     if (!anilistId) return
     saveProgress(anilistId, epNum, title, image, episodeId, 0, 0)
+    if (episodeId && !awardedEpRef.current.has(episodeId)) {
+      awardedEpRef.current.add(episodeId)
+      addXp(XP_VALUES.WATCH_EPISODE, 'episode')
+    }
 
     const interval = setInterval(() => {
       const v = videoRef.current
@@ -566,7 +576,7 @@ export default function Watch() {
         saveProgress(anilistId, epNum, title, image, episodeId, vCleanup.currentTime, vCleanup.duration || 0)
       }
     }
-  }, [anilistId, epNum, episodeId, saveProgress, title, image])
+  }, [anilistId, epNum, episodeId, saveProgress, title, image, addXp])
 
   useEffect(() => {
     if (!anilistId || showSelector) return
@@ -606,7 +616,7 @@ export default function Watch() {
     if (!anilistId || !epNum) return
     const source = sources.find((s) => (s.quality || '').toLowerCase().includes(quality.toLowerCase())) || sources[0]
     if (!source) {
-      toast('No hay fuente disponible para descargar', 'error')
+      toast(t('watch.download.noSource'), 'error')
       return
     }
 
@@ -617,7 +627,7 @@ export default function Watch() {
     try {
       await downloadVideoEpisode({
         id,
-        title: title || `Episodio ${epNum}`,
+        title: title || t('episode.number', { n: epNum }),
         image,
         episode: epNum,
         quality,
@@ -626,10 +636,10 @@ export default function Watch() {
         onProgress: (current, total) => setDlProgress({ current, total }),
       })
       setDlStatus('done')
-      toast('Episodio descargado para ver offline', 'success', 4000)
+      toast(t('video.episodeDownloaded'), 'success', 4000)
     } catch (e) {
       setDlStatus('error')
-      toast(`Error al descargar: ${e.message}`, 'error', 5000)
+      toast(t('watch.download.error', { message: e.message }), 'error', 5000)
     }
   }
 
@@ -661,35 +671,39 @@ export default function Watch() {
     if (engIdx < 0 || !subtitles[engIdx]?.file) return
 
     if (import.meta.env.DEV) {
-      toast('Traducción no disponible en desarrollo. Desplegar para usar.', 'info', 5000)
+      toast(t('video.translationUnavailableDev'), 'info', 5000)
       return
     }
+
+    const LANG_MAP = { es: 'spanish', pt: 'portuguese' }
+    const targetLang = LANG_MAP[locale] || 'spanish'
+    const displayName = localeNames[locale] || 'Español'
 
     setTranslating(true)
     setTranslateProgress({ current: 0, total: 0 })
     try {
       const url = subtitles[engIdx].file
       const referer = sources.find((s) => s.referer)?.referer || ''
-      const params = new URLSearchParams({ url, referer, from: 'english', to: 'spanish' })
+      const params = new URLSearchParams({ url, referer, from: 'english', to: targetLang })
       const res = await fetch(`/api/translate-subtitles?${params}`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Translation failed' }))
         throw new Error(err.error || `HTTP ${res.status}`)
       }
       const blob = URL.createObjectURL(new Blob([await res.text()], { type: 'text/vtt' }))
-      setTranslatedSub({ blob, label: 'Español (AI)', language: 'es' })
+      setTranslatedSub({ blob, label: `${displayName} (AI)`, language: locale })
       setActiveSubtitle(subtitles.length)
       setTranslateProgress(null)
-      toast('Subtítulos traducidos al español', 'success', 3000)
+      toast(t('video.translationLabel', { lang: displayName }), 'success', 3000)
     } catch (e) {
       setTranslateProgress(null)
-      toast('Error al traducir: ' + e.message, 'error', 5000)
+      toast(t('video.translationError', { message: e.message }), 'error', 5000)
     } finally {
       setTranslating(false)
     }
-  }, [subtitles, sources, toast])
+  }, [subtitles, sources, toast, locale, localeNames, t])
 
-  const hasSpanishSub = subtitles.some(isSpanishSub)
+  const hasNativeSub = locale === 'es' ? subtitles.some(isSpanishSub) : subtitles.some((s) => (s.language || '').toLowerCase() === locale)
   const englishSubIdx = subtitles.findIndex(
     (s) => (s.language || '').toLowerCase() === 'en' || (s.label || '').toLowerCase().includes('english'),
   )
@@ -740,7 +754,7 @@ export default function Watch() {
   function formatDate(timestamp) {
     if (!timestamp) return ''
     const d = new Date(timestamp * 1000)
-    return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    return d.toLocaleDateString(navigator.language || 'es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
 
   function formatTime(s) {
@@ -750,7 +764,7 @@ export default function Watch() {
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const pageTitle = title ? `Episodio ${epNum} de ${title}` : 'Reproducir'
+  const pageTitle = title ? t('watch.title', { epNum, title }) : t('anime.watch')
 
   if (showSelector) {
     return (
@@ -777,10 +791,10 @@ export default function Watch() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <Breadcrumbs
             items={[
-              { label: 'Inicio', href: '/' },
-              { label: 'Anime', href: '/directorio' },
+              { label: t('nav.home'), href: '/' },
+              { label: t('anime.detail.breadcrumbs'), href: '/directorio' },
               { label: title || '...', href: `/anime/${anilistId}` },
-              { label: `Episodio ${epNum}` },
+              { label: t('episode.number', { n: epNum }) },
             ]}
           />
 
@@ -861,18 +875,20 @@ export default function Watch() {
                     activeSubtitle < 0 ? 'text-text-secondary/50' : 'text-text-secondary hover:text-text-primary'
                   }`}>
                   {activeSubtitle < 0 && <motion.span layoutId="sub-watch" className="absolute inset-0 bg-surface-hover rounded-lg" />}
-                  <span className="relative z-10">OFF</span>
+                  <span className="relative z-10">{t('video.off')}</span>
                 </button>
               </div>
-              {!hasSpanishSub && englishSubIdx >= 0 && !translatedSub && (
+              {!hasNativeSub && englishSubIdx >= 0 && !translatedSub && (
                 <button
                   onClick={handleAutoTranslate}
                   disabled={translating}
                   className="px-2 py-1.5 rounded-lg text-[10px] font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/20 transition-colors flex items-center gap-1 disabled:opacity-50">
                   {translating ? (
                     <>
-                      <span className="w-3 h-3 border border-neon-cyan border-t-transparent rounded-full animate-spin" />
-                      {translateProgress ? `${translateProgress.current}/${translateProgress.total}` : 'Trad.'}
+                      <span className="w-3 h-3 border border-neon-cyan border-t-transparent rounded-full animate-cosmic-spin" />
+                      {translateProgress
+                        ? t('video.downloadingProgress', { current: translateProgress.current, total: translateProgress.total })
+                        : t('video.translating')}
                     </>
                   ) : (
                     <>
@@ -884,7 +900,7 @@ export default function Watch() {
                           d="M3 5h12M9 3v2m0 4a7 7 0 016.392 4.042M14 17l3 3m0 0l3-3m-3 3v-6"
                         />
                       </svg>{' '}
-                      Auto ES
+                      {t('video.autoTranslate', { lang: localeNames[locale] })}
                     </>
                   )}
                 </button>
@@ -897,12 +913,12 @@ export default function Watch() {
           <div className="flex items-center justify-center gap-1.5 mb-2">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <p className="text-[10px] text-text-secondary">
-              Sirviendo vía <span className="text-primary font-medium">{providerDisplayName(providerUsed)}</span> (
+              {t('video.servingVia')} <span className="text-primary font-medium">{providerDisplayName(providerUsed)}</span> (
               {BACKEND_NAMES[backendUsed] || backendUsed})
             </p>
           </div>
         )}
-        {audioType === 'latam' && <p className="text-[10px] text-accent mb-2 text-center font-medium">Audio Latino detectado</p>}
+        {audioType === 'latam' && <p className="text-[10px] text-accent mb-2 text-center font-medium">{t('video.latamDetected')}</p>}
 
         <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
           <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Anivexa</span>
@@ -968,7 +984,17 @@ export default function Watch() {
               partyId={party.partyId}
               onJoin={party.join}
               onLeave={party.leave}
-              videoRef={videoRef}
+              amHost={party.amHost}
+              hostId={party.hostId}
+              messages={party.messages}
+              onSendMessage={party.sendMessage}
+              onSendReaction={party.sendReaction}
+              onReSync={() => {
+                if (videoRef.current && videoRef.current.currentTime !== undefined) {
+                  videoRef.current.currentTime += 0.01
+                }
+              }}
+              onRequestHost={party.requestHost}
             />
           </div>
         </div>
@@ -978,9 +1004,9 @@ export default function Watch() {
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-3">
               <div className="relative w-10 h-10">
                 <div className="absolute inset-0 border-2 border-primary/30 rounded-full" />
-                <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <div className="absolute inset-0 border-2 border-primary border-t-transparent rounded-full animate-cosmic-spin" />
               </div>
-              <p className="text-xs text-text-secondary">Cargando video...</p>
+              <p className="text-xs text-text-secondary">{t('video.loading')}</p>
             </div>
           ) : error ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface gap-4 px-4">
@@ -998,7 +1024,7 @@ export default function Watch() {
               {providerErrors.length > 0 && (
                 <details className="text-[10px] text-text-secondary/60 max-w-xs text-center">
                   <summary className="cursor-pointer hover:text-text-secondary transition-colors">
-                    Detalles de errores ({providerErrors.length})
+                    {t('watch.errorDetails', { count: providerErrors.length })}
                   </summary>
                   <ul className="mt-1 space-y-0.5">
                     {providerErrors.map((e, i) => (
@@ -1013,12 +1039,12 @@ export default function Watch() {
                 <Link
                   to="/"
                   className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-medium transition-colors">
-                  Volver al inicio
+                  {t('errors.goHome')}
                 </Link>
                 <button
                   onClick={() => switchProvider(provider === 'anikoto' ? 'reanime' : 'anikoto')}
                   className="px-5 py-2.5 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors">
-                  Intentar otro proveedor
+                  {t('video.retry')}
                 </button>
               </div>
             </div>
@@ -1036,7 +1062,7 @@ export default function Watch() {
                   setSelectedUrl(proxyUrl(url))
                   setProxyFallbackUrl(getProxyUrl(url))
                   setError(null)
-                  toast(`Reproduciendo desde ${getProviderLabel(provider)}`, 'success', 3000)
+                  toast(t('watch.playingFrom', { provider: getProviderLabel(provider) }), 'success', 3000)
                 }
               }}
             />
@@ -1057,8 +1083,8 @@ export default function Watch() {
 
           {autoplayCountdown !== null && nextEp && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/80 gap-4">
-              <p className="text-lg font-medium text-white">Siguiente episodio en {autoplayCountdown}s</p>
-              <p className="text-sm text-text-secondary">Episodio {nextEp.number}</p>
+              <p className="text-lg font-medium text-white">{t('anime.autoplay.nextIn', { s: autoplayCountdown })}</p>
+              <p className="text-sm text-text-secondary">{t('episode.number', { n: nextEp.number })}</p>
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={() => {
@@ -1066,12 +1092,12 @@ export default function Watch() {
                     goToEpisode(nextEp)
                   }}
                   className="px-5 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors">
-                  Reproducir ahora
+                  {t('anime.autoplay.playNow')}
                 </button>
                 <button
                   onClick={() => setAutoplayCountdown(null)}
                   className="px-5 py-2 bg-surface text-text-secondary rounded-xl text-sm border border-white/10 hover:bg-surface-hover transition-colors">
-                  Cancelar
+                  {t('anime.autoplay.cancel')}
                 </button>
               </div>
             </div>
@@ -1109,7 +1135,7 @@ export default function Watch() {
                 }}
                 onError={() => {
                   if (selectedUrl) {
-                    toast('Error al reproducir el video. Intenta con otro proveedor.', 'error', 5000)
+                    toast(t('video.errorShort'), 'error', 5000)
                   }
                 }}
               />
@@ -1133,25 +1159,26 @@ export default function Watch() {
             <div className="flex flex-wrap items-center gap-3 text-[10px] text-text-secondary/50 justify-between">
               <div className="flex flex-wrap gap-3">
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Space</kbd> Play/Pause
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Space</kbd> {t('video.player.playPause')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">←/→</kbd> 10s
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">←/→</kbd> {t('video.player.seekBack')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">↑/↓</kbd> Volumen
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">↑/↓</kbd> {t('video.player.volume')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">F</kbd> Pantalla completa
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">F</kbd> {t('video.player.fullscreen')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">M</kbd> Silenciar
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">M</kbd> {t('video.player.mute')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">N</kbd> Siguiente ep.
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">N</kbd> {t('video.player.nextEpisode')}
                 </span>
                 <span>
-                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Shift+&lt;/&gt;</kbd> Velocidad
+                  <kbd className="px-1 py-0.5 rounded bg-surface border border-white/10 font-mono">Shift+&lt;/&gt;</kbd>{' '}
+                  {t('video.player.speedLabel')}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -1169,7 +1196,7 @@ export default function Watch() {
                     }
                   }}
                   className="px-2 py-1 rounded bg-surface border border-white/10 hover:bg-surface-hover transition-colors"
-                  title="Picture-in-Picture">
+                  title={t('video.player.pip')}>
                   PiP
                 </button>
                 <div className="flex items-center gap-1">
@@ -1194,7 +1221,7 @@ export default function Watch() {
             </div>
             {servers.length > 1 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-text-secondary font-medium">Servidor:</span>
+                <span className="text-xs text-text-secondary font-medium">{t('video.serverLabel')}</span>
                 <div className="flex gap-1.5">
                   {servers.map((server) => (
                     <button
@@ -1214,7 +1241,7 @@ export default function Watch() {
 
             {currentServerSources.length > 1 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-text-secondary font-medium">Calidad:</span>
+                <span className="text-xs text-text-secondary font-medium">{t('video.quality')}:</span>
                 <div className="flex gap-1.5">
                   {[...currentServerSources]
                     .sort((a, b) => {
@@ -1232,7 +1259,7 @@ export default function Watch() {
                             ? 'bg-primary/10 text-primary border-primary/30'
                             : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
                         }`}>
-                        {s.quality || s.server || `Fuente ${i + 1}`}
+                        {s.quality || s.server || t('video.source', { n: i + 1 })}
                       </button>
                     ))}
                 </div>
@@ -1256,12 +1283,12 @@ export default function Watch() {
                       d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
                     />
                   </svg>
-                  {useCachePlayback ? 'Offline activado' : 'Offline'}
+                  {useCachePlayback ? t('video.offlineActive') : t('video.offline')}
                 </button>
               )}
               {dlStatus === 'idle' && currentServerSources.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-text-secondary font-medium">Descargar:</span>
+                  <span className="text-xs text-text-secondary font-medium">{t('video.download')}:</span>
                   <div className="flex gap-1">
                     {[...new Set(currentServerSources.map((s) => s.quality || 'auto'))].slice(0, 3).map((q) => (
                       <button
@@ -1284,7 +1311,7 @@ export default function Watch() {
               )}
               {dlStatus === 'downloading' && dlProgress && (
                 <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface border border-primary/20">
-                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-cosmic-spin" />
                   <div className="flex-1 min-w-[120px]">
                     <div className="h-1.5 bg-surface-hover rounded-full overflow-hidden">
                       <div
@@ -1294,7 +1321,7 @@ export default function Watch() {
                     </div>
                   </div>
                   <span className="text-[10px] text-text-secondary font-mono shrink-0">
-                    {dlProgress.current}/{dlProgress.total}
+                    {t('video.downloadingProgress', { current: dlProgress.current, total: dlProgress.total })}
                   </span>
                 </div>
               )}
@@ -1303,15 +1330,15 @@ export default function Watch() {
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Descargado
+                  {t('video.downloaded')}
                 </span>
               )}
-              {dlStatus === 'error' && <span className="text-[10px] text-red-400 font-medium">Error al descargar</span>}
+              {dlStatus === 'error' && <span className="text-[10px] text-red-400 font-medium">{t('video.downloadError')}</span>}
             </div>
 
             {downloads.length > 0 && (
               <div className="p-4 rounded-2xl bg-surface/50 border border-white/5">
-                <p className="text-xs font-medium text-text-secondary mb-2">Descargas:</p>
+                <p className="text-xs font-medium text-text-secondary mb-2">{t('watch.downloads')}</p>
                 <div className="space-y-1.5">
                   {downloads.map((d, i) => (
                     <a
@@ -1321,12 +1348,12 @@ export default function Watch() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface hover:bg-surface-hover transition-all text-xs border border-transparent hover:border-primary/20 group">
                       <span className="text-primary font-medium group-hover:text-primary-hover transition-colors">
-                        {d.server || d.quality || 'Servidor ' + (i + 1)}
+                        {d.server || d.quality || t('watch.downloadItem', { n: i + 1 })}
                       </span>
                       {d.size && <span className="text-text-secondary">{formatSize(d.size)}</span>}
                       {d.audio && <span className="text-text-secondary/60">{d.audio}</span>}
                       <span className="ml-auto text-neon-cyan flex items-center gap-1 group-hover:gap-2 transition-all">
-                        Descargar{' '}
+                        {t('watch.downloadAction')}{' '}
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -1345,8 +1372,7 @@ export default function Watch() {
             {nextEpisode && (
               <div className="flex items-center justify-center gap-2 text-xs text-text-secondary/60">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                Próximo episodio: <span className="text-text-primary font-medium">{formatDate(nextEpisode.airingAt)}</span> (Ep.{' '}
-                {nextEpisode.episode})
+                {t('watch.nextEpisodeAiring', { date: formatDate(nextEpisode.airingAt), episode: nextEpisode.episode })}
               </div>
             )}
           </div>
@@ -1362,7 +1388,7 @@ export default function Watch() {
               if (url.includes('.mp4') || url.includes('.m3u8')) {
                 setSelectedUrl(proxyUrl(url))
                 setProxyFallbackUrl(getProxyUrl(url))
-                toast(`Reproduciendo desde ${getProviderLabel(provider)}`, 'success', 3000)
+                toast(t('watch.playingFrom', { provider: getProviderLabel(provider) }), 'success', 3000)
               } else {
                 window.open(url, '_blank', 'noopener')
               }

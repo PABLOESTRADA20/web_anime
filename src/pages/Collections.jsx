@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useCollections } from '../hooks/useCollections'
+import { useI18n } from '../hooks/useI18n'
 import SeoHead from '../components/SeoHead'
 import GradientHeading from '../components/GradientHeading'
 import { useToast } from '../components/Toast'
 import EmptyState from '../components/EmptyState'
 
 export default function Collections() {
+  const { t } = useI18n()
   const { user } = useAuth()
   const { collections, loading, createCollection, deleteCollection } = useCollections()
   const toast = useToast()
@@ -26,7 +28,7 @@ export default function Collections() {
       setName('')
       setDescription('')
       setShowForm(false)
-      toast.success('Colección creada')
+      toast.success(t('collections.added'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -35,10 +37,10 @@ export default function Collections() {
 
   async function handleDelete(id, e) {
     e.stopPropagation()
-    if (!confirm('¿Eliminar esta colección permanentemente?')) return
+    if (!confirm(t('collections.deleteConfirm'))) return
     try {
       await deleteCollection(id)
-      toast.success('Colección eliminada')
+      toast.success(t('collections.delete'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -47,24 +49,24 @@ export default function Collections() {
   if (!user) {
     return (
       <>
-        <SeoHead title="Colecciones" />
-        <div className="max-w-2xl mx-auto py-12 text-center text-text-secondary">Inicia sesión para ver tus colecciones.</div>
+        <SeoHead title={t('collections.title')} />
+        <div className="max-w-2xl mx-auto py-12 text-center text-text-secondary">{t('collections.loginRequired')}</div>
       </>
     )
   }
 
   return (
     <>
-      <SeoHead title="Mis colecciones" />
+      <SeoHead title={t('collections.title')} />
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <GradientHeading variant="pink" size="lg">
-            Mis colecciones
+            {t('collections.title')}
           </GradientHeading>
           <button
             onClick={() => setShowForm((v) => !v)}
             className="px-4 py-2 rounded-xl text-xs font-medium bg-primary text-white hover:bg-primary-hover transition-colors">
-            + Nueva
+            + {t('collections.create')}
           </button>
         </div>
 
@@ -73,7 +75,7 @@ export default function Collections() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre de la colección"
+              placeholder={t('collections.name')}
               required
               maxLength={100}
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-white/10 text-sm focus:outline-none focus:border-primary/50 transition-all"
@@ -81,7 +83,7 @@ export default function Collections() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción (opcional)"
+              placeholder={t('collections.description')}
               maxLength={300}
               rows={2}
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-white/10 text-sm focus:outline-none focus:border-primary/50 transition-all resize-none"
@@ -93,20 +95,20 @@ export default function Collections() {
                 onChange={(e) => setIsPublic(e.target.checked)}
                 className="rounded border-white/20 bg-background"
               />
-              Colección pública
+              {t('collections.public')}
             </label>
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={creating || !name.trim()}
                 className="px-4 py-2 rounded-xl text-xs font-medium bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-40">
-                {creating ? 'Creando...' : 'Crear'}
+                {creating ? t('common.saving') : t('collections.createButton')}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
                 className="px-4 py-2 rounded-xl text-xs font-medium bg-surface text-text-secondary border border-white/10 hover:text-text-primary transition-colors">
-                Cancelar
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -119,7 +121,7 @@ export default function Collections() {
             ))}
           </div>
         ) : collections.length === 0 ? (
-          <EmptyState message="No tienes colecciones aún. Crea una para organizar tu anime y manga." />
+          <EmptyState message={t('collections.empty')} />
         ) : (
           <div className="space-y-2">
             {collections.map((c) => (
@@ -141,13 +143,13 @@ export default function Collections() {
                   <p className="text-sm font-medium truncate">{c.name}</p>
                   {c.description && <p className="text-xs text-text-secondary truncate mt-0.5">{c.description}</p>}
                   <div className="flex gap-3 mt-1">
-                    {c.is_public && <span className="text-[10px] text-text-secondary/50">Pública</span>}
+                    {c.is_public && <span className="text-[10px] text-text-secondary/50">{t('collections.public')}</span>}
                   </div>
                 </div>
                 <button
                   onClick={(e) => handleDelete(c.id, e)}
                   className="p-2 rounded-lg text-text-secondary/30 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                  title="Eliminar colección">
+                  title={t('collections.delete')}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"

@@ -3,21 +3,19 @@ import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useComments } from '../hooks/useComments'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../hooks/useI18n'
 import { Link } from 'react-router-dom'
 import EmptyState from './EmptyState'
 
-const commentSchema = z.object({
-  content: z.string().min(1, 'El comentario no puede estar vacío').max(2000, 'Máximo 2000 caracteres'),
-  rating: z.number().int().min(0).max(10).optional(),
-})
-
 function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
+  const { t, locale } = useI18n()
   const [showReply, setShowReply] = useState(false)
   const [replyContent, setReplyContent] = useState('')
   const isOwner = user?.id === comment.user_id
-  const email = comment.user?.email || 'Anónimo'
+  const email = comment.user?.email || t('common.anonymous')
   const username = email.split('@')[0]
-  const date = new Date(comment.created_at).toLocaleDateString('es-ES', {
+  const localeStr = locale === 'es' ? 'es-ES' : locale === 'en' ? 'en-US' : locale === 'pt' ? 'pt-BR' : 'es-ES'
+  const date = new Date(comment.created_at).toLocaleDateString(localeStr, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -44,12 +42,12 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
             <button
               onClick={() => setShowReply(!showReply)}
               className="text-[11px] text-text-secondary hover:text-text-primary transition-colors">
-              Responder
+              {t('comments.reply')}
             </button>
           )}
           {isOwner && (
             <button onClick={() => onDelete(comment.id)} className="text-[11px] text-red-400 hover:text-red-300 transition-colors">
-              Eliminar
+              {t('comments.delete')}
             </button>
           )}
         </div>
@@ -69,11 +67,11 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
           <input
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
-            placeholder="Escribe una respuesta..."
+            placeholder={t('comments.replyPlaceholder')}
             className="flex-1 px-3 py-1.5 rounded-lg bg-surface border border-white/10 text-xs placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
           />
           <button type="submit" className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium">
-            Enviar
+            {t('comments.submit')}
           </button>
         </form>
       )}
@@ -98,13 +96,18 @@ function CommentItem({ comment, onDelete, onReply, onLike, user, depth = 0 }) {
 }
 
 export default function CommentSection({ anilistId, contentId, mediaType = 'anime', episodeNumber }) {
+  const { t } = useI18n()
   const { user } = useAuth()
   const { comments, loading, error, addComment, deleteComment, toggleLike } = useComments(contentId || anilistId, mediaType, episodeNumber)
   const [content, setContent] = useState('')
   const [rating, setRating] = useState(0)
   const [sending, setSending] = useState(false)
-
   const [commentError, setCommentError] = useState('')
+
+  const commentSchema = z.object({
+    content: z.string().min(1, t('comments.validationEmpty')).max(2000, t('comments.validationMaxLength')),
+    rating: z.number().int().min(0).max(10).optional(),
+  })
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -123,7 +126,7 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
       setRating(0)
       setCommentError('')
     } catch {
-      setCommentError('Error al enviar comentario')
+      setCommentError(t('comments.error'))
     }
     setSending(false)
   }
@@ -138,7 +141,9 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
 
   return (
     <section className="mt-10">
-      <h2 className="text-lg font-bold mb-4">💬 Comentarios ({comments.length})</h2>
+      <h2 className="text-lg font-bold mb-4">
+        💬 {t('comments.title')} ({comments.length})
+      </h2>
 
       {user ? (
         <form onSubmit={handleSubmit} className="mb-6 p-4 rounded-xl bg-surface">
@@ -148,14 +153,14 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
               setCommentError('')
               setContent(e.target.value)
             }}
-            placeholder="Escribe un comentario..."
+            placeholder={t('comments.placeholder')}
             rows={3}
             maxLength={2000}
             className={`w-full px-3 py-2 rounded-lg bg-background border text-sm placeholder:text-text-secondary/50 focus:outline-none transition-colors resize-none ${commentError ? 'border-red-400 focus:border-red-400' : 'border-white/10 focus:border-neon-cyan/70'}`}
           />
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1">
-              <span className="text-xs text-text-secondary">Puntuación:</span>
+              <span className="text-xs text-text-secondary">{t('anime.ratingLabel')}:</span>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <button
                   key={n}
@@ -173,7 +178,7 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
               type="submit"
               disabled={sending || !content.trim()}
               className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50">
-              {sending ? 'Enviando...' : 'Comentar'}
+              {sending ? t('common.saving') : t('comments.submit')}
             </button>
           </div>
         </form>
@@ -181,9 +186,8 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
         <div className="mb-6 p-4 rounded-xl bg-surface text-center">
           <p className="text-sm text-text-secondary">
             <Link to="/login" className="text-primary hover:underline">
-              Inicia sesión
-            </Link>{' '}
-            para comentar.
+              {t('comments.loginToComment')}
+            </Link>
           </p>
         </div>
       )}
@@ -196,7 +200,7 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
           ))}
         </div>
       ) : comments.length === 0 ? (
-        <EmptyState message="No hay comentarios aún. ¡Sé el primero!" />
+        <EmptyState message={t('comments.noComments')} />
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => (

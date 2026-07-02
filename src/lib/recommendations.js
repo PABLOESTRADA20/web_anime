@@ -106,3 +106,17 @@ export async function getUserInteractionIds(userId) {
   )
   return ids
 }
+
+export async function getAiRecommendations(genres, lang = 'es', count = 6) {
+  if (!genres || genres.length === 0) return []
+  if (import.meta.env.DEV) return []
+  try {
+    const params = new URLSearchParams({ genres: genres.join(','), lang, count: String(count) })
+    const res = await fetch(`/api/ai-recommend?${params}`)
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.recommendations || []
+  } catch {
+    return []
+  }
+}

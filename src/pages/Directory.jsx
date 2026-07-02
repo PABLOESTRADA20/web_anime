@@ -7,84 +7,7 @@ import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
-
-const GENRES = [
-  { label: 'Accion', value: 'Action' },
-  { label: 'Aventura', value: 'Adventure' },
-  { label: 'Autos', value: 'Cars' },
-  { label: 'Comedia', value: 'Comedy' },
-  { label: 'Dementia', value: 'Dementia' },
-  { label: 'Demonios', value: 'Demons' },
-  { label: 'Misterio', value: 'Mystery' },
-  { label: 'Drama', value: 'Drama' },
-  { label: 'Ecchi', value: 'Ecchi' },
-  { label: 'Fantasia', value: 'Fantasy' },
-  { label: 'Juegos', value: 'Game' },
-  { label: 'Hentai', value: 'Hentai' },
-  { label: 'Historico', value: 'Historical' },
-  { label: 'Terror', value: 'Horror' },
-  { label: 'Infantil', value: 'Kids' },
-  { label: 'Magia', value: 'Magic' },
-  { label: 'Artes Marciales', value: 'Martial Arts' },
-  { label: 'Mecha', value: 'Mecha' },
-  { label: 'Musica', value: 'Music' },
-  { label: 'Parodia', value: 'Parody' },
-  { label: 'Samurai', value: 'Samurai' },
-  { label: 'Romance', value: 'Romance' },
-  { label: 'Ciencia Ficcion', value: 'Sci-Fi' },
-  { label: 'Shoujo', value: 'Shoujo' },
-  { label: 'Shoujo Ai', value: 'Shoujo Ai' },
-  { label: 'Shounen', value: 'Shounen' },
-  { label: 'Shounen Ai', value: 'Shounen Ai' },
-  { label: 'Espacial', value: 'Space' },
-  { label: 'Deportes', value: 'Sports' },
-  { label: 'Super Poderes', value: 'Super Power' },
-  { label: 'Vampiros', value: 'Vampire' },
-  { label: 'Yaoi', value: 'Yaoi' },
-  { label: 'Yuri', value: 'Yuri' },
-  { label: 'Harem', value: 'Harem' },
-  { label: 'Recuentos de la vida', value: 'Slice of Life' },
-  { label: 'Sobrenatural', value: 'Supernatural' },
-  { label: 'Militar', value: 'Military' },
-  { label: 'Policial', value: 'Police' },
-  { label: 'Psicologico', value: 'Psychological' },
-  { label: 'Thriller', value: 'Thriller' },
-  { label: 'Seinen', value: 'Seinen' },
-  { label: 'Josei', value: 'Josei' },
-]
-
-const FORMATS = [
-  { value: 'TV', label: 'Serie' },
-  { value: 'MOVIE', label: 'Pelicula' },
-  { value: 'OVA', label: 'OVA' },
-  { value: 'ONA', label: 'ONA' },
-  { value: 'SPECIAL', label: 'Especial' },
-  { value: 'TV_SHORT', label: 'Cortometraje' },
-]
-
-const STATUSES = [
-  { value: 'RELEASING', label: 'En emision' },
-  { value: 'FINISHED', label: 'Finalizado' },
-  { value: 'NOT_YET_RELEASED', label: 'Por estrenar' },
-  { value: 'CANCELLED', label: 'Cancelado' },
-  { value: 'HIATUS', label: 'En pausa' },
-]
-
-const SEASONS = [
-  { value: 'WINTER', label: 'Invierno' },
-  { value: 'SPRING', label: 'Primavera' },
-  { value: 'SUMMER', label: 'Verano' },
-  { value: 'FALL', label: 'Otono' },
-]
-
-const SORTS = [
-  { value: 'TRENDING_DESC', label: 'Tendencia' },
-  { value: 'POPULARITY_DESC', label: 'Popularidad' },
-  { value: 'SCORE_DESC', label: 'Puntuacion' },
-  { value: 'START_DATE_DESC', label: 'Fecha de estreno' },
-  { value: 'EPISODES_DESC', label: 'Mas episodios' },
-  { value: 'TITLE_ROMAJI', label: 'Nombre A-Z' },
-]
+import { useI18n } from '../hooks/useI18n'
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -115,6 +38,101 @@ function FilterBtn({ active, onClick, children }) {
 }
 
 export default function Directory() {
+  const { t } = useI18n()
+
+  const GENRES = useMemo(
+    () => [
+      { label: t('anime.genre.Action'), value: 'Action' },
+      { label: t('anime.genre.Adventure'), value: 'Adventure' },
+      { label: t('anime.genre.Cars'), value: 'Cars' },
+      { label: t('anime.genre.Comedy'), value: 'Comedy' },
+      { label: t('anime.genre.Dementia'), value: 'Dementia' },
+      { label: t('anime.genre.Demons'), value: 'Demons' },
+      { label: t('anime.genre.Mystery'), value: 'Mystery' },
+      { label: t('anime.genre.Drama'), value: 'Drama' },
+      { label: t('anime.genre.Ecchi'), value: 'Ecchi' },
+      { label: t('anime.genre.Fantasy'), value: 'Fantasy' },
+      { label: t('anime.genre.Game'), value: 'Game' },
+      { label: t('anime.genre.Hentai'), value: 'Hentai' },
+      { label: t('anime.genre.Historical'), value: 'Historical' },
+      { label: t('anime.genre.Horror'), value: 'Horror' },
+      { label: t('anime.genre.Kids'), value: 'Kids' },
+      { label: t('anime.genre.Magic'), value: 'Magic' },
+      { label: t('anime.genre.MartialArts'), value: 'Martial Arts' },
+      { label: t('anime.genre.Mecha'), value: 'Mecha' },
+      { label: t('anime.genre.Music'), value: 'Music' },
+      { label: t('anime.genre.Parody'), value: 'Parody' },
+      { label: t('anime.genre.Samurai'), value: 'Samurai' },
+      { label: t('anime.genre.Romance'), value: 'Romance' },
+      { label: t('anime.genre.SciFi'), value: 'Sci-Fi' },
+      { label: t('anime.genre.Shoujo'), value: 'Shoujo' },
+      { label: t('anime.genre.ShoujoAi'), value: 'Shoujo Ai' },
+      { label: t('anime.genre.Shounen'), value: 'Shounen' },
+      { label: t('anime.genre.ShounenAi'), value: 'Shounen Ai' },
+      { label: t('anime.genre.Space'), value: 'Space' },
+      { label: t('anime.genre.Sports'), value: 'Sports' },
+      { label: t('anime.genre.SuperPower'), value: 'Super Power' },
+      { label: t('anime.genre.Vampire'), value: 'Vampire' },
+      { label: t('anime.genre.Yaoi'), value: 'Yaoi' },
+      { label: t('anime.genre.Yuri'), value: 'Yuri' },
+      { label: t('anime.genre.Harem'), value: 'Harem' },
+      { label: t('anime.genre.SliceOfLife'), value: 'Slice of Life' },
+      { label: t('anime.genre.Supernatural'), value: 'Supernatural' },
+      { label: t('anime.genre.Military'), value: 'Military' },
+      { label: t('anime.genre.Police'), value: 'Police' },
+      { label: t('anime.genre.Psychological'), value: 'Psychological' },
+      { label: t('anime.genre.Thriller'), value: 'Thriller' },
+      { label: t('anime.genre.Seinen'), value: 'Seinen' },
+      { label: t('anime.genre.Josei'), value: 'Josei' },
+    ],
+    [t],
+  )
+
+  const FORMATS = useMemo(
+    () => [
+      { value: 'TV', label: t('anime.format.TV') },
+      { value: 'MOVIE', label: t('anime.format.MOVIE') },
+      { value: 'OVA', label: t('anime.format.OVA') },
+      { value: 'ONA', label: t('anime.format.ONA') },
+      { value: 'SPECIAL', label: t('anime.format.SPECIAL') },
+      { value: 'TV_SHORT', label: t('anime.format.TV_SHORT') },
+    ],
+    [t],
+  )
+
+  const STATUSES = useMemo(
+    () => [
+      { value: 'RELEASING', label: t('anime.status.RELEASING') },
+      { value: 'FINISHED', label: t('anime.status.FINISHED') },
+      { value: 'NOT_YET_RELEASED', label: t('anime.status.NOT_YET_RELEASED') },
+      { value: 'CANCELLED', label: t('anime.status.CANCELLED') },
+      { value: 'HIATUS', label: t('anime.status.HIATUS') },
+    ],
+    [t],
+  )
+
+  const SEASONS = useMemo(
+    () => [
+      { value: 'WINTER', label: t('anime.season.WINTER') },
+      { value: 'SPRING', label: t('anime.season.SPRING') },
+      { value: 'SUMMER', label: t('anime.season.SUMMER') },
+      { value: 'FALL', label: t('anime.season.FALL') },
+    ],
+    [t],
+  )
+
+  const SORTS = useMemo(
+    () => [
+      { value: 'TRENDING_DESC', label: t('anime.sort.TRENDING_DESC') },
+      { value: 'POPULARITY_DESC', label: t('anime.sort.POPULARITY_DESC') },
+      { value: 'SCORE_DESC', label: t('anime.sort.SCORE_DESC') },
+      { value: 'START_DATE_DESC', label: t('anime.sort.START_DATE_DESC') },
+      { value: 'EPISODES_DESC', label: t('anime.sort.EPISODES_DESC') },
+      { value: 'TITLE_ROMAJI', label: t('anime.sort.TITLE_ROMAJI') },
+    ],
+    [t],
+  )
+
   const filtersState = useState({})
   const [_filters, _setFilters] = filtersState
 
@@ -166,10 +184,10 @@ export default function Directory() {
       .catch(() => {
         if (!ac.signal.aborted) {
           setLoading(false)
-          toast('Error al cargar directorio', 'error')
+          toast(t('directory.filter.error'), 'error')
         }
       })
-  }, [page, filters, toast])
+  }, [page, filters, toast, t])
 
   function setFilter(key, value) {
     _setFilters((prev) => ({ ...prev, [key]: value || undefined }))
@@ -195,21 +213,21 @@ export default function Directory() {
         }
       })
       .catch(() => {
-        toast('Error al cargar anime aleatorio', 'error')
+        toast(t('directory.randomError'), 'error')
       })
   }
 
   return (
     <>
-      <SeoHead title="Directorio de anime" />
+      <SeoHead title={t('directory.title')} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Directorio</h1>
+          <h1 className="text-2xl font-bold">{t('directory.title')}</h1>
           <div className="flex gap-2">
             <button
               onClick={randomAnime}
               className="px-3 py-1.5 rounded-lg bg-surface text-text-secondary hover:text-neon-cyan hover:bg-surface-hover text-xs font-medium border border-white/10 transition-colors">
-              Aleatorio
+              {t('directory.random')}
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -218,7 +236,7 @@ export default function Directory() {
                   ? 'bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30'
                   : 'bg-surface text-text-secondary border-white/10 hover:bg-surface-hover'
               }`}>
-              Filtros {hasFilters ? `(${Object.keys(_filters).length})` : ''}
+              {t('directory.filters')} {hasFilters ? `(${Object.keys(_filters).length})` : ''}
             </button>
           </div>
         </div>
@@ -234,7 +252,7 @@ export default function Directory() {
                   setFilter('letter', undefined)
                 }
               }}
-              placeholder="Buscar por nombre..."
+              placeholder={t('directory.filter.search')}
               className="flex-1 px-4 py-2 rounded-xl bg-surface border border-white/10 text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-neon-cyan/70 transition-colors"
             />
             <button
@@ -243,7 +261,7 @@ export default function Directory() {
                 setFilter('letter', undefined)
               }}
               className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity">
-              Buscar
+              {t('directory.filter.search')}
             </button>
           </div>
         </div>
@@ -253,7 +271,7 @@ export default function Directory() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             className="mb-6 space-y-4 p-4 rounded-2xl bg-surface/50 border border-white/5">
-            <FilterSection label="Genero">
+            <FilterSection label={t('directory.filter.genres')}>
               {GENRES.map((g) => (
                 <FilterBtn
                   key={g.value}
@@ -264,7 +282,7 @@ export default function Directory() {
               ))}
             </FilterSection>
 
-            <FilterSection label="Tipo">
+            <FilterSection label={t('directory.filter.format')}>
               {FORMATS.map((f) => (
                 <FilterBtn
                   key={f.value}
@@ -275,7 +293,7 @@ export default function Directory() {
               ))}
             </FilterSection>
 
-            <FilterSection label="Estado">
+            <FilterSection label={t('directory.filter.status')}>
               {STATUSES.map((s) => (
                 <FilterBtn
                   key={s.value}
@@ -286,7 +304,7 @@ export default function Directory() {
               ))}
             </FilterSection>
 
-            <FilterSection label="Temporada">
+            <FilterSection label={t('directory.filter.season')}>
               {SEASONS.map((s) => (
                 <FilterBtn
                   key={s.value}
@@ -297,12 +315,12 @@ export default function Directory() {
               ))}
             </FilterSection>
 
-            <FilterSection label="Ano">
+            <FilterSection label={t('directory.filter.year')}>
               <select
                 value={_filters.year || ''}
                 onChange={(e) => setFilter('year', e.target.value || undefined)}
                 className="bg-surface text-text-primary text-[11px] px-2 py-1 rounded-lg border border-white/10">
-                <option value="">Cualquier ano</option>
+                <option value="">{t('directory.filter.anyYear')}</option>
                 {YEARS.map((y) => (
                   <option key={y} value={y}>
                     {y}
@@ -311,18 +329,18 @@ export default function Directory() {
               </select>
             </FilterSection>
 
-            <FilterSection label="Idioma">
+            <FilterSection label={t('directory.filter.language')}>
               <FilterBtn
                 active={spanishOnly}
                 onClick={() => {
                   setSpanishOnly(!spanishOnly)
                   setPage(1)
                 }}>
-                Español
+                {t('directory.filter.spanish')}
               </FilterBtn>
             </FilterSection>
 
-            <FilterSection label="Letra">
+            <FilterSection label={t('directory.filter.letter')}>
               <div className="flex flex-wrap gap-1">
                 {LETTERS.map((l) => (
                   <FilterBtn
@@ -338,7 +356,7 @@ export default function Directory() {
               </div>
             </FilterSection>
 
-            <FilterSection label="Ordenar por">
+            <FilterSection label={t('directory.filter.sort')}>
               {SORTS.map((s) => (
                 <FilterBtn key={s.value} active={(_filters.sort || 'TRENDING_DESC') === s.value} onClick={() => setFilter('sort', s.value)}>
                   {s.label}
@@ -348,7 +366,7 @@ export default function Directory() {
 
             {hasFilters && (
               <button onClick={clearFilters} className="text-xs text-red-400 hover:text-red-300 transition-colors">
-                Limpiar filtros
+                {t('directory.filter.clear')}
               </button>
             )}
           </motion.div>
@@ -356,15 +374,15 @@ export default function Directory() {
 
         {total > 0 && (
           <p className="text-xs text-text-secondary mb-4">
-            {spanishOnly ? displayList.length : total} animes encontrados
-            {spanishOnly && displayList.length !== total && ` (filtrados de ${total})`}
+            {t('directory.filter.results', { count: spanishOnly ? displayList.length : total })}
+            {spanishOnly && displayList.length !== total && ` ${t('directory.filter.filtered', { total })}`}
           </p>
         )}
 
         {loading ? (
           <GridSkeleton count={12} />
         ) : displayList.length === 0 ? (
-          <EmptyState message="No se encontraron animes con esos filtros." action={{ label: 'Limpiar filtros', onClick: clearFilters }} />
+          <EmptyState message={t('directory.filter.noResults')} action={{ label: t('directory.filter.clear'), onClick: clearFilters }} />
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -379,7 +397,7 @@ export default function Directory() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
                   className="px-3 py-1.5 rounded-lg bg-surface text-text-secondary text-xs font-medium disabled:opacity-30 hover:bg-surface-hover transition-colors">
-                  ← Anterior
+                  {t('common.previous')}
                 </button>
                 <span className="text-xs text-text-secondary px-3">
                   {page} / {totalPages}
@@ -388,7 +406,7 @@ export default function Directory() {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   className="px-3 py-1.5 rounded-lg bg-surface text-text-secondary text-xs font-medium disabled:opacity-30 hover:bg-surface-hover transition-colors">
-                  Siguiente →
+                  {t('common.next')}
                 </button>
               </div>
             )}

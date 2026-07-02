@@ -9,9 +9,11 @@ import EmptyState from '../components/EmptyState'
 import ShareButton from '../components/ShareButton'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useToast } from '../components/Toast'
+import { useI18n } from '../hooks/useI18n'
 
 export default function CharacterDetail() {
   const { id } = useParams()
+  const { t } = useI18n()
   const [character, setCharacter] = useState(null)
   const [loading, setLoading] = useState(true)
   const toast = useToast()
@@ -29,22 +31,22 @@ export default function CharacterDetail() {
       .catch(() => {
         if (!ac.signal.aborted) {
           setLoading(false)
-          toast('Error al cargar personaje', 'error')
+          toast(t('character.errorLoading'), 'error')
         }
       })
     return () => ac.abort()
-  }, [id, toast])
+  }, [id, toast, t])
 
   if (loading)
     return (
       <>
-        <SeoHead title="Cargando..." />
+        <SeoHead title={t('common.loading')} />
         <DetailSkeleton />
       </>
     )
-  if (!character) return <EmptyState icon="🔍" message="Personaje no encontrado." />
+  if (!character) return <EmptyState icon="🔍" message={t('character.notFound')} />
 
-  const name = character.name?.full || 'Sin nombre'
+  const name = character.name?.full || t('common.unnamed')
   const image = character.image?.large
 
   return (
@@ -61,11 +63,15 @@ export default function CharacterDetail() {
             <SafeImage src={image} alt={name} className="w-full rounded-2xl shadow-lg" fallbackText={name} />
           </div>
           <div className="flex-1 min-w-0">
-            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Personajes', href: '/directorio' }, { label: name }]} />
+            <Breadcrumbs
+              items={[{ label: t('nav.home'), href: '/' }, { label: t('character.title'), href: '/directorio' }, { label: name }]}
+            />
             <h1 className="text-2xl sm:text-3xl font-bold">{name}</h1>
             {character.name?.native && <p className="text-text-secondary text-sm mt-1">{character.name.native}</p>}
             {character.name?.alternative?.length > 0 && (
-              <p className="text-xs text-text-secondary mt-1">También conocido como: {character.name.alternative.join(', ')}</p>
+              <p className="text-xs text-text-secondary mt-1">
+                {t('character.alsoKnownAs')}: {character.name.alternative.join(', ')}
+              </p>
             )}
 
             <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -73,7 +79,11 @@ export default function CharacterDetail() {
               {character.gender && (
                 <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{character.gender}</span>
               )}
-              {character.age && <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{character.age} años</span>}
+              {character.age && (
+                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
+                  {t('character.age', { age: character.age })}
+                </span>
+              )}
               {character.dateOfBirth?.year && (
                 <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
                   {character.dateOfBirth.month}/{character.dateOfBirth.day}/{character.dateOfBirth.year}
@@ -85,7 +95,9 @@ export default function CharacterDetail() {
                 </span>
               )}
               {character.bloodType && (
-                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">Sangre {character.bloodType}</span>
+                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
+                  {t('character.bloodType', { type: character.bloodType })}
+                </span>
               )}
               <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-medium">★ {character.favourites}</span>
             </div>
@@ -100,7 +112,7 @@ export default function CharacterDetail() {
 
         {character.media?.edges?.length > 0 && (
           <section>
-            <h2 className="text-lg font-bold mb-4">🎬 Apariciones en medios</h2>
+            <h2 className="text-lg font-bold mb-4">{t('character.animeAppearances')}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {character.media.edges.map((edge) => {
                 const media = edge.node

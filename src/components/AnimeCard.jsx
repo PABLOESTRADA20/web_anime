@@ -2,7 +2,13 @@ import { memo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
-const AnimeCard = memo(function AnimeCard({ anime, index = 0, progress }) {
+const GLOW_COLORS = {
+  anime: { ring: 'group-hover:ring-primary/30', border: 'rgba(217,79,158,0.3)' },
+  manga: { ring: 'group-hover:ring-neon-cyan/30', border: 'rgba(94,196,232,0.3)' },
+  accent: { ring: 'group-hover:ring-accent/30', border: 'rgba(168,85,247,0.3)' },
+}
+
+const AnimeCard = memo(function AnimeCard({ anime, index = 0, progress, glow = 'anime' }) {
   const id = anime.anilistId || anime.id
   const title = anime.title_es || anime.title?.romaji || anime.title?.english || anime.title?.native || anime.name || 'Sin título'
   const image = anime.image || anime.posterImage
@@ -17,7 +23,10 @@ const AnimeCard = memo(function AnimeCard({ anime, index = 0, progress }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
-      <Link to={linkTo} className="group relative rounded-2xl overflow-hidden bg-surface card-hover block">
+      <Link
+        to={linkTo}
+        className="group relative rounded-2xl overflow-hidden bg-surface card-hover block"
+        style={{ '--card-glow': GLOW_COLORS[glow]?.border || GLOW_COLORS.anime.border }}>
         <div className="aspect-[3/4] overflow-hidden relative">
           {imgFailed ? (
             <div className="w-full h-full flex items-center justify-center bg-surface text-text-secondary/40 text-xs p-4 text-center">
@@ -79,7 +88,9 @@ const AnimeCard = memo(function AnimeCard({ anime, index = 0, progress }) {
           </div>
         )}
 
-        <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 group-hover:ring-primary/30 transition-all duration-300" />
+        <div
+          className={`absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/0 ${GLOW_COLORS[glow]?.ring || GLOW_COLORS.anime.ring} transition-all duration-300`}
+        />
       </Link>
     </motion.div>
   )

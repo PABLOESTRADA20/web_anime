@@ -1,7 +1,6 @@
 import { getEpisodes as anivexaGetEpisodes, PROVIDER_PRIORITY } from '../lib/anivexa'
-import { getEpisodes as miruroGetEpisodes } from '../lib/miruro'
-import { getSlug } from '../lib/animeflv'
-import { getAnimeEpisodes as veranimeGetEpisodes } from '../lib/veranime'
+import { detectLatamAvailability as jimovDetectLatam } from '../lib/jimov.js'
+import { getAnimeTitle as anilistGetTitle } from '../lib/anilist.js'
 
 const TIMEOUT = 4000
 
@@ -9,70 +8,48 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))])
 }
 
-export async function detectAudioOptions(anilistId, epNum, title) {
+export async function detectAudioOptions(anilistId, t) {
   const results = {
-    japanese: { label: 'Japonés (Sub)', value: 'sub', flag: 'JP', available: false, error: null, provider: null },
-    english: { label: 'Inglés (Dub)', value: 'dub', flag: 'US', available: false, error: null, provider: null },
-    spanish: { label: 'Español Latino', value: 'latam', flag: 'MX', available: false, error: null, provider: null },
+    japanese: { label: t('audio.japanese'), value: 'sub', flag: 'JP', available: false, error: null, provider: null },
+    english: { label: t('audio.english'), value: 'dub', flag: 'US', available: false, error: null, provider: null },
+    spanish: { label: t('audio.spanish'), value: 'latam', flag: 'MX', available: false, error: null, provider: null },
   }
 
-  const anivexaPromise = withTimeout(anivexaGetEpisodes(anilistId), TIMEOUT)
-    .then((data) => {
-      if (!data) return
+  try {
+    const data = await withTimeout(anivexaGetEpisodes(anilistId), TIMEOUT)
+    if (data) {
       const subOk = PROVIDER_PRIORITY.some((p) => data[p]?.episodes?.sub?.length > 0)
       const dubOk = PROVIDER_PRIORITY.some((p) => data[p]?.episodes?.dub?.length > 0)
       if (subOk) Object.assign(results.japanese, { available: true, provider: 'Anivexa' })
       if (dubOk) Object.assign(results.english, { available: true, provider: 'Anivexa' })
-    })
-    .catch(() => {})
-
-  const miruroPromise = withTimeout(miruroGetEpisodes(anilistId, 'kiwi'), TIMEOUT)
-    .then((data) => {
-      if (!data) return
-      if (data.sub?.length > 0 && !results.japanese.available) {
-        Object.assign(results.japanese, { available: true, provider: 'Miruro' })
-      }
-      if (data.dub?.length > 0 && !results.english.available) {
-        Object.assign(results.english, { available: true, provider: 'Miruro' })
-      }
-    })
-    .catch(() => {})
-
-  const latamPromise = (async () => {
-    if (!title) {
-      results.spanish.error = 'Sin título para buscar'
-      return
     }
-    try {
-      const slug = getSlug(title)
-      if (!slug) {
-        results.spanish.error = 'No disponible en AnimeFLV'
-        return
-      }
-      results.spanish.provider = 'VerAnime'
-      const data = await withTimeout(veranimeGetEpisodes(slug), TIMEOUT)
-      results.spanish.available = data?.providerEpisodes?.length > 0
-    } catch {
-      if (getSlug(title)) results.spanish.available = true
-      else results.spanish.error = 'LATAM no disponible'
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const title = await anilistGetTitle(anilistId)
+    if (title) {
+      const latamOk = await withTimeout(jimovDetectLatam(anilistId, title), TIMEOUT)
+      if (latamOk) Object.assign(results.spanish, { available: true, provider: 'TioAnime' })
     }
-  })()
+  } catch {
+    /* ignore */
+  }
 
-  await Promise.allSettled([anivexaPromise, miruroPromise, latamPromise])
-
-  // Si LATAM no se encontró vía VerAnime, revisar si Anivexa o Miruro tienen dub (usado para LATAM)
+  // Fallback: mark LATAM as available if dub is available
   if (!results.spanish.available && results.english.available) {
     Object.assign(results.spanish, { available: true, provider: results.english.provider })
   }
 
   if (!results.japanese.available && !results.japanese.error) {
-    results.japanese.error = 'No hay fuentes en japonés'
+    results.japanese.error = t('audio.noJapanese')
   }
   if (!results.english.available && !results.english.error) {
-    results.english.error = 'No hay fuentes en inglés'
+    results.english.error = t('audio.noEnglish')
   }
   if (!results.spanish.available && !results.spanish.error) {
-    results.spanish.error = 'No hay fuentes en español'
+    results.spanish.error = t('audio.noSpanish')
   }
 
   return results

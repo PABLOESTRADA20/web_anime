@@ -3,16 +3,21 @@ import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { getChapterContent, getNovelChapters } from '../lib/novels'
 import { useNovelHistory } from '../hooks/useNovelHistory'
+import { useI18n } from '../hooks/useI18n'
+import { useToast } from '../components/Toast'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import DOMPurify from 'dompurify'
+import { addDownload, isNovelCached, cacheNovelContent } from '../utils/downloads'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 const THEMES = {
-  dark: { bg: 'bg-[#1a1a2e]', text: 'text-gray-200', label: 'Oscuro', icon: '🌙' },
-  sepia: { bg: 'bg-amber-50', text: 'text-amber-950', label: 'Sepia', icon: '📖' },
-  light: { bg: 'bg-white', text: 'text-gray-900', label: 'Claro', icon: '☀️' },
-  parchment: { bg: 'bg-[#f5e6c8]', text: 'text-[#3e2723]', label: 'Pergamino', icon: '📜' },
-  midnight: { bg: 'bg-[#0d1117]', text: 'text-[#8b949e]', label: 'Medianoche', icon: '🌃' },
+  dark: { bg: 'bg-[#1a1a2e]', text: 'text-gray-200', label: 'themeDark', icon: '🌙' },
+  sepia: { bg: 'bg-amber-50', text: 'text-amber-950', label: 'themeSepia', icon: '📖' },
+  light: { bg: 'bg-white', text: 'text-gray-900', label: 'themeLight', icon: '☀️' },
+  parchment: { bg: 'bg-[#f5e6c8]', text: 'text-[#3e2723]', label: 'themeParchment', icon: '📜' },
+  midnight: { bg: 'bg-[#0d1117]', text: 'text-[#8b949e]', label: 'themeMidnight', icon: '🌃' },
 }
 
 export default function NovelRead() {
@@ -36,7 +41,19 @@ export default function NovelRead() {
   })
 
   const contentRef = useRef(null)
-  const { saveProgress } = useNovelHistory()
+  const scrollTimerRef = useRef(null)
+  const { saveProgress, getChapterProgress } = useNovelHistory()
+  const toast = useToast()
+  const { t } = useI18n()
+  const { addXp } = useGamification()
+  const awardedChRef = useRef(new Set())
+  const [downloading, setDownloading] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
+
+  useEffect(() => {
+    const path = `${slug}/chapter-${chapterNum}`
+    isNovelCached(path).then(setDownloaded)
+  }, [slug, chapterNum])
   const currentCh = chapters.find((c) => c.number === chapterNum)
   const prevCh = chapters.find((c) => c.number === chapterNum - 1)
   const nextCh = chapters.find((c) => c.number === chapterNum + 1)
@@ -61,7 +78,12 @@ export default function NovelRead() {
         setContent(data)
         setChapters(chs || [])
         setLoading(false)
-        saveProgress(slug, chapterNum, data.title || `Chapter ${chapterNum}`, slug, null)
+        saveProgress(slug, chapterNum, data.title || t('novel.reader.chapterX', { n: chapterNum }), slug, null, 0)
+        const chKey = `${slug}:${chapterNum}`
+        if (!awardedChRef.current.has(chKey)) {
+          awardedChRef.current.add(chKey)
+          addXp(XP_VALUES.READ_NOVEL_CHAPTER, 'novel')
+        }
       })
       .catch((err) => {
         if (!ac.signal.aborted) {
@@ -70,11 +92,36 @@ export default function NovelRead() {
         }
       })
     return () => ac.abort()
-  }, [slug, chapterNum, source, saveProgress])
+  }, [slug, chapterNum, source, saveProgress, addXp, t])
 
   useEffect(() => {
-    if (contentRef.current) window.scrollTo(0, 0)
-  }, [chapterNum])
+    const savedPct = getChapterProgress(slug, chapterNum)
+    if (savedPct > 0) {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+      window.scrollTo(0, Math.round((savedPct / 100) * maxScroll))
+    } else {
+      window.scrollTo(0, 0)
+    }
+  }, [chapterNum, slug, getChapterProgress, content])
+
+  useEffect(() => {
+    function handleScroll() {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+      scrollTimerRef.current = setTimeout(() => {
+        const max = document.documentElement.scrollHeight - window.innerHeight
+        const pct = max > 0 ? Math.round((window.scrollY / max) * 100) : 0
+        saveProgress(slug, chapterNum, currentCh?.title || '', slug, null, pct)
+      }, 2000)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      const pct = max > 0 ? Math.round((window.scrollY / max) * 100) : 0
+      saveProgress(slug, chapterNum, currentCh?.title || '', slug, null, pct)
+    }
+  }, [slug, chapterNum, saveProgress, currentCh])
 
   function updateSetting(key, value) {
     setSettings((prev) => ({ ...prev, [key]: value }))
@@ -92,7 +139,7 @@ export default function NovelRead() {
     const pct = max > 0 ? Math.round((pos / max) * 100) : 0
     const key = `novel_bookmark_${slug}_${chapterNum}`
     localStorage.setItem(key, String(pos))
-    setBookmarkMsg(`Marcador guardado (${pct}%)`)
+    setBookmarkMsg(t('novel.reader.bookmarkSaved', { pct }))
     setTimeout(() => setBookmarkMsg(''), 2500)
   }
 
@@ -101,39 +148,83 @@ export default function NovelRead() {
     const pos = localStorage.getItem(key)
     if (pos) {
       window.scrollTo(0, parseInt(pos, 10))
-      setBookmarkMsg('Restaurado')
+      setBookmarkMsg(t('novel.reader.bookmarkRestored'))
       setTimeout(() => setBookmarkMsg(''), 2500)
     } else {
-      setBookmarkMsg('Sin marcador')
+      setBookmarkMsg(t('novel.reader.noBookmark'))
       setTimeout(() => setBookmarkMsg(''), 2500)
     }
   }
 
+  async function handleDownload() {
+    if (downloading || downloaded || !content) return
+    const path = `${slug}/chapter-${chapterNum}`
+    setDownloading(true)
+    try {
+      await cacheNovelContent(path, content.content || '')
+      addDownload({
+        id: path,
+        type: 'novel',
+        title: currentCh?.title || t('novel.reader.chapterX', { n: chapterNum }),
+        chapter: chapterNum,
+        chapterLabel: t('novel.reader.chapterX', { n: chapterNum }),
+        slug,
+        source,
+        link: `/novel/${slug}/read?chapter=${chapterNum}${source ? `&source=${source}` : ''}`,
+        size: new Blob([content.content || '']).size,
+      })
+      setDownloaded(true)
+      toast(t('manga.reader.downloaded', { ok: 1, total: 1 }), 'success', 3000)
+    } catch (e) {
+      toast(t('manga.reader.downloadError', { error: e.message }), 'error', 4000)
+    }
+    setDownloading(false)
+  }
+
   return (
     <>
-      <SeoHead title={`Capítulo ${chapterNum} — ${slug}`} />
+      <SeoHead title={`${t('novel.reader.chapterX', { n: chapterNum })} — ${slug}`} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
         <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Link to={`/novel/${slug}${source ? `?source=${source}` : ''}`} className="text-sm text-primary hover:underline">
-              &larr; Volver
+              &larr; {t('novel.reader.goBack')}
             </Link>
             <span className="text-text-secondary text-sm">/</span>
-            <span className="text-sm text-text-secondary">{currentCh?.title || `Capítulo ${chapterNum}`}</span>
+            <span className="text-sm text-text-secondary">{currentCh?.title || t('novel.reader.chapterX', { n: chapterNum })}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownload}
+              disabled={downloading || downloaded || !content}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/10 flex items-center gap-1 ${
+                downloaded
+                  ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                  : 'bg-surface-hover text-text-secondary hover:text-text-primary'
+              } disabled:opacity-40`}
+              title={downloaded ? t('manga.reader.downloadedLabel') : t('manga.reader.downloadOffline')}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              {downloading ? '...' : downloaded ? t('manga.reader.downloadedLabel') : t('manga.reader.downloadOffline')}
+            </button>
             {prevCh && (
               <Link
                 to={`/novel/${slug}/read?chapter=${chapterNum - 1}${source ? `&source=${source}` : ''}`}
                 className="px-3 py-1.5 bg-surface hover:bg-surface-hover text-text-primary rounded-lg text-sm transition-colors border border-white/10">
-                &larr; Anterior
+                &larr; {t('novel.reader.prevChapter')}
               </Link>
             )}
             {nextCh && (
               <Link
                 to={`/novel/${slug}/read?chapter=${chapterNum + 1}${source ? `&source=${source}` : ''}`}
                 className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors">
-                Siguiente &rarr;
+                {t('novel.reader.nextChapter')} &rarr;
               </Link>
             )}
           </div>
@@ -144,14 +235,14 @@ export default function NovelRead() {
         <div className={`rounded-2xl p-6 md:p-10 ${theme.bg} ${theme.text} transition-colors`}>
           {loading ? (
             <div className="text-center py-20 text-text-secondary">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-              Cargando capítulo...
+              <div className="animate-cosmic-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+              {t('novel.reader.loading')}
             </div>
           ) : error ? (
             <EmptyState
-              message={error.includes('caído') ? 'NovelBin está temporalmente caído.' : error}
+              message={error.includes('caído') ? t('novel.reader.novelbinDown') : error}
               action={{
-                label: 'Reintentar',
+                label: t('common.retry'),
                 onClick: () => navigate(`/novel/${slug}/read?chapter=${chapterNum}${source ? `&source=${source}` : ''}`),
               }}
             />
@@ -170,14 +261,14 @@ export default function NovelRead() {
             <Link
               to={`/novel/${slug}/read?chapter=${chapterNum - 1}${source ? `&source=${source}` : ''}`}
               className="px-4 py-2 bg-surface hover:bg-surface-hover text-text-primary rounded-xl text-sm transition-colors border border-white/10">
-              &larr; Capítulo {chapterNum - 1}
+              &larr; {t('novel.reader.chapterX', { n: chapterNum - 1 })}
             </Link>
           )}
           {nextCh && (
             <Link
               to={`/novel/${slug}/read?chapter=${chapterNum + 1}${source ? `&source=${source}` : ''}`}
               className="px-4 py-2 bg-primary text-white rounded-xl text-sm hover:bg-primary/90 transition-colors">
-              Capítulo {chapterNum + 1} &rarr;
+              {t('novel.reader.chapterX', { n: chapterNum + 1 })} &rarr;
             </Link>
           )}
         </div>
@@ -185,24 +276,24 @@ export default function NovelRead() {
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowSettings(false)}>
             <div className="bg-surface rounded-2xl p-6 w-80 max-w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-bold mb-4">Ajustes de lectura</h3>
+              <h3 className="font-bold mb-4">{t('novel.reader.settings')}</h3>
 
               <div className="mb-3">
-                <label className="text-xs text-text-secondary block mb-1">Tema</label>
+                <label className="text-xs text-text-secondary block mb-1">{t('novel.reader.theme')}</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(THEMES).map(([key, t]) => (
+                  {Object.entries(THEMES).map(([key, th]) => (
                     <button
                       key={key}
                       onClick={() => updateSetting('theme', key)}
                       className={`px-2.5 py-1.5 rounded-lg text-xs transition-colors ${settings.theme === key || (!settings.theme && key === 'dark') ? 'bg-primary text-white' : 'bg-white/10 text-text-secondary hover:text-text-primary'}`}>
-                      {t.icon} {t.label}
+                      {th.icon} {t(`novel.reader.${th.label}`)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-text-secondary block mb-1">Tamaño: {fontSize}px</label>
+                <label className="text-xs text-text-secondary block mb-1">{t('novel.reader.fontSize', { size: fontSize })}</label>
                 <input
                   type="range"
                   min="12"
@@ -214,7 +305,7 @@ export default function NovelRead() {
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-text-secondary block mb-1">Interlineado</label>
+                <label className="text-xs text-text-secondary block mb-1">{t('novel.reader.lineHeight')}</label>
                 <select
                   value={lineHeight}
                   onChange={(e) => updateSetting('lineHeight', parseFloat(e.target.value))}
@@ -228,7 +319,7 @@ export default function NovelRead() {
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-text-secondary block mb-1">Tipografía</label>
+                <label className="text-xs text-text-secondary block mb-1">{t('novel.reader.fontFamily')}</label>
                 <select
                   value={fontFamily}
                   onChange={(e) => updateSetting('fontFamily', e.target.value)}
@@ -255,37 +346,37 @@ export default function NovelRead() {
           <button
             onClick={saveBookmark}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Guardar marcador">
+            title={t('novel.reader.saveBookmark')}>
             🔖
           </button>
           <button
             onClick={goToBookmark}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Ir al marcador">
+            title={t('novel.reader.goToBookmark')}>
             📍
           </button>
           <button
             onClick={cycleTheme}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Cambiar tema">
+            title={t('novel.reader.cycleTheme')}>
             {theme.icon}
           </button>
           <button
             onClick={() => updateSetting('fontSize', Math.max(12, fontSize - 2))}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Reducir fuente">
+            title={t('novel.reader.decreaseFont')}>
             A-
           </button>
           <button
             onClick={() => updateSetting('fontSize', Math.min(32, fontSize + 2))}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Aumentar fuente">
+            title={t('novel.reader.increaseFont')}>
             A+
           </button>
           <button
             onClick={() => setShowSettings(true)}
             className="w-9 h-9 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-sm hover:bg-white/20 transition-colors"
-            title="Más ajustes">
+            title={t('novel.reader.moreSettings')}>
             ⚙️
           </button>
         </div>

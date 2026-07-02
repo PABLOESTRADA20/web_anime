@@ -8,9 +8,11 @@ import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import SafeImage from '../components/SafeImage'
+import { useI18n } from '../hooks/useI18n'
 
 function AnimeCardSmall({ anime, index = 0 }) {
-  const title = anime.title?.romaji || anime.title?.english || 'Sin título'
+  const { t } = useI18n()
+  const title = anime.title?.romaji || anime.title?.english || t('common.untitled')
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
       <Link
@@ -34,21 +36,21 @@ function AnimeCardSmall({ anime, index = 0 }) {
         )}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <h3 className="text-sm font-heading font-medium text-white line-clamp-2 leading-tight">{title}</h3>
-          {anime.episodes && <p className="text-xs text-white/60 mt-1">{anime.episodes} eps</p>}
+          {anime.episodes && (
+            <p className="text-xs text-white/60 mt-1">
+              {anime.episodes} {t('anime.episodes')}
+            </p>
+          )}
         </div>
       </Link>
     </motion.div>
   )
 }
 
-const SEASONS = [
-  { id: 'WINTER', label: 'Invierno' },
-  { id: 'SPRING', label: 'Primavera' },
-  { id: 'SUMMER', label: 'Verano' },
-  { id: 'FALL', label: 'Otoño' },
-]
+const SEASONS = ['WINTER', 'SPRING', 'SUMMER', 'FALL']
 
 export default function Seasonal() {
+  const { t } = useI18n()
   const [animeList, setAnimeList] = useState([])
   const [loading, setLoading] = useState(true)
   const [season, setSeason] = useState('')
@@ -77,11 +79,11 @@ export default function Seasonal() {
       .catch(() => {
         if (!ac.signal.aborted) {
           setLoading(false)
-          toast('Error al cargar temporada', 'error')
+          toast(t('seasonal.loadError'), 'error')
         }
       })
     return () => ac.abort()
-  }, [season, year, toast])
+  }, [season, year, toast, t])
 
   async function loadMore() {
     const next = page + 1
@@ -92,7 +94,7 @@ export default function Seasonal() {
       setHasNext(res.hasNextPage || false)
       setPage(next)
     } catch {
-      toast('Error al cargar más', 'error')
+      toast(t('common.loadMoreError'), 'error')
     }
     setLoading(false)
   }
@@ -102,29 +104,29 @@ export default function Seasonal() {
 
   function getCurrentSeasonLabel() {
     const month = new Date().getMonth() + 1
-    if (month <= 3) return 'Invierno'
-    if (month <= 6) return 'Primavera'
-    if (month <= 9) return 'Verano'
-    return 'Otoño'
+    if (month <= 3) return t('seasonal.seasons.WINTER')
+    if (month <= 6) return t('seasonal.seasons.SPRING')
+    if (month <= 9) return t('seasonal.seasons.SUMMER')
+    return t('seasonal.seasons.FALL')
   }
+
+  const seasonLabel = season ? t(`seasonal.seasons.${season}`) : getCurrentSeasonLabel()
 
   return (
     <>
-      <SeoHead title={`Temporada ${season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} ${year}`} />
+      <SeoHead title={t('seasonal.pageTitle', { season: seasonLabel, year })} />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-        <h1 className="text-xl font-bold mb-6">
-          Temporada {season ? SEASONS.find((s) => s.id === season)?.label : getCurrentSeasonLabel()} {year}
-        </h1>
+        <h1 className="text-xl font-bold mb-6">{t('seasonal.pageTitle', { season: seasonLabel, year })}</h1>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {SEASONS.map((s) => (
             <button
-              key={s.id}
-              onClick={() => setSeason(s.id)}
+              key={s}
+              onClick={() => setSeason(s)}
               className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                season === s.id ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
+                season === s ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
               }`}>
-              {s.label}
+              {t(`seasonal.seasons.${s}`)}
             </button>
           ))}
         </div>
@@ -145,7 +147,7 @@ export default function Seasonal() {
         {loading && animeList.length === 0 ? (
           <GridSkeleton count={12} />
         ) : animeList.length === 0 ? (
-          <EmptyState message="No hay anime en esta temporada." />
+          <EmptyState message={t('seasonal.noResults')} />
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -159,7 +161,7 @@ export default function Seasonal() {
                   onClick={loadMore}
                   disabled={loading}
                   className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10 disabled:opacity-50">
-                  {loading ? 'Cargando...' : 'Cargar más'}
+                  {loading ? t('common.loading') : t('seasonal.loadMore')}
                 </button>
               </div>
             )}

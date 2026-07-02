@@ -160,9 +160,9 @@ body {
   transition: all 0.3s ease;
   &:hover {
     box-shadow:
-      0 0 20px oklch(0.65 0.25 330 / 0.15),
-      0 0 60px oklch(0.65 0.25 330 / 0.05);
-    border-color: oklch(0.65 0.25 330 / 0.3);
+      0 0 20px var(--card-glow, oklch(0.65 0.25 330 / 0.15)),
+      0 0 60px var(--card-glow, oklch(0.65 0.25 330 / 0.05));
+    border-color: color-mix(in oklch, var(--card-glow, oklch(0.65 0.25 330 / 1)) 30%, transparent);
   }
 }
 

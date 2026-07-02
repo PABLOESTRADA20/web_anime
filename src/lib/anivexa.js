@@ -22,7 +22,7 @@ export async function getWatch(anilistId, provider, epNum, audio = 'sub', signal
   return fetchJSON(`${BASE}/watch/${provider}/${anilistId}/${audio}/${provider}-${epNum}`, signal)
 }
 
-export const PROVIDER_PRIORITY = ['anikoto', 'reanime', 'allmanga', 'animegg', 'anineko', 'anidbapp', 'animepahe']
+export const PROVIDER_PRIORITY = ['allmanga', 'anikoto', 'animegg', 'anineko', 'reanime', 'anidbapp', 'animepahe']
 
 export function getBestProvider(data) {
   for (const p of PROVIDER_PRIORITY) {

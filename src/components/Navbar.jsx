@@ -6,6 +6,7 @@ import { useTheme } from '../hooks/useTheme'
 import { useI18n } from '../hooks/useI18n'
 import { searchAnime } from '../lib/api'
 import SafeImage from './SafeImage'
+import { Link000 } from './ui/skiper-ui/skiper40'
 
 export default function Navbar() {
   const [query, setQuery] = useState('')
@@ -81,12 +82,12 @@ export default function Navbar() {
     { to: '/directorio', label: t('nav.directory') },
     { to: '/search', label: t('nav.search') },
     { to: '/manga', label: t('nav.manga') },
-    { to: '/novel', label: 'Novelas' },
+    { to: '/novel', label: t('nav.novels') },
     { to: '/seasonal', label: t('nav.seasonal') },
     { to: '/schedule', label: t('nav.schedule') },
     { to: '/characters', label: t('nav.characters') },
     { to: '/downloads', label: t('nav.downloads') },
-    { to: '/activity', label: 'Actividad' },
+    { to: '/activity', label: t('nav.activity') },
   ]
 
   return (
@@ -101,22 +102,14 @@ export default function Navbar() {
           {links.map((l) => {
             const isActive = location.pathname === l.to || (l.to !== '/' && location.pathname.startsWith(l.to))
             return (
-              <Link
+              <Link000
                 key={l.to}
                 to={l.to}
-                aria-current={isActive ? 'page' : undefined}
-                className={`relative px-3 py-2 rounded-lg transition-colors ${
+                className={`px-3 py-2 rounded-lg transition-colors text-sm ${
                   isActive ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
                 }`}>
                 {l.label}
-                {isActive && (
-                  <motion.div
-                    layoutId="nav-active"
-                    className="absolute inset-0 bg-primary/10 rounded-lg border border-primary/20"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                  />
-                )}
-              </Link>
+              </Link000>
             )
           })}
         </div>
@@ -138,14 +131,14 @@ export default function Navbar() {
               onFocus={() => {
                 if (suggestions.length > 0) setSuggestions([...suggestions])
               }}
-              placeholder="Buscar anime..."
+              placeholder={t('search.placeholder')}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface border border-white/10 text-sm
                          placeholder:text-text-secondary/40 focus:outline-none focus:border-primary/50
                          transition-all duration-300"
             />
             {suggestionsLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-cosmic-spin" />
               </div>
             )}
           </div>
@@ -174,7 +167,7 @@ export default function Navbar() {
                 type="button"
                 onMouseDown={() => handleSubmit({ preventDefault: () => {} })}
                 className="w-full text-center py-2 text-xs text-neon-cyan hover:bg-surface-hover transition-colors border-t border-white/5">
-                Ver todos los resultados →
+                {t('nav.viewAll')}
               </button>
             </div>
           )}
@@ -222,13 +215,13 @@ export default function Navbar() {
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  aria-label="Menú de usuario"
+                  aria-label={t('nav.userMenu')}
                   aria-expanded={userMenuOpen}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-all">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-neon-cyan flex items-center justify-center text-[10px] font-bold text-white">
                     {(user.email?.[0] || 'U').toUpperCase()}
                   </div>
-                  <span className="hidden sm:inline">{user.email?.split('@')[0] || 'Usuario'}</span>
+                  <span className="hidden sm:inline">{user.email?.split('@')[0] || t('common.error')}</span>
                 </button>
                 {userMenuOpen && (
                   <>
@@ -246,7 +239,7 @@ export default function Navbar() {
                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                           />
                         </svg>
-                        Mi perfil
+                        {t('nav.profile')}
                       </Link>
                       <Link
                         to="/settings"
@@ -261,7 +254,7 @@ export default function Navbar() {
                           />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        Configuración
+                        {t('nav.settings')}
                       </Link>
                       <Link
                         to="/collections"
@@ -275,7 +268,7 @@ export default function Navbar() {
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                           />
                         </svg>
-                        Colecciones
+                        {t('nav.collections')}
                       </Link>
                       <Link
                         to="/admin"
@@ -289,7 +282,7 @@ export default function Navbar() {
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                           />
                         </svg>
-                        Admin
+                        {t('nav.admin')}
                       </Link>
                       <button
                         onClick={() => {
@@ -305,7 +298,7 @@ export default function Navbar() {
                             d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                           />
                         </svg>
-                        Cerrar sesión
+                        {t('nav.logout')}
                       </button>
                     </div>
                   </>
@@ -315,7 +308,7 @@ export default function Navbar() {
               <Link
                 to="/login"
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all">
-                Entrar
+                {t('nav.login')}
               </Link>
             ))}
 
@@ -357,7 +350,7 @@ export default function Navbar() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar anime..."
+                placeholder={t('search.placeholder')}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface border border-white/10 text-sm placeholder:text-text-secondary/40 focus:outline-none focus:border-primary/50 transition-all"
               />
             </div>

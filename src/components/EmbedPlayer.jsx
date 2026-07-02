@@ -28,6 +28,9 @@ const EMBED_PROVIDERS = {
   streamsb: { pattern: /streamsb/i, embed: (url) => url },
   streamlare: { pattern: /streamlare/i, embed: (url) => url },
   allanime: { pattern: /allanime\.day/i, embed: () => null },
+  voe: { pattern: /voe\.sx/i, embed: (url) => url },
+  filemoon: { pattern: /filemoon\.sx/i, embed: (url) => url.replace('/d/', '/e/') },
+  vidguard: { pattern: /vgfplay|vidguard/i, embed: (url) => url },
 }
 
 function getEmbedUrl(url) {

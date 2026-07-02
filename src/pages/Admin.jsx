@@ -2,29 +2,31 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAdmin, useModeration } from '../hooks/useAdmin'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../hooks/useI18n'
 import SeoHead from '../components/SeoHead'
 import GradientHeading from '../components/GradientHeading'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import { getProviderLabel, getProviderColor, getLanguageLabel } from '../hooks/useCommunityEpisodes'
 
-const STATUS_TABS = [
-  { key: 'pending', label: 'Pendientes', color: 'text-yellow-400' },
-  { key: 'approved', label: 'Aprobados', color: 'text-green-400' },
-  { key: 'rejected', label: 'Rechazados', color: 'text-red-400' },
-]
-
 export default function Admin() {
+  const { t } = useI18n()
   const { user } = useAuth()
   const { isAdmin, loading: adminLoading, bootstrapAdmin } = useAdmin()
   const { episodes, loading: modLoading, refetch, updateStatus, removeEpisode } = useModeration()
   const toast = useToast()
   const [tab, setTab] = useState('pending')
 
+  const STATUS_TABS = [
+    { key: 'pending', label: t('admin.pending'), color: 'text-yellow-400' },
+    { key: 'approved', label: t('admin.approved'), color: 'text-green-400' },
+    { key: 'rejected', label: t('admin.rejected'), color: 'text-red-400' },
+  ]
+
   async function handleBootstrap() {
     try {
       await bootstrapAdmin()
-      toast.success('Ahora eres administrador')
+      toast.success(t('admin.bootstrapSuccess'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -33,7 +35,7 @@ export default function Admin() {
   async function handleApprove(id) {
     try {
       await updateStatus(id, 'approved')
-      toast.success('Aprobado')
+      toast.success(t('admin.approve'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -42,17 +44,17 @@ export default function Admin() {
   async function handleReject(id) {
     try {
       await updateStatus(id, 'rejected')
-      toast.success('Rechazado')
+      toast.success(t('admin.reject'))
     } catch (err) {
       toast.error(err.message)
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este enlace permanentemente?')) return
+    if (!confirm(t('admin.confirmDelete'))) return
     try {
       await removeEpisode(id)
-      toast.success('Eliminado')
+      toast.success(t('admin.delete'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -61,8 +63,8 @@ export default function Admin() {
   if (!user) {
     return (
       <>
-        <SeoHead title="Admin" />
-        <div className="max-w-xl mx-auto py-12 text-center text-text-secondary">Inicia sesión para acceder al panel de administración.</div>
+        <SeoHead title={t('admin.title')} />
+        <div className="max-w-xl mx-auto py-12 text-center text-text-secondary">{t('admin.loginRequired')}</div>
       </>
     )
   }
@@ -82,16 +84,16 @@ export default function Admin() {
   if (!isAdmin) {
     return (
       <>
-        <SeoHead title="Admin - Sin acceso" />
+        <SeoHead title={`${t('admin.title')} - ${t('common.error')}`} />
         <div className="max-w-xl mx-auto py-12 text-center">
           <GradientHeading variant="pink" size="lg" className="mb-4">
-            Acceso restringido
+            {t('admin.notAuthorized')}
           </GradientHeading>
-          <p className="text-text-secondary mb-6">No tienes permisos de administrador.</p>
+          <p className="text-text-secondary mb-6">{t('admin.notAuthorizedDesc')}</p>
           <button
             onClick={handleBootstrap}
             className="px-6 py-3 rounded-xl bg-primary text-white text-sm hover:bg-primary-hover transition-colors">
-            Hacerme admin (primer usuario)
+            {t('admin.bootstrap')}
           </button>
         </div>
       </>
@@ -102,16 +104,16 @@ export default function Admin() {
 
   return (
     <>
-      <SeoHead title="Panel de administración" />
+      <SeoHead title={t('admin.title')} />
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <GradientHeading variant="pink" size="lg">
-            Administración
+            {t('admin.title')}
           </GradientHeading>
           <button
             onClick={refetch}
             className="px-4 py-2 rounded-lg text-xs bg-surface text-text-secondary hover:text-text-primary border border-white/10 hover:border-primary/30 transition-all">
-            Recargar
+            {t('common.refresh')}
           </button>
         </div>
 
@@ -136,7 +138,9 @@ export default function Admin() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState message={`No hay episodios ${tab === 'pending' ? 'pendientes' : tab === 'approved' ? 'aprobados' : 'rechazados'}.`} />
+          <EmptyState
+            message={tab === 'pending' ? t('admin.noPending') : tab === 'approved' ? t('admin.noApproved') : t('admin.noRejected')}
+          />
         ) : (
           <div className="space-y-3">
             {filtered.map((ep) => (
@@ -147,9 +151,11 @@ export default function Admin() {
                       <Link
                         to={`/watch?anilistId=${ep.anilist_id}&ep=${ep.episode_number}`}
                         className="text-sm font-medium hover:text-primary transition-colors truncate">
-                        {ep.title || `Anime #${ep.anilist_id}`}
+                        {ep.title || `${t('common.anime')} #${ep.anilist_id}`}
                       </Link>
-                      <span className="text-[10px] text-text-secondary shrink-0">Ep. {ep.episode_number}</span>
+                      <span className="text-[10px] text-text-secondary shrink-0">
+                        {t('anime.detail.ep')} {ep.episode_number}
+                      </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${getProviderColor(ep.provider_name)}`}>
                         {getProviderLabel(ep.provider_name)}
                       </span>
@@ -165,8 +171,14 @@ export default function Admin() {
                       {ep.url}
                     </a>
                     <div className="flex items-center gap-3 mt-2 text-[10px] text-text-secondary">
-                      <span>Enviado {new Date(ep.created_at).toLocaleDateString()}</span>
-                      {ep.votes > 0 && <span>{ep.votes} votos</span>}
+                      <span>
+                        {t('admin.submitted')} {new Date(ep.created_at).toLocaleDateString()}
+                      </span>
+                      {ep.votes > 0 && (
+                        <span>
+                          {ep.votes} {t('common.votes')}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -174,20 +186,20 @@ export default function Admin() {
                       <button
                         onClick={() => handleApprove(ep.id)}
                         className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 transition-colors">
-                        Aprobar
+                        {t('admin.approve')}
                       </button>
                     )}
                     {ep.status !== 'rejected' && (
                       <button
                         onClick={() => handleReject(ep.id)}
                         className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors">
-                        Rechazar
+                        {t('admin.reject')}
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(ep.id)}
                       className="p-1.5 rounded-lg text-text-secondary/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Eliminar">
+                      title={t('admin.delete')}>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"

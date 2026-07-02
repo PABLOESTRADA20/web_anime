@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../hooks/useI18n'
 import SeoHead from '../components/SeoHead'
 
 export default function Login() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const isReset = searchParams.get('reset') === 'true'
   const [email, setEmail] = useState('')
@@ -22,10 +24,10 @@ export default function Login() {
   if (!isReady) {
     return (
       <>
-        <SeoHead title="Iniciar sesión" />
+        <SeoHead title={t('auth.login')} />
         <div className="text-center py-20 text-text-secondary">
-          <p>Sistema de usuarios no configurado.</p>
-          <p className="text-sm mt-2">Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env</p>
+          <p>{t('auth.errors.notConfigured')}</p>
+          <p className="text-sm mt-2">{t('auth.errors.configureHint')}</p>
         </div>
       </>
     )
@@ -43,24 +45,24 @@ export default function Login() {
       } else if (mode === 'register') {
         const data = await register(email, password)
         if (data?.user?.identities?.length === 0) {
-          setError('Este correo ya está registrado. Inicia sesión.')
+          setError(t('auth.errors.emailTaken'))
         } else {
-          setMessage('Registro exitoso. Revisa tu correo para verificar la cuenta.')
+          setMessage(t('auth.errors.registerSuccess'))
         }
       } else if (mode === 'reset-request') {
         await resetPassword(email)
-        setMessage('Revisa tu correo para restablecer la contraseña.')
+        setMessage(t('auth.errors.resetSent'))
       } else if (mode === 'reset-confirm') {
         await updatePassword(newPassword)
-        setMessage('Contraseña actualizada. Ahora puedes iniciar sesión.')
+        setMessage(t('auth.errors.passwordUpdated'))
         setTimeout(() => setMode('login'), 2000)
       }
     } catch (err) {
       setError(
         err.message === 'New password should be different from the old password.'
-          ? 'La nueva contraseña debe ser diferente a la anterior.'
+          ? t('auth.errors.passwordSame')
           : err.message === 'Password should be at least 6 characters.'
-            ? 'La contraseña debe tener al menos 6 caracteres.'
+            ? t('auth.errors.passwordMinLength')
             : err.message,
       )
     }
@@ -68,24 +70,24 @@ export default function Login() {
 
   return (
     <>
-      <SeoHead title={mode === 'reset-request' || mode === 'reset-confirm' ? 'Restablecer contraseña' : 'Iniciar sesión'} />
+      <SeoHead title={mode === 'reset-request' || mode === 'reset-confirm' ? t('auth.resetPassword') : t('auth.login')} />
       <div className="max-w-sm mx-auto pt-20">
         <h1 className="text-2xl font-bold text-center mb-6">
           {mode === 'login'
-            ? 'Iniciar sesión'
+            ? t('auth.login')
             : mode === 'register'
-              ? 'Crear cuenta'
+              ? t('auth.signup')
               : mode === 'reset-request'
-                ? 'Restablecer contraseña'
-                : 'Nueva contraseña'}
+                ? t('auth.resetPassword')
+                : t('auth.newPassword')}
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode !== 'reset-confirm' && (
             <input
               type="email"
-              placeholder="Correo electrónico"
-              aria-label="Correo electrónico"
+              placeholder={t('auth.email')}
+              aria-label={t('auth.email')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -96,8 +98,8 @@ export default function Login() {
           {mode === 'login' && (
             <input
               type="password"
-              placeholder="Contraseña"
-              aria-label="Contraseña"
+              placeholder={t('auth.password')}
+              aria-label={t('auth.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -109,8 +111,8 @@ export default function Login() {
           {mode === 'register' && (
             <input
               type="password"
-              placeholder="Contraseña (mín. 6 caracteres)"
-              aria-label="Contraseña"
+              placeholder={t('auth.placeholders.passwordHint')}
+              aria-label={t('auth.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -122,8 +124,8 @@ export default function Login() {
           {mode === 'reset-confirm' && (
             <input
               type="password"
-              placeholder="Nueva contraseña (mín. 6 caracteres)"
-              aria-label="Nueva contraseña"
+              placeholder={t('auth.placeholders.newPassword')}
+              aria-label={t('auth.newPassword')}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
@@ -134,15 +136,15 @@ export default function Login() {
           )}
           <button
             type="submit"
-            aria-label={mode === 'login' ? 'Iniciar sesión' : mode === 'register' ? 'Crear cuenta' : 'Enviar'}
+            aria-label={mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.signup') : t('auth.send')}
             className="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium text-sm transition-colors">
             {mode === 'login'
-              ? 'Entrar'
+              ? t('auth.loginAction')
               : mode === 'register'
-                ? 'Registrarse'
+                ? t('auth.register')
                 : mode === 'reset-confirm'
-                  ? 'Actualizar contraseña'
-                  : 'Enviar correo'}
+                  ? t('auth.updatePassword')
+                  : t('auth.sendEmail')}
           </button>
         </form>
 
@@ -153,7 +155,7 @@ export default function Login() {
                 <div className="w-full border-t border-white/10" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-background px-3 text-text-secondary/50">o continúa con</span>
+                <span className="bg-background px-3 text-text-secondary/50">{t('auth.orContinueWith')}</span>
               </div>
             </div>
             <div className="flex flex-col gap-2.5">
@@ -178,7 +180,7 @@ export default function Login() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Google
+                {t('auth.social.google')}
               </button>
               <button
                 onClick={() => loginWithProvider('github')}
@@ -186,7 +188,7 @@ export default function Login() {
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                 </svg>
-                GitHub
+                {t('auth.social.github')}
               </button>
               <button
                 onClick={() => loginWithProvider('discord')}
@@ -194,7 +196,7 @@ export default function Login() {
                 <svg className="w-5 h-5" fill="#5865F2" viewBox="0 0 24 24">
                   <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.0756.0756 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.075.075 0 01-.0416-.0717.075.075 0 01.0071-.0353c.1259-.094.2519-.1921.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.0993.2462.1984.3723.2924a.075.075 0 01.006.107c-.5979.3428-1.2195.6447-1.8722.8923a.075.075 0 00-.0416.1057c.3529.699.7644 1.3638 1.226 1.9942a.076.076 0 00.0842.0286c1.9516-.6066 3.9401-1.5218 5.9929-3.0294a.077.077 0 00.0312-.0547c.5004-5.053-.838-9.5538-3.5485-13.6584a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
                 </svg>
-                Discord
+                {t('auth.social.discord')}
               </button>
             </div>
           </div>
@@ -207,7 +209,7 @@ export default function Login() {
           {mode === 'login' && (
             <>
               <p className="text-text-secondary">
-                ¿No tienes cuenta?{' '}
+                {t('auth.noAccount')}{' '}
                 <button
                   onClick={() => {
                     setMode('register')
@@ -215,7 +217,7 @@ export default function Login() {
                     setMessage('')
                   }}
                   className="text-primary hover:underline">
-                  Regístrate
+                  {t('auth.register')}
                 </button>
               </p>
               <p>
@@ -226,14 +228,14 @@ export default function Login() {
                     setMessage('')
                   }}
                   className="text-text-secondary hover:text-primary transition-colors">
-                  ¿Olvidaste tu contraseña?
+                  {t('auth.forgotPassword')}
                 </button>
               </p>
             </>
           )}
           {mode === 'register' && (
             <p className="text-text-secondary">
-              ¿Ya tienes cuenta?{' '}
+              {t('auth.haveAccount')}{' '}
               <button
                 onClick={() => {
                   setMode('login')
@@ -241,7 +243,7 @@ export default function Login() {
                   setMessage('')
                 }}
                 className="text-primary hover:underline">
-                Inicia sesión
+                {t('auth.login')}
               </button>
             </p>
           )}
@@ -254,7 +256,7 @@ export default function Login() {
                   setMessage('')
                 }}
                 className="text-text-secondary hover:text-primary transition-colors">
-                ← Volver a inicio de sesión
+                {t('auth.backToLogin')}
               </button>
             </p>
           )}
@@ -262,7 +264,7 @@ export default function Login() {
 
         <div className="mt-8 text-center">
           <Link to="/" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-            ← Volver al inicio
+            {t('auth.backToHome')}
           </Link>
         </div>
       </div>

@@ -11,10 +11,15 @@ import { useAnilistImport } from '../hooks/useAnilistImport'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { useMangaLists } from '../hooks/useMangaLists'
 import { useFollows } from '../hooks/useFollows'
+import { useI18n } from '../hooks/useI18n'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
+import { useGamification } from '../hooks/useGamification'
+import { LevelBadge, XpProgressBar } from '../components/LevelBadge'
+import { ACHIEVEMENTS } from '../lib/achievements'
 
 function AnilistImportForm({ onImport, importing, result, error }) {
+  const { t } = useI18n()
   const [username, setUsername] = useState('')
 
   return (
@@ -23,7 +28,7 @@ function AnilistImportForm({ onImport, importing, result, error }) {
         type="text"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        placeholder="Usuario de AniList..."
+        placeholder={t('profile.importPlaceholder')}
         className="w-36 px-3 py-1.5 rounded-lg bg-surface text-xs text-text-primary border border-white/10 focus:border-primary/50 outline-none transition-colors"
         onKeyDown={(e) => e.key === 'Enter' && username && onImport(username)}
       />
@@ -31,11 +36,11 @@ function AnilistImportForm({ onImport, importing, result, error }) {
         onClick={() => onImport(username)}
         disabled={importing || !username}
         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors disabled:opacity-40">
-        {importing ? 'Importando...' : 'Importar'}
+        {importing ? t('profile.importing') : t('profile.import')}
       </button>
       {result && (
         <span className="text-[10px] text-green-400">
-          +{result.watching} viendo, +{result.plan_to_watch} por ver, +{result.completed} vistos
+          {t('profile.importResult', { watching: result.watching, planToWatch: result.plan_to_watch, completed: result.completed })}
         </span>
       )}
       {error && <span className="text-[10px] text-red-400">{error}</span>}
@@ -44,6 +49,7 @@ function AnilistImportForm({ onImport, importing, result, error }) {
 }
 
 export default function Profile() {
+  const { t } = useI18n()
   const { user, logout } = useAuth()
   const { importByUsername, importing, result, error: importError } = useAnilistImport()
   const push = usePushNotifications()
@@ -54,6 +60,7 @@ export default function Profile() {
   const { mangaHistory } = useMangaHistory()
   const { getUserList } = useAnimeLists()
   const { getUserList: getMangaList } = useMangaLists()
+  const { profile: gProfile, progress: gProgress, unlockedSet, loading: gLoading } = useGamification()
 
   const watching = getUserList('watching')
   const completed = getUserList('completed')
@@ -66,16 +73,17 @@ export default function Profile() {
 
   const tabs = useMemo(
     () => [
-      { key: 'watching', label: 'Mirando', count: watching.length },
-      { key: 'plan_to_watch', label: 'Por ver', count: planToWatch.length },
-      { key: 'completed', label: 'Visto', count: completed.length },
-      { key: 'reading', label: 'Leyendo', count: reading.length },
-      { key: 'plan_to_read', label: 'Manga pendiente', count: planToRead.length },
-      { key: 'completed_manga', label: 'Manga leído', count: completedManga.length },
-      { key: 'watchlist', label: 'Mi lista', count: watchlist.length },
-      { key: 'favorites', label: 'Favoritos', count: favorites.length },
-      { key: 'history', label: 'Historial anime', count: history.length },
-      { key: 'manga', label: 'Historial manga', count: mangaHistory.length },
+      { key: 'watching', label: t('anime.listStatus.watching'), count: watching.length },
+      { key: 'plan_to_watch', label: t('anime.listStatus.plan_to_watch'), count: planToWatch.length },
+      { key: 'completed', label: t('anime.listStatus.completed'), count: completed.length },
+      { key: 'reading', label: t('manga.listStatus.reading'), count: reading.length },
+      { key: 'plan_to_read', label: t('manga.listStatus.plan_to_read'), count: planToRead.length },
+      { key: 'completed_manga', label: t('manga.listStatus.completed'), count: completedManga.length },
+      { key: 'watchlist', label: t('profile.watchlist'), count: watchlist.length },
+      { key: 'favorites', label: t('profile.favorites'), count: favorites.length },
+      { key: 'history', label: t('profile.history'), count: history.length },
+      { key: 'manga', label: t('profile.mangaHistory'), count: mangaHistory.length },
+      { key: 'achievements', label: t('common.achievements'), count: unlockedSet.size },
     ],
     [
       watching.length,
@@ -83,17 +91,19 @@ export default function Profile() {
       completed.length,
       reading.length,
       planToRead.length,
+      t,
       completedManga.length,
       watchlist.length,
       favorites.length,
       history.length,
       mangaHistory.length,
+      unlockedSet.size,
     ],
   )
 
   return (
     <>
-      <SeoHead title={user ? `Perfil de ${user.email?.split('@')[0]}` : 'Perfil'} />
+      <SeoHead title={user ? t('profile.titleWithUser', { name: user.email?.split('@')[0] }) : t('profile.title')} />
       <div className="max-w-3xl mx-auto">
         <div className="bg-surface rounded-2xl p-6 mb-8">
           <h1 className="text-xl font-bold mb-1">
@@ -104,17 +114,28 @@ export default function Profile() {
           <p className="text-sm text-text-secondary">{user.email}</p>
           <div className="flex gap-4 mt-2 mb-3">
             <span className="text-xs text-text-secondary">
-              <strong className="text-text-primary">{followerCount}</strong> seguidores
+              <strong className="text-text-primary">{followerCount}</strong> {t('profile.followers')}
             </span>
             <span className="text-xs text-text-secondary">
-              <strong className="text-text-primary">{followingCount}</strong> siguiendo
+              <strong className="text-text-primary">{followingCount}</strong> {t('profile.following')}
             </span>
           </div>
+          {gProfile && !gLoading && (
+            <div className="mb-4 p-3 rounded-xl bg-surface-hover/50 border border-white/5">
+              <div className="flex items-center justify-between mb-2">
+                <LevelBadge level={gProgress?.level || 1} size="md" />
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {t('common.achievementsCount', { count: unlockedSet.size, total: ACHIEVEMENTS.length })}
+                </span>
+              </div>
+              <XpProgressBar xp={gProfile.xp || 0} showLabel />
+            </div>
+          )}
           <div className="flex flex-wrap gap-3 items-center">
             <button
               onClick={logout}
               className="px-4 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs hover:bg-red-500/20 transition-colors">
-              Cerrar sesión
+              {t('profile.logout')}
             </button>
             <div className="h-4 w-px bg-white/10 mx-1" />
             <AnilistImportForm onImport={importByUsername} importing={importing} result={result} error={importError} />
@@ -129,25 +150,23 @@ export default function Profile() {
                     ? 'bg-green-500/10 text-green-400 border-green-500/30'
                     : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary'
                 }`}>
-                {push.loading ? '...' : push.subscribed ? 'Notificaciones activadas' : 'Activar notificaciones'}
+                {push.loading ? '...' : push.subscribed ? t('profile.notificationsOn') : t('profile.notificationsOff')}
               </button>
-              {push.permission === 'denied' && (
-                <p className="text-[10px] text-red-400 mt-1">Permiso denegado. Cambia en la configuración del navegador.</p>
-              )}
+              {push.permission === 'denied' && <p className="text-[10px] text-red-400 mt-1">{t('profile.notificationsDenied')}</p>}
             </div>
           )}
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-          {tabs.map((t) => (
+          {tabs.map((tab) => (
             <button
-              key={t.key}
-              onClick={() => setSection(t.key)}
+              key={tab.key}
+              onClick={() => setSection(tab.key)}
               className={`shrink-0 px-4 py-2 rounded-lg text-xs font-medium transition-colors ${
-                section === t.key ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
+                section === tab.key ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary'
               }`}>
-              {t.label} ({t.count})
+              {tab.label} ({tab.count})
             </button>
           ))}
         </div>
@@ -155,7 +174,7 @@ export default function Profile() {
         {section === 'watching' && (
           <section>
             {watching.length === 0 ? (
-              <EmptyState message='No has marcado ningún anime como "Mirando".' />
+              <EmptyState message={t('profile.empty.watching')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {watching.map((item) => (
@@ -177,7 +196,7 @@ export default function Profile() {
         {section === 'plan_to_watch' && (
           <section>
             {planToWatch.length === 0 ? (
-              <EmptyState message='No has marcado ningún anime como "Por ver".' />
+              <EmptyState message={t('profile.empty.planToWatch')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {planToWatch.map((item) => (
@@ -199,7 +218,7 @@ export default function Profile() {
         {section === 'completed' && (
           <section>
             {completed.length === 0 ? (
-              <EmptyState message='No has marcado ningún anime como "Visto".' />
+              <EmptyState message={t('profile.empty.completed')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {completed.map((item) => (
@@ -221,7 +240,7 @@ export default function Profile() {
         {section === 'reading' && (
           <section>
             {reading.length === 0 ? (
-              <EmptyState message='No has marcado ningún manga como "Leyendo".' />
+              <EmptyState message={t('profile.empty.readingManga')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {reading.map((item) => (
@@ -243,7 +262,7 @@ export default function Profile() {
         {section === 'plan_to_read' && (
           <section>
             {planToRead.length === 0 ? (
-              <EmptyState message='No has marcado ningún manga como "Por leer".' />
+              <EmptyState message={t('profile.empty.planToReadManga')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {planToRead.map((item) => (
@@ -265,7 +284,7 @@ export default function Profile() {
         {section === 'completed_manga' && (
           <section>
             {completedManga.length === 0 ? (
-              <EmptyState message='No has marcado ningún manga como "Completado".' />
+              <EmptyState message={t('profile.empty.completedManga')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {completedManga.map((item) => (
@@ -287,7 +306,7 @@ export default function Profile() {
         {section === 'watchlist' && (
           <section>
             {watchlist.length === 0 ? (
-              <EmptyState message="No has agregado ningún anime aún." />
+              <EmptyState message={t('profile.empty.watchlist')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {watchlist.map((item) => (
@@ -309,7 +328,7 @@ export default function Profile() {
         {section === 'favorites' && (
           <section>
             {favorites.length === 0 ? (
-              <EmptyState message="No tienes favoritos aún." />
+              <EmptyState message={t('profile.empty.favorites')} />
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {favorites.map((item) => (
@@ -331,7 +350,7 @@ export default function Profile() {
         {section === 'history' && (
           <section>
             {history.length === 0 ? (
-              <EmptyState message="No hay episodios vistos aún." />
+              <EmptyState message={t('profile.empty.history')} />
             ) : (
               <div className="space-y-2">
                 {history.map((item) => (
@@ -350,7 +369,7 @@ export default function Profile() {
                       <Link
                         to={`/watch?anilistId=${item.anilist_id}&ep=${item.episode_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
                         className="text-xs text-text-secondary hover:text-primary transition-colors">
-                        Episodio {item.episode_number} → Ver
+                        {t('profile.watchEpisode', { number: item.episode_number })}
                       </Link>
                     </div>
                   </div>
@@ -360,10 +379,44 @@ export default function Profile() {
           </section>
         )}
 
+        {section === 'achievements' && (
+          <section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ACHIEVEMENTS.map((ach) => {
+                const earned = unlockedSet.has(ach.id)
+                return (
+                  <div
+                    key={ach.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      earned ? 'bg-neon-cyan/5 border-neon-cyan/20' : 'bg-surface border-white/5 opacity-50'
+                    }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{ach.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${earned ? 'text-text-primary' : 'text-text-secondary'}`}>{t(ach.nameKey)}</p>
+                        <p className="text-[11px] text-text-secondary">{t(ach.descKey)}</p>
+                      </div>
+                      {earned ? (
+                        <svg className="w-5 h-5 text-neon-cyan shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-text-secondary/30 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {section === 'manga' && (
           <section>
             {mangaHistory.length === 0 ? (
-              <EmptyState message="No hay capítulos leídos aún." />
+              <EmptyState message={t('profile.empty.mangaHistory')} />
             ) : (
               <div className="space-y-2">
                 {mangaHistory.map((item) => (
@@ -382,7 +435,7 @@ export default function Profile() {
                       <Link
                         to={`/manga/${item.anilist_id}/read?chapterId=${item.chapter_id}&chapter=${item.chapter_number}&title=${encodeURIComponent(item.title || '')}&image=${encodeURIComponent(item.image || '')}`}
                         className="text-xs text-text-secondary hover:text-primary transition-colors">
-                        Capítulo {item.chapter_number} → Leer
+                        {t('profile.readChapter', { number: item.chapter_number })}
                       </Link>
                     </div>
                   </div>

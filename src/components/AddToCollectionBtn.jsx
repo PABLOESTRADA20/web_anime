@@ -114,7 +114,9 @@ export default function AddToCollectionBtn({ anilistId, mediaType }) {
                   {membership[c.id] && <span className="text-[8px]">✓</span>}
                 </span>
                 <span className="truncate flex-1">{c.name}</span>
-                {adding[c.id] && <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin shrink-0" />}
+                {adding[c.id] && (
+                  <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-cosmic-spin shrink-0" />
+                )}
               </button>
             ))}
           </div>

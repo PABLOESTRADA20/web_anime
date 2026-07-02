@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { getSubtitlePrefs, saveGlobalSubtitlePrefs } from '../utils/subtitlePreferences'
+import { useI18n } from '../hooks/useI18n'
 
 export function SubtitleSettings({ onClose }) {
+  const { t } = useI18n()
   const [prefs, setPrefs] = useState(getSubtitlePrefs)
 
   function handleChange(key, value) {
@@ -19,7 +21,7 @@ export function SubtitleSettings({ onClose }) {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className="absolute top-full right-0 mt-2 bg-surface rounded-xl border border-white/10 p-4 w-64 shadow-2xl z-50">
-      <h3 className="text-sm font-semibold text-white mb-4">Subtítulos</h3>
+      <h3 className="text-sm font-semibold text-white mb-4">{t('video.subtitles')}</h3>
 
       <div className="mb-4">
         <p className="text-xs text-text-secondary mb-2">Tamaño</p>
@@ -83,7 +85,7 @@ export function SubtitleSettings({ onClose }) {
       </label>
 
       <button onClick={onClose} className="w-full text-xs py-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg transition-colors">
-        Cerrar
+        {t('common.close')}
       </button>
     </motion.div>
   )

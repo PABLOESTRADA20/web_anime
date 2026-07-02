@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { DetailSkeleton } from '../components/Skeletons'
@@ -12,10 +12,13 @@ import { useToast } from '../components/Toast'
 import { useMangaFavorites } from '../hooks/useMangaFavorites'
 import { useMangaLists } from '../hooks/useMangaLists'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../hooks/useI18n'
 import SafeImage from '../components/SafeImage'
 import EmptyState from '../components/EmptyState'
 import ShareButton from '../components/ShareButton'
 import Breadcrumbs from '../components/Breadcrumbs'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 function formatChapterNum(n) {
   if (Number.isInteger(n)) return n.toString()
@@ -29,6 +32,31 @@ export default function MangaDetail() {
   const [chapters, setChapters] = useState([])
   const [chaptersLoading, setChaptersLoading] = useState(true)
   const [chapterLimit, setChapterLimit] = useState(30)
+  const [expandedVolumes, setExpandedVolumes] = useState({})
+
+  const visibleChapters = useMemo(() => chapters.slice(0, chapterLimit), [chapters, chapterLimit])
+  const volumeGroups = useMemo(() => {
+    const grouped = {}
+    for (const ch of visibleChapters) {
+      const v = ch.volume || 0
+      if (!grouped[v]) grouped[v] = []
+      grouped[v].push(ch)
+    }
+    return Object.entries(grouped).sort(([a], [b]) => Number(b) - Number(a))
+  }, [visibleChapters])
+
+  useEffect(() => {
+    if (Object.keys(expandedVolumes).length === 0 && volumeGroups.length > 0) {
+      const initial = {}
+      for (const [v] of volumeGroups) initial[v] = true
+      setExpandedVolumes(initial)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumeGroups])
+
+  function toggleVolume(v) {
+    setExpandedVolumes((prev) => ({ ...prev, [v]: !prev[v] }))
+  }
 
   const { user } = useAuth()
   const { getLatestChapter, isChapterRead } = useMangaHistory()
@@ -36,6 +64,8 @@ export default function MangaDetail() {
   const { getListStatus, setListStatus: setMangaListStatus } = useMangaLists()
   const [favLoading, setFavLoading] = useState(false)
   const toast = useToast()
+  const { t } = useI18n()
+  const { addXp, checkAchievements } = useGamification()
 
   useEffect(() => {
     const ac = new AbortController()
@@ -58,24 +88,24 @@ export default function MangaDetail() {
         if (!ac.signal.aborted) {
           setLoading(false)
           setChaptersLoading(false)
-          toast('Error al cargar manga', 'error')
+          toast(t('errors.loadManga'), 'error')
         }
       })
     return () => ac.abort()
-  }, [id, toast])
+  }, [id, toast, t])
 
   if (loading)
     return (
       <>
-        <SeoHead title="Cargando..." />
+        <SeoHead title={t('common.loading')} />
         <DetailSkeleton />
       </>
     )
   if (!manga)
     return (
       <>
-        <SeoHead title="Manga no encontrado" />
-        <div className="text-center py-20 text-text-secondary">No se encontró el manga.</div>
+        <SeoHead title={t('errors.notFound')} />
+        <div className="text-center py-20 text-text-secondary">{t('errors.notFound')}</div>
       </>
     )
 
@@ -110,7 +140,9 @@ export default function MangaDetail() {
             <SafeImage src={image} alt={title} className="w-full rounded-2xl shadow-lg" fallbackText={title} />
           </div>
           <div className="flex-1 min-w-0">
-            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Manga', href: '/directorio' }, { label: title }]} />
+            <Breadcrumbs
+              items={[{ label: t('nav.home'), href: '/' }, { label: t('manga.detail.breadcrumbs'), href: '/directorio' }, { label: title }]}
+            />
             <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
             {manga.title?.native && <p className="text-text-secondary text-sm mt-1">{manga.title.native}</p>}
 
@@ -125,25 +157,33 @@ export default function MangaDetail() {
               )}
               {manga.format && <span className="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full">{manga.format}</span>}
               {manga.chapters && (
-                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{manga.chapters} capítulos</span>
+                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
+                  {manga.chapters} {t('manga.chapters')}
+                </span>
               )}
               {manga.volumes && (
-                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{manga.volumes} volúmenes</span>
+                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
+                  {manga.volumes} {t('manga.volumes')}
+                </span>
               )}
               {manga.status && (
                 <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
                   {manga.status === 'RELEASING'
-                    ? 'Publicándose'
+                    ? t('manga.status.publishing')
                     : manga.status === 'FINISHED'
-                      ? 'Finalizado'
+                      ? t('manga.status.finished')
                       : manga.status === 'NOT_YET_RELEASED'
-                        ? 'Próximamente'
+                        ? t('manga.status.upcoming')
                         : manga.status}
                 </span>
               )}
             </div>
 
-            {manga.synonyms?.length > 0 && <p className="text-xs text-text-secondary mt-3">Sinónimos: {manga.synonyms.join(', ')}</p>}
+            {manga.synonyms?.length > 0 && (
+              <p className="text-xs text-text-secondary mt-3">
+                {t('manga.detail.synonyms')}: {manga.synonyms.join(', ')}
+              </p>
+            )}
 
             {manga.tags?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
@@ -161,7 +201,7 @@ export default function MangaDetail() {
 
             {manga.staff?.edges?.length > 0 && (
               <p className="text-sm text-text-secondary mt-3">
-                Staff:{' '}
+                {t('manga.detail.staff')}:{' '}
                 {manga.staff.edges
                   .slice(0, 3)
                   .map((s) => s.node.name.full)
@@ -180,15 +220,20 @@ export default function MangaDetail() {
                 onClick={(e) => {
                   if (!readChapter) e.preventDefault()
                 }}>
-                ▶ {latestFromHistory ? 'Continuar' : 'Leer'}
+                ▶ {latestFromHistory ? t('manga.continue') : t('manga.read')}
               </Link>
               <ShareButton title={manga?.title?.romaji || manga?.title?.english || title} />
               {user && (
                 <button
                   onClick={async () => {
+                    const wasFav = isFavorite(parseInt(id, 10))
                     setFavLoading(true)
                     try {
                       await toggleFavorite(parseInt(id, 10), title, image)
+                      if (!wasFav) {
+                        addXp(XP_VALUES.ADD_FAVORITE, 'favorite')
+                        checkAchievements({ favorites: 1 })
+                      }
                     } catch {
                       /* ignore */
                     }
@@ -200,15 +245,15 @@ export default function MangaDetail() {
                       ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
                       : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                   }`}>
-                  {isFavorite(parseInt(id, 10)) ? '❤️ Favorito' : '🤍 Favorito'}
+                  {isFavorite(parseInt(id, 10)) ? `❤️ ${t('manga.favorites.remove')}` : `🤍 ${t('manga.favorites.add')}`}
                 </button>
               )}
               {user && (
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {[
-                    { key: 'reading', label: 'Leyendo' },
-                    { key: 'completed', label: 'Completado' },
-                    { key: 'plan_to_read', label: 'Por leer' },
+                    { key: 'reading', label: t('manga.listStatus.reading') },
+                    { key: 'completed', label: t('manga.listStatus.completed') },
+                    { key: 'plan_to_read', label: t('manga.listStatus.plan_to_read') },
                   ].map((s) => (
                     <button
                       key={s.key}
@@ -220,9 +265,14 @@ export default function MangaDetail() {
                             manga.image || manga.coverImage?.large,
                             s.key,
                           )
-                          toast(getListStatus(parseInt(id, 10)) === s.key ? 'Estado eliminado' : `Marcado: ${s.label}`, 'success')
+                          toast(
+                            getListStatus(parseInt(id, 10)) === s.key
+                              ? t('manga.listStatus.removed')
+                              : t('manga.listStatus.marked', { status: s.label }),
+                            'success',
+                          )
                         } catch {
-                          toast('Error al actualizar', 'error')
+                          toast(t('errors.updateList'), 'error')
                         }
                       }}
                       className={`px-3 py-2 rounded-xl font-medium text-xs transition-colors border ${
@@ -241,7 +291,7 @@ export default function MangaDetail() {
 
         {manga.characters?.edges?.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-lg font-bold mb-4">Personajes</h2>
+            <h2 className="text-lg font-bold mb-4">{t('manga.detail.characters')}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {manga.characters.edges.slice(0, 12).map((edge) => (
                 <Link
@@ -268,7 +318,7 @@ export default function MangaDetail() {
 
         {manga.relations?.edges?.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-lg font-bold mb-4">🔗 Relacionados</h2>
+            <h2 className="text-lg font-bold mb-4">🔗 {t('manga.detail.related')}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {manga.relations.edges.slice(0, 6).map((edge, i) => {
                 const rel = edge.node
@@ -297,7 +347,7 @@ export default function MangaDetail() {
 
         {manga.recommendations?.nodes?.length > 0 && (
           <section className="mb-10">
-            <h2 className="text-lg font-bold mb-4">💡 Recomendados</h2>
+            <h2 className="text-lg font-bold mb-4">💡 {t('manga.detail.recommended')}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {manga.recommendations.nodes.slice(0, 6).map((rec, i) => {
                 const media = rec.mediaRecommendation
@@ -326,7 +376,9 @@ export default function MangaDetail() {
 
         {/* Chapters */}
         <section className="mt-10">
-          <h2 className="text-lg font-bold mb-4">Capítulos ({chapters.length})</h2>
+          <h2 className="text-lg font-bold mb-4">
+            {t('manga.detail.chapters')} ({chapters.length})
+          </h2>
 
           {chaptersLoading ? (
             <div className="space-y-2">
@@ -335,37 +387,67 @@ export default function MangaDetail() {
               ))}
             </div>
           ) : chapters.length === 0 ? (
-            <EmptyState message="No hay capítulos disponibles." />
+            <EmptyState message={t('manga.noChapters')} />
           ) : (
             <>
-              <div className="space-y-1.5">
-                {chapters.slice(0, chapterLimit).map((ch) => {
-                  const read = isChapterRead(id, ch.chapterNumber)
-                  const latest = getLatestChapter(id)
-                  const isCurrent = latest?.chapter_number === ch.chapterNumber
+              <div className="space-y-4">
+                {volumeGroups.map(([vol, chs]) => {
+                  const isOpen = expandedVolumes[vol]
+                  const volLabel = vol === '0' ? t('manga.detail.noVolume') : `${t('manga.detail.volume')} ${vol}`
 
                   return (
-                    <Link
-                      key={ch.chapterId}
-                      to={`/manga/${id}/read?chapterId=${ch.chapterId}&chapter=${ch.chapterNumber}&title=${encodeURIComponent(manga?.title?.romaji || manga?.title?.english || '')}&image=${encodeURIComponent(manga?.coverImage?.large || '')}`}
-                      className={`flex items-center gap-3 p-3 rounded-xl transition-colors group ${
-                        read ? 'bg-surface/50' : 'bg-surface hover:bg-surface-hover'
-                      }`}>
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                          read ? 'bg-primary/20 text-primary' : 'bg-surface-hover text-text-secondary'
-                        }`}>
-                        {read ? '✓' : formatChapterNum(ch.chapterNumber)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium group-hover:text-primary transition-colors">
-                          Capítulo {formatChapterNum(ch.chapterNumber)}
-                          {isCurrent && <span className="ml-2 text-[10px] text-accent">Leyendo</span>}
-                        </p>
-                        {ch.title && <p className="text-xs text-text-secondary truncate">{ch.title}</p>}
-                      </div>
-                      {read && <span className="text-[10px] text-text-secondary shrink-0">Leído</span>}
-                    </Link>
+                    <div key={vol} className="rounded-2xl bg-surface/30 border border-white/5 overflow-hidden">
+                      <button
+                        onClick={() => toggleVolume(vol)}
+                        className="w-full flex items-center justify-between p-3.5 hover:bg-surface-hover/50 transition-colors text-left">
+                        <span className="text-sm font-semibold text-text-primary">{volLabel}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-text-secondary font-mono">
+                            {chs.length} {t('manga.chapters')}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 text-text-secondary transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="px-3 pb-3 space-y-1.5">
+                          {chs.map((ch) => {
+                            const read = isChapterRead(id, ch.chapterNumber)
+                            const latest = getLatestChapter(id)
+                            const isCurrent = latest?.chapter_number === ch.chapterNumber
+
+                            return (
+                              <Link
+                                key={ch.chapterId}
+                                to={`/manga/${id}/read?chapterId=${ch.chapterId}&chapter=${ch.chapterNumber}&title=${encodeURIComponent(manga?.title?.romaji || manga?.title?.english || '')}&image=${encodeURIComponent(manga?.coverImage?.large || '')}`}
+                                className={`flex items-center gap-3 p-3 rounded-xl transition-colors group ${
+                                  read ? 'bg-surface/50' : 'bg-surface hover:bg-surface-hover'
+                                }`}>
+                                <div
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                    read ? 'bg-primary/20 text-primary' : 'bg-surface-hover text-text-secondary'
+                                  }`}>
+                                  {read ? '✓' : formatChapterNum(ch.chapterNumber)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium group-hover:text-primary transition-colors">
+                                    {t('manga.chapter')} {formatChapterNum(ch.chapterNumber)}
+                                    {isCurrent && <span className="ml-2 text-[10px] text-accent">{t('manga.reader.reading')}</span>}
+                                  </p>
+                                  {ch.title && <p className="text-xs text-text-secondary truncate">{ch.title}</p>}
+                                </div>
+                                {read && <span className="text-[10px] text-text-secondary shrink-0">{t('manga.reader.read')}</span>}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -374,7 +456,7 @@ export default function MangaDetail() {
                   <button
                     onClick={() => setChapterLimit((prev) => prev + 30)}
                     className="px-6 py-2.5 bg-surface hover:bg-surface-hover text-text-primary rounded-xl font-medium text-sm transition-colors border border-white/10">
-                    Cargar más capítulos ({chapters.length - chapterLimit} restantes)
+                    {t('manga.loadMore')} ({chapters.length - chapterLimit} {t('manga.remaining')})
                   </button>
                 </div>
               )}

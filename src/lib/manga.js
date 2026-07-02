@@ -116,6 +116,7 @@ export async function getMangaChapters(anilistId, anilistData) {
         title: ch.attributes.title || '',
         language: ch.attributes.translatedLanguage || 'en',
         pages: ch.attributes.pages || 0,
+        volume: ch.attributes.volume ? parseFloat(ch.attributes.volume) : null,
       })
     }
   }

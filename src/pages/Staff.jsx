@@ -7,8 +7,10 @@ import { GridSkeleton } from '../components/Skeletons'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import SafeImage from '../components/SafeImage'
+import { useI18n } from '../hooks/useI18n'
 
 export default function Staff() {
+  const { t } = useI18n()
   const { id } = useParams()
   const [staff, setStaff] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -29,7 +31,7 @@ export default function Staff() {
         <GridSkeleton count={6} />
       </div>
     )
-  if (!staff) return <EmptyState message="Staff no encontrado" />
+  if (!staff) return <EmptyState message={t('staff.notFound')} />
 
   const mediaEdges = staff.staffMedia?.edges || []
   const characters = staff.characters?.edges || []
@@ -53,12 +55,36 @@ export default function Staff() {
             <p className="text-xs text-primary font-mono uppercase tracking-wider mb-3">{staff.primaryOccupations.join(', ')}</p>
           )}
           <div className="flex flex-wrap gap-4 text-xs text-text-secondary">
-            {staff.gender && <span>Género: {staff.gender}</span>}
-            {staff.age && <span>Edad: {staff.age}</span>}
-            {staff.homeTown && <span>Origen: {staff.homeTown}</span>}
-            {staff.bloodType && <span>Blood: {staff.bloodType}</span>}
-            {staff.favourites > 0 && <span>{staff.favourites} favoritos</span>}
-            {staff.dateOfBirth && <span>Cumpleaños: {[staff.dateOfBirth.month, staff.dateOfBirth.day].filter(Boolean).join('/')}</span>}
+            {staff.gender && (
+              <span>
+                {t('staff.gender')}: {staff.gender}
+              </span>
+            )}
+            {staff.age && (
+              <span>
+                {t('staff.age')}: {staff.age}
+              </span>
+            )}
+            {staff.homeTown && (
+              <span>
+                {t('staff.hometown')}: {staff.homeTown}
+              </span>
+            )}
+            {staff.bloodType && (
+              <span>
+                {t('staff.bloodType')}: {staff.bloodType}
+              </span>
+            )}
+            {staff.favourites > 0 && (
+              <span>
+                {staff.favourites} {t('staff.favorites')}
+              </span>
+            )}
+            {staff.dateOfBirth && (
+              <span>
+                {t('staff.birthDate')}: {[staff.dateOfBirth.month, staff.dateOfBirth.day].filter(Boolean).join('/')}
+              </span>
+            )}
           </div>
           {staff.description && (
             <div className="mt-4 text-sm text-text-secondary/80 leading-relaxed line-clamp-6">
@@ -70,7 +96,9 @@ export default function Staff() {
 
       {mediaEdges.length > 0 && (
         <section className="mb-12">
-          <h2 className="text-lg font-bold mb-5">Anime y manga ({mediaEdges.length})</h2>
+          <h2 className="text-lg font-bold mb-5">
+            {t('staff.works')} ({mediaEdges.length})
+          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {mediaEdges.map((edge) => {
               const m = edge.node
@@ -87,7 +115,9 @@ export default function Staff() {
 
       {characters.length > 0 && (
         <section className="mb-12">
-          <h2 className="text-lg font-bold mb-5">Personajes interpretados ({characters.length})</h2>
+          <h2 className="text-lg font-bold mb-5">
+            {t('staff.characters')} ({characters.length})
+          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {characters.map((edge) => (
               <div key={edge.node.id} className="group rounded-2xl overflow-hidden bg-surface card-hover">
@@ -117,7 +147,7 @@ export default function Staff() {
 
       <div className="mt-4">
         <Link to="/characters" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-          ← Volver a personajes
+          {t('staff.backToCharacters')}
         </Link>
       </div>
     </motion.div>

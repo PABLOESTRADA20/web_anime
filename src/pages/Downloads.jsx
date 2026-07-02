@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getDownloads, removeDownload, formatSize, isUrlCached } from '../utils/downloads'
+import { getDownloads, removeDownload, formatSize, isUrlCached, isNovelCached } from '../utils/downloads'
 import { getVideoDownloads, removeVideoDownload, isVideoCached, getVideoCacheSize } from '../utils/videoDownload'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import SafeImage from '../components/SafeImage'
+import { useI18n } from '../hooks/useI18n'
 
 export default function Downloads() {
+  const { t } = useI18n()
   const [downloads, setDownloads] = useState([])
   const [videoDownloads, setVideoDownloads] = useState([])
   const [totalSize, setTotalSize] = useState(0)
@@ -27,22 +29,29 @@ export default function Downloads() {
   }, [])
 
   const mangaDownloads = downloads.filter((d) => d.type === 'manga')
+  const novelDownloads = downloads.filter((d) => d.type === 'novel')
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <SeoHead title="Descargas offline" />
+      <SeoHead title={t('downloads.title')} />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">Descargas offline</h1>
-        {totalSize > 0 && <span className="text-xs text-text-secondary">{formatSize(totalSize)} total</span>}
+        <h1 className="text-xl font-bold">{t('downloads.title')}</h1>
+        {totalSize > 0 && (
+          <span className="text-xs text-text-secondary">
+            {formatSize(totalSize)} {t('downloads.total')}
+          </span>
+        )}
       </div>
 
       {downloads.length === 0 && videoDownloads.length === 0 ? (
-        <EmptyState message="No hay descargas guardadas." action={{ label: 'Explorar manga', to: '/manga' }} />
+        <EmptyState message={t('downloads.empty')} action={{ label: t('downloads.emptyAction'), to: '/manga' }} />
       ) : (
         <div className="space-y-6">
           {videoDownloads.length > 0 && (
             <div>
-              <h2 className="text-xs text-text-secondary font-medium mb-3 uppercase tracking-wider">Episodios ({videoDownloads.length})</h2>
+              <h2 className="text-xs text-text-secondary font-medium mb-3 uppercase tracking-wider">
+                {t('downloads.episodes')} ({videoDownloads.length})
+              </h2>
               <div className="space-y-2">
                 {videoDownloads.map((d) => (
                   <VideoDownloadCard
@@ -59,10 +68,31 @@ export default function Downloads() {
           )}
           {mangaDownloads.length > 0 && (
             <div>
-              <h2 className="text-xs text-text-secondary font-medium mb-3 uppercase tracking-wider">Manga ({mangaDownloads.length})</h2>
+              <h2 className="text-xs text-text-secondary font-medium mb-3 uppercase tracking-wider">
+                {t('downloads.manga')} ({mangaDownloads.length})
+              </h2>
               <div className="space-y-2">
                 {mangaDownloads.map((d) => (
                   <DownloadCard
+                    key={d.id}
+                    item={d}
+                    onDelete={() => {
+                      removeDownload(d.id)
+                      refresh()
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {novelDownloads.length > 0 && (
+            <div>
+              <h2 className="text-xs text-text-secondary font-medium mb-3 uppercase tracking-wider">
+                {t('novel.title')} ({novelDownloads.length})
+              </h2>
+              <div className="space-y-2">
+                {novelDownloads.map((d) => (
+                  <NovelDownloadCard
                     key={d.id}
                     item={d}
                     onDelete={() => {
@@ -81,6 +111,7 @@ export default function Downloads() {
 }
 
 function VideoDownloadCard({ item, onDelete }) {
+  const { t } = useI18n()
   const [cached, setCached] = useState(false)
   const [checking, setChecking] = useState(true)
 
@@ -102,14 +133,14 @@ function VideoDownloadCard({ item, onDelete }) {
       </Link>
       <div className="flex-1 min-w-0">
         <Link to={watchUrl} className="text-sm font-medium truncate group-hover:text-neon-cyan transition-colors block">
-          {item.title || 'Sin título'}
+          {item.title || t('common.untitled')}
         </Link>
         <p className="text-xs text-text-secondary mt-0.5">
-          Episodio {item.episode} · {item.quality || 'auto'}
+          {t('downloads.episode')} {item.episode} · {item.quality || 'auto'}
         </p>
         <p className="text-[10px] text-text-secondary/50 mt-0.5">
-          {item.totalSegments || item.segments?.length || 0} segments
-          {!checking && !cached && ' · sin cache'}
+          {item.totalSegments || item.segments?.length || 0} {t('downloads.segments')}
+          {!checking && !cached && ` · ${t('downloads.noCache')}`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -117,13 +148,68 @@ function VideoDownloadCard({ item, onDelete }) {
           <Link
             to={watchUrl}
             className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary-hover transition-colors">
-            Ver offline
+            {t('downloads.watchOffline')}
           </Link>
         )}
         <button
           onClick={onDelete}
           className="p-2 rounded-lg text-text-secondary/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Eliminar descarga">
+          title={t('downloads.delete')}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function NovelDownloadCard({ item, onDelete }) {
+  const { t } = useI18n()
+  const [cached, setCached] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    isNovelCached(item.id).then((v) => {
+      setCached(v)
+      setChecking(false)
+    })
+  }, [item.id])
+
+  return (
+    <div className="flex items-center gap-4 p-3 rounded-xl bg-surface hover:bg-surface-hover transition-all group border border-transparent hover:border-primary/20">
+      <Link to={item.link || '#'} className="shrink-0">
+        <div className="w-14 h-20 rounded-lg overflow-hidden bg-surface-hover ring-1 ring-white/10 flex items-center justify-center text-2xl">
+          📖
+        </div>
+      </Link>
+      <div className="flex-1 min-w-0">
+        <Link to={item.link || '#'} className="text-sm font-medium truncate group-hover:text-neon-cyan transition-colors block">
+          {item.title || t('common.untitled')}
+        </Link>
+        <p className="text-xs text-text-secondary mt-0.5">
+          {item.chapterLabel || `${t('downloads.chapter')} ${item.chapter}`}
+          {item.size > 0 && ` · ${formatSize(item.size)}`}
+        </p>
+        <p className="text-[10px] text-text-secondary/50 mt-0.5">{!checking && !cached && ` · ${t('downloads.noCache')}`}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {!checking && cached && (
+          <Link
+            to={item.link || '#'}
+            className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary-hover transition-colors">
+            {t('downloads.readOffline')}
+          </Link>
+        )}
+        <button
+          onClick={onDelete}
+          className="p-2 rounded-lg text-text-secondary/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          title={t('downloads.delete')}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -139,6 +225,7 @@ function VideoDownloadCard({ item, onDelete }) {
 }
 
 function DownloadCard({ item, onDelete }) {
+  const { t } = useI18n()
   const [hasCachedPages, setHasCachedPages] = useState(false)
   const [checking, setChecking] = useState(true)
 
@@ -164,15 +251,15 @@ function DownloadCard({ item, onDelete }) {
       </Link>
       <div className="flex-1 min-w-0">
         <Link to={item.link || '#'} className="text-sm font-medium truncate group-hover:text-neon-cyan transition-colors block">
-          {item.title || 'Sin título'}
+          {item.title || t('common.untitled')}
         </Link>
         <p className="text-xs text-text-secondary mt-0.5">
-          {item.chapterLabel || `Capítulo ${item.chapter}`}
+          {item.chapterLabel || `${t('downloads.chapter')} ${item.chapter}`}
           {item.size > 0 && ` · ${formatSize(item.size)}`}
         </p>
         <p className="text-[10px] text-text-secondary/50 mt-0.5">
-          {item.pages?.length || 0} páginas
-          {!checking && !hasCachedPages && ' · sin cache'}
+          {item.pages?.length || 0} {t('downloads.segments')}
+          {!checking && !hasCachedPages && ` · ${t('downloads.noCache')}`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -180,13 +267,13 @@ function DownloadCard({ item, onDelete }) {
           <Link
             to={item.link || '#'}
             className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary-hover transition-colors">
-            Leer offline
+            {t('downloads.readOffline')}
           </Link>
         )}
         <button
           onClick={onDelete}
           className="p-2 rounded-lg text-text-secondary/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Eliminar descarga">
+          title={t('downloads.delete')}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"

@@ -18,11 +18,14 @@ import { useAnimeFavorites } from '../hooks/useAnimeFavorites'
 import { useAnimeRatings } from '../hooks/useAnimeRatings'
 import { useHistory } from '../hooks/useHistory'
 import { useAnimeLists } from '../hooks/useAnimeLists'
+import { useI18n } from '../hooks/useI18n'
 import AddToCollectionBtn from '../components/AddToCollectionBtn'
 import SafeImage from '../components/SafeImage'
 import ShareButton from '../components/ShareButton'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useToast } from '../components/Toast'
+import { useGamification } from '../hooks/useGamification'
+import { XP_VALUES } from '../lib/achievements'
 
 const SITE_COLORS = {
   crunchyroll: '#f47521',
@@ -62,7 +65,9 @@ export default function AnimeDetail() {
   const { ratings, fetchRating, setRating } = useAnimeRatings()
   const { history } = useHistory()
   const { getListStatus, setListStatus } = useAnimeLists()
+  const { t } = useI18n()
   const toast = useToast()
+  const { addXp, checkAchievements } = useGamification()
 
   const [anime, setAnime] = useState(null)
   const [episodes, setEpisodes] = useState([])
@@ -91,10 +96,13 @@ export default function AnimeDetail() {
     [SEASON_ORDER],
   )
 
-  function seasonLabel(s) {
-    if (s.season && s.seasonYear) return `${s.season} ${s.seasonYear}`
-    return s.title || `Parte`
-  }
+  const seasonLabel = useCallback(
+    (s) => {
+      if (s.season && s.seasonYear) return `${s.season} ${s.seasonYear}`
+      return s.title || t('anime.detail.seasonPart')
+    },
+    [t],
+  )
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -179,47 +187,55 @@ export default function AnimeDetail() {
     return () => {
       cancelled = true
     }
-  }, [id, user, fetchRating, sortSeasonMeta])
+  }, [id, user, fetchRating, sortSeasonMeta, seasonLabel])
 
-  async function handleWatchlist() {
+  const handleWatchlist = useCallback(async () => {
     if (!anime) return
     setWlLoading(true)
     try {
       const title = anime.title?.romaji || anime.title?.english || ''
       const image = anime.image
       await toggleWatchlist(parseInt(id, 10), title, image)
-      toast(isInWatchlist(parseInt(id, 10)) ? 'Eliminado de tu lista' : 'Agregado a tu lista', 'success')
+      toast(isInWatchlist(parseInt(id, 10)) ? t('anime.listStatus.removed') : t('anime.listStatus.added'), 'success')
     } catch {
-      toast('Error al actualizar la lista', 'error')
+      toast(t('anime.listStatus.error'), 'error')
     }
     setWlLoading(false)
-  }
+  }, [anime, id, toggleWatchlist, toast, t, isInWatchlist])
 
-  async function handleFavorite() {
+  const handleFavorite = useCallback(async () => {
     if (!anime || !user) return
+    const wasFav = isFavorite(parseInt(id, 10))
     try {
       const title = anime.title?.romaji || anime.title?.english || ''
       const image = anime.image
       await toggleFavorite(parseInt(id, 10), title, image)
-      toast(isFavorite(parseInt(id, 10)) ? 'Eliminado de favoritos' : 'Agregado a favoritos', 'success')
+      toast(isFavorite(parseInt(id, 10)) ? t('anime.favorites.removed') : t('anime.favorites.added'), 'success')
+      if (!wasFav) {
+        addXp(XP_VALUES.ADD_FAVORITE, 'favorite')
+        checkAchievements({ favorites: 1 })
+      }
     } catch {
-      toast('Error al actualizar favoritos', 'error')
+      toast(t('anime.favorites.error'), 'error')
     }
-  }
+  }, [anime, user, id, toggleFavorite, toast, t, isFavorite, addXp, checkAchievements])
 
-  async function handleRating(rating) {
-    try {
-      await setRating(parseInt(id, 10), rating)
-      toast(`Calificaste con ${rating}/10`, 'success')
-    } catch {
-      toast('Error al guardar la calificación', 'error')
-    }
-  }
+  const handleRating = useCallback(
+    async (rating) => {
+      try {
+        await setRating(parseInt(id, 10), rating)
+        toast(t('anime.rating.saved', { score: rating }), 'success')
+      } catch {
+        toast(t('anime.rating.error'), 'error')
+      }
+    },
+    [id, setRating, toast, t],
+  )
 
   if (loading)
     return (
       <>
-        <SeoHead title="Cargando..." />
+        <SeoHead title={t('common.loading')} />
         <DetailSkeleton />
       </>
     )
@@ -227,8 +243,8 @@ export default function AnimeDetail() {
   if (!anime)
     return (
       <>
-        <SeoHead title="Anime no encontrado" />
-        <EmptyState icon="🔍" message="No se encontró el anime." />
+        <SeoHead title={t('errors.notFound')} />
+        <EmptyState icon="🔍" message={t('errors.notFound')} />
       </>
     )
 
@@ -272,7 +288,9 @@ export default function AnimeDetail() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <Breadcrumbs items={[{ label: 'Inicio', href: '/' }, { label: 'Anime', href: '/directorio' }, { label: title }]} />
+            <Breadcrumbs
+              items={[{ label: t('nav.home'), href: '/' }, { label: t('anime.detail.breadcrumbs'), href: '/directorio' }, { label: title }]}
+            />
             <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
 
             {anime.title?.native && <p className="text-text-secondary text-sm mt-1">{anime.title.native}</p>}
@@ -291,16 +309,22 @@ export default function AnimeDetail() {
               )}
               {anime.format && <span className="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full">{anime.format}</span>}
               {anime.episodes && (
-                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">{anime.episodes} episodios</span>
+                <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
+                  {anime.episodes} {t('anime.episodes')}
+                </span>
               )}
               {anime.status && (
                 <span className="text-xs bg-surface px-3 py-1 rounded-full text-text-secondary">
-                  {anime.status === 'RELEASING' ? 'Emitiendo' : anime.status === 'FINISHED' ? 'Finalizado' : anime.status}
+                  {anime.status === 'RELEASING'
+                    ? t('anime.status.RELEASING')
+                    : anime.status === 'FINISHED'
+                      ? t('anime.status.FINISHED')
+                      : anime.status}
                 </span>
               )}
               {anime.nextAiringEpisode && (
                 <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full">
-                  Ep. {anime.nextAiringEpisode.episode} -{' '}
+                  {t('anime.detail.ep')} {anime.nextAiringEpisode.episode} -{' '}
                   {new Date(anime.nextAiringEpisode.airingAt * 1000).toLocaleDateString('es-ES', {
                     weekday: 'short',
                     day: 'numeric',
@@ -309,15 +333,15 @@ export default function AnimeDetail() {
                 </span>
               )}
               {hasDub && (
-                <span className="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full" title="Disponible en doblaje (audio alternativo)">
-                  🎤 Doblaje disponible
+                <span className="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full" title={t('anime.detail.dubAvailable')}>
+                  🎤 {t('anime.detail.dubAvailable')}
                 </span>
               )}
             </div>
 
             {anime.studio && (
               <p className="text-sm text-text-secondary mt-3">
-                Estudio:{' '}
+                {t('anime.studio')}:{' '}
                 {anime.studio.id ? (
                   <Link to={`/studio/${anime.studio.id}`} className="text-text-primary hover:text-neon-cyan transition-colors">
                     {anime.studio.name}
@@ -334,13 +358,13 @@ export default function AnimeDetail() {
               </p>
             )}
             {anime.synopsis_es && anime.synopsis && anime.synopsis_es !== anime.synopsis && (
-              <p className="text-[10px] text-accent mt-1">Sinopsis en español vía AnimeFLV</p>
+              <p className="text-[10px] text-accent mt-1">{t('anime.detail.synopsisSpanish', { provider: 'AnimeFLV' })}</p>
             )}
 
             {/* User rating */}
             {user && (
               <div className="mt-4">
-                <p className="text-xs text-text-secondary mb-1.5">Tu calificación:</p>
+                <p className="text-xs text-text-secondary mb-1.5">{t('anime.ratingLabel')}:</p>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
@@ -356,7 +380,7 @@ export default function AnimeDetail() {
                     <button
                       onClick={() => handleRating(userRating)}
                       className="ml-1 text-xs text-text-secondary hover:text-red-400 transition-colors"
-                      title="Quitar calificación">
+                      title={t('anime.detail.removeRating')}>
                       ✕
                     </button>
                   )}
@@ -370,14 +394,14 @@ export default function AnimeDetail() {
                 <Link
                   to={`/watch?anilistId=${seasons[activeSeason]?.id || id}&ep=${currentEps[0].episodeNumber || currentEps[0].number}&provider=${currentProvider}&audio=${episodeAudio}&title=${encodeURIComponent(seasons[activeSeason]?.title || title)}&image=${encodeURIComponent(image || '')}`}
                   className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium text-sm transition-colors">
-                  ▶ Reproducir
+                  ▶ {t('anime.watch')}
                 </Link>
               )}
               {trailer && (
                 <button
                   onClick={() => setShowTrailer(true)}
                   className="px-4 py-2.5 rounded-xl font-medium text-sm transition-colors border border-white/10 bg-surface text-text-secondary hover:text-neon-cyan hover:bg-surface-hover">
-                  ▶ Tráiler
+                  ▶ {t('anime.trailer')}
                 </button>
               )}
               <ShareButton title={anime?.title?.romaji || anime?.title?.english || ''} />
@@ -391,7 +415,7 @@ export default function AnimeDetail() {
                         ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
                         : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                     }`}>
-                    {inList ? '❤️ En lista' : '🤍 Agregar'}
+                    {inList ? `❤️ ${t('anime.inList')}` : `🤍 ${t('anime.addToList')}`}
                   </button>
                   <button
                     onClick={handleFavorite}
@@ -400,14 +424,14 @@ export default function AnimeDetail() {
                         ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20'
                         : 'bg-surface text-text-secondary border-white/10 hover:text-neon-cyan hover:bg-surface-hover'
                     }`}>
-                    {inFav ? '⭐ Favorito' : '☆ Favorito'}
+                    {inFav ? `⭐ ${t('anime.favorite')}` : `☆ ${t('anime.favorite')}`}
                   </button>
                   {/* List status buttons */}
                   <div className="flex gap-1">
                     {[
-                      { key: 'watching', label: 'Mirando' },
-                      { key: 'completed', label: 'Visto' },
-                      { key: 'plan_to_watch', label: 'Por ver' },
+                      { key: 'watching', label: t('anime.listStatus.watching') },
+                      { key: 'completed', label: t('anime.listStatus.completed') },
+                      { key: 'plan_to_watch', label: t('anime.listStatus.plan_to_watch') },
                     ].map((s) => (
                       <button
                         key={s.key}
@@ -415,9 +439,12 @@ export default function AnimeDetail() {
                           try {
                             const title = anime.title?.romaji || anime.title?.english || ''
                             await setListStatus(parseInt(id, 10), title, anime.image, s.key)
-                            toast(listStatus === s.key ? 'Estado eliminado' : `Estado: ${s.label}`, 'success')
+                            toast(
+                              listStatus === s.key ? t('anime.listStatus.removed') : t('anime.listStatus.statusLabel', { status: s.label }),
+                              'success',
+                            )
                           } catch {
-                            toast('Error al actualizar estado', 'error')
+                            toast(t('anime.listStatus.error'), 'error')
                           }
                         }}
                         className={`px-3 py-2.5 rounded-xl font-medium text-xs transition-colors border ${
@@ -458,7 +485,7 @@ export default function AnimeDetail() {
               <button
                 onClick={() => setShowTrailer(false)}
                 className="absolute top-3 right-3 w-10 h-10 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-primary/60 transition-colors border border-white/10"
-                aria-label="Cerrar trailer">
+                aria-label={t('common.close')}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -472,7 +499,7 @@ export default function AnimeDetail() {
           <section className="mb-12">
             <FadeIn>
               <GradientHeading variant="pink" size="sm" className="mb-5">
-                Personajes
+                {t('anime.detail.characters')}
               </GradientHeading>
             </FadeIn>
             <FadeInStagger>
@@ -513,7 +540,7 @@ export default function AnimeDetail() {
           <section className="mb-12">
             <FadeIn>
               <GradientHeading variant="cyan" size="sm" className="mb-5">
-                Ver en
+                {t('anime.streaming.title')}
               </GradientHeading>
             </FadeIn>
             <div className="flex flex-wrap gap-2">
@@ -560,7 +587,7 @@ export default function AnimeDetail() {
           <section className="mb-12">
             <FadeIn>
               <GradientHeading variant="cyan" size="sm" className="mb-5">
-                Relacionados
+                {t('anime.detail.related')}
               </GradientHeading>
             </FadeIn>
             <FadeInStagger>
@@ -584,7 +611,7 @@ export default function AnimeDetail() {
           <section className="mb-12">
             <FadeIn>
               <GradientHeading variant="pink" size="sm" className="mb-5">
-                Recomendados
+                {t('anime.detail.recommended')}
               </GradientHeading>
             </FadeIn>
             <FadeInStagger>
@@ -609,14 +636,18 @@ export default function AnimeDetail() {
           <FadeIn>
             <div className="flex items-center justify-between mb-5">
               <GradientHeading variant="pink" size="sm">
-                Episodios ({currentEps.length})
-                {currentProvider && <span className="text-xs font-normal text-text-secondary ml-2">via {currentProvider}</span>}
+                {t('anime.detail.episodes')} ({currentEps.length})
+                {currentProvider && (
+                  <span className="text-xs font-normal text-text-secondary ml-2">
+                    {t('anime.detail.via')} {currentProvider}
+                  </span>
+                )}
               </GradientHeading>
               <div className="flex rounded-xl overflow-hidden border border-white/10 p-0.5 bg-surface">
                 {[
-                  ['sub', 'SUB'],
-                  ['dub', 'DUB'],
-                  ['latam', 'LATAM'],
+                  ['sub', t('anime.audio.sub')],
+                  ['dub', t('anime.audio.dub')],
+                  ['latam', t('anime.audio.latam')],
                 ].map(([val, label]) => (
                   <button
                     key={val}
@@ -647,8 +678,8 @@ export default function AnimeDetail() {
                         ? 'text-neon-cyan bg-neon-cyan/10 border border-neon-cyan/30'
                         : 'bg-surface text-text-secondary border border-white/10 hover:text-neon-cyan'
                     }`}
-                    title={`${s.totalEpisodes ? s.totalEpisodes + ' episodios' : ''}${s.status ? ' · ' + s.status : ''}`}>
-                    {s.title || `Temporada ${i + 1}`}
+                    title={`${s.totalEpisodes ? s.totalEpisodes + ' ' + t('anime.episodes') : ''}${s.status ? ' · ' + s.status : ''}`}>
+                    {s.title || `${t('anime.season')} ${i + 1}`}
                     <span className="ml-1 text-[10px] opacity-60">({s.providerEpisodes?.length || 0})</span>
                     {s.id === parseInt(id, 10) && <span className="ml-1 text-[8px] text-primary">●</span>}
                   </button>
@@ -658,7 +689,7 @@ export default function AnimeDetail() {
           )}
 
           {currentEps.length === 0 ? (
-            <EmptyState message="No hay episodios disponibles." />
+            <EmptyState message={t('anime.noEpisodes')} />
           ) : (
             <>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -687,10 +718,12 @@ export default function AnimeDetail() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium group-hover:text-primary transition-colors">Episodio {epNum}</p>
+                        <p className="text-sm font-medium group-hover:text-primary transition-colors">
+                          {t('anime.episode')} {epNum}
+                        </p>
                         {ep.title && <p className="text-xs text-text-secondary truncate mt-0.5">{ep.title}</p>}
                       </div>
-                      {watched && <span className="text-[10px] text-primary/60 shrink-0 font-medium">Visto</span>}
+                      {watched && <span className="text-[10px] text-primary/60 shrink-0 font-medium">{t('anime.watched')}</span>}
                       <svg
                         className="w-4 h-4 text-text-secondary/30 group-hover:text-primary/50 transition-colors shrink-0"
                         fill="none"
@@ -708,7 +741,7 @@ export default function AnimeDetail() {
                     onClick={() => setEpisodeLimit((prev) => prev + 30)}
                     className="group/btn relative inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all overflow-hidden border border-white/10 bg-surface hover:border-primary/30">
                     <span className="relative z-10 text-text-primary group-hover/btn:text-primary transition-colors">
-                      Cargar más episodios ({currentEps.length - episodeLimit} restantes)
+                      {t('anime.loadMore')} ({currentEps.length - episodeLimit} {t('anime.remaining')})
                     </span>
                   </button>
                 </div>

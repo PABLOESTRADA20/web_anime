@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useI18n } from '../hooks/useI18n'
 import { useCollectionItems } from '../hooks/useCollections'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
@@ -10,6 +11,7 @@ import { useToast } from '../components/Toast'
 export default function CollectionDetail() {
   const { id } = useParams()
   const { user } = useAuth()
+  const { t } = useI18n()
   const toast = useToast()
   const [collection, setCollection] = useState(null)
   const [collLoading, setCollLoading] = useState(true)
@@ -32,7 +34,7 @@ export default function CollectionDetail() {
   async function handleRemove(itemId) {
     try {
       await removeItem(itemId)
-      toast.success('Eliminado de la colección')
+      toast.success(t('collections.removed'))
     } catch (err) {
       toast.error(err.message)
     }
@@ -49,7 +51,7 @@ export default function CollectionDetail() {
         </div>
       </div>
     )
-  if (!collection) return <div className="max-w-2xl mx-auto py-12 text-center text-text-secondary">Colección no encontrada.</div>
+  if (!collection) return <div className="max-w-2xl mx-auto py-12 text-center text-text-secondary">{t('collections.notFound')}</div>
 
   return (
     <>
@@ -58,23 +60,25 @@ export default function CollectionDetail() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <Link to="/collections" className="text-xs text-text-secondary hover:text-primary transition-colors mb-1 inline-block">
-              ← Mis colecciones
+              ← {t('collections.title')}
             </Link>
             <h1 className="text-xl font-bold">{collection.name}</h1>
             {collection.description && <p className="text-sm text-text-secondary mt-1">{collection.description}</p>}
             <div className="flex gap-3 mt-2 text-xs text-text-secondary">
-              <span>{items.length} items</span>
+              <span>
+                {items.length} {t('common.items')}
+              </span>
               {collection.is_public ? (
-                <span className="text-green-400/60">Pública</span>
+                <span className="text-green-400/60">{t('collections.public')}</span>
               ) : (
-                <span className="text-yellow-400/60">Privada</span>
+                <span className="text-yellow-400/60">{t('collections.private')}</span>
               )}
             </div>
           </div>
         </div>
 
         {items.length === 0 ? (
-          <EmptyState message="Esta colección está vacía. Agrega anime o manga desde sus páginas de detalle." />
+          <EmptyState message={t('collections.emptyDetail')} />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {items.map((item) => {

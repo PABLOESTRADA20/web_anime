@@ -1,12 +1,7 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { FLAG_MAP } from './FlagIcon'
-
-const LANG_INFO = {
-  japanese: { label: 'Japonés', sublabel: 'Sub', desc: 'Audio original con subtítulos' },
-  english: { label: 'Inglés', sublabel: 'Dub', desc: 'Doblaje al inglés' },
-  spanish: { label: 'Español', sublabel: 'LATAM', desc: 'Doblaje latino, sin subtítulos' },
-}
+import { useI18n } from '../hooks/useI18n'
 
 function StatusIcon({ available, error }) {
   if (error) {
@@ -46,7 +41,14 @@ function LoadingSkeleton() {
 }
 
 const LanguageSelector = memo(function LanguageSelector({ options, loading, animeInfo, onSelect, onSkip }) {
+  const { t } = useI18n()
   const hasOptions = options && Object.values(options).some((o) => o.available || o.error)
+
+  const LANG_INFO = {
+    japanese: { label: t('audio.japaneseLabel'), sublabel: t('audio.subLabel'), desc: t('audio.subDesc') },
+    english: { label: t('audio.englishLabel'), sublabel: t('audio.dubLabel'), desc: t('audio.dubDesc') },
+    spanish: { label: t('audio.spanishLabel'), sublabel: t('audio.latamLabel'), desc: t('audio.latamDesc') },
+  }
 
   return (
     <motion.div
@@ -67,12 +69,12 @@ const LanguageSelector = memo(function LanguageSelector({ options, loading, anim
         )}
 
         <div className="space-y-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{animeInfo?.title || 'Cargando...'}</h1>
-          <p className="text-sm text-text-secondary">Episodio {animeInfo?.episode || '?'}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">{animeInfo?.title || t('common.loading')}</h1>
+          <p className="text-sm text-text-secondary">{t('episode.number', { n: animeInfo?.episode || '?' })}</p>
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-base font-medium text-text-secondary">Selecciona idioma de audio</h2>
+          <h2 className="text-base font-medium text-text-secondary">{t('audio.selecting')}</h2>
 
           {loading ? (
             <LoadingSkeleton />
@@ -116,7 +118,7 @@ const LanguageSelector = memo(function LanguageSelector({ options, loading, anim
                       <div className="flex items-center gap-2">
                         <StatusIcon available={opt.available} error={opt.error} />
                         <span className={`text-xs ${opt.available ? 'text-green-400' : 'text-red-400'}`}>
-                          {opt.available ? 'Disponible' : opt.error || 'No disponible'}
+                          {opt.available ? t('audio.available') : opt.error || t('audio.unavailable')}
                         </span>
                       </div>
 
@@ -130,20 +132,20 @@ const LanguageSelector = memo(function LanguageSelector({ options, loading, anim
                   <button
                     onClick={() => onSkip?.()}
                     className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white rounded-xl text-sm font-medium transition-colors border border-white/10 hover:border-white/20">
-                    Continuar con Sub (Japonés) por defecto
+                    {t('audio.defaultToSub')}
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-8">
-              <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              <p className="text-sm text-text-secondary">Verificando opciones de audio...</p>
+              <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-cosmic-spin" />
+              <p className="text-sm text-text-secondary">{t('audio.checking')}</p>
             </div>
           )}
         </div>
 
-        <p className="text-[10px] text-text-secondary/30">Los subtítulos en español se activarán automáticamente si están disponibles</p>
+        <p className="text-[10px] text-text-secondary/30">{t('audio.spanishSubsAuto')}</p>
       </div>
     </motion.div>
   )

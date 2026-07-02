@@ -9,6 +9,7 @@ import Navbar from './components/Navbar'
 import MobileBottomNav from './components/MobileBottomNav'
 import Footer from './components/Footer'
 import UpdatePrompt from './components/UpdatePrompt'
+import InstallPrompt from './components/InstallPrompt'
 import { GridSkeleton } from './components/Skeletons'
 
 const Home = lazy(() => import('./pages/Home'))
@@ -309,6 +310,7 @@ export default function App() {
                   </Routes>
                 </main>
                 <MobileBottomNav />
+                <InstallPrompt />
                 <Footer />
                 <UpdatePrompt />
               </div>
