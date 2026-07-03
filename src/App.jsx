@@ -40,6 +40,8 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Collections = lazy(() => import('./pages/Collections'))
 const CollectionDetail = lazy(() => import('./pages/CollectionDetail'))
+const MyMangas = lazy(() => import('./pages/MyMangas'))
+const MyNovels = lazy(() => import('./pages/MyNovels'))
 
 function RouteGuard({ children }) {
   return (
@@ -296,6 +298,22 @@ export default function App() {
                       element={
                         <RouteGuard>
                           <CollectionDetail />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/mis-mangas"
+                      element={
+                        <RouteGuard>
+                          <MyMangas />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/mis-novelas"
+                      element={
+                        <RouteGuard>
+                          <MyNovels />
                         </RouteGuard>
                       }
                     />

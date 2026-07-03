@@ -10,6 +10,7 @@ import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useGamification } from '../hooks/useGamification'
 import { XP_VALUES } from '../lib/achievements'
+import CommunityMangaChapters from '../components/CommunityMangaChapters'
 
 export default function MangaRead() {
   const { id } = useParams()
@@ -421,6 +422,7 @@ export default function MangaRead() {
             </div>
           )}
         </div>
+        <CommunityMangaChapters anilistId={id} chapterNumber={chapterNum} title={title} />
       </motion.div>
     </>
   )

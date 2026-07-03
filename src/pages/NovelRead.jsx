@@ -11,6 +11,7 @@ import DOMPurify from 'dompurify'
 import { addDownload, isNovelCached, cacheNovelContent } from '../utils/downloads'
 import { useGamification } from '../hooks/useGamification'
 import { XP_VALUES } from '../lib/achievements'
+import CommunityNovelChapters from '../components/CommunityNovelChapters'
 
 const THEMES = {
   dark: { bg: 'bg-[#1a1a2e]', text: 'text-gray-200', label: 'themeDark', icon: '🌙' },
@@ -380,6 +381,7 @@ export default function NovelRead() {
             ⚙️
           </button>
         </div>
+        <CommunityNovelChapters novelSlug={slug} chapterNumber={chapterNum} />
       </motion.div>
     </>
   )

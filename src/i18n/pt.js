@@ -15,6 +15,8 @@ export default {
     novels: 'Novels',
     activity: 'Atividade',
     collections: 'Coleções',
+    myMangas: 'Meus Mangás',
+    myNovels: 'Minhas Novelas',
     admin: 'Admin',
     userMenu: 'Menu do usuário',
     viewAll: 'Ver todos os resultados →',
@@ -791,6 +793,28 @@ export default {
     desc: 'Adicione à tela inicial para a melhor experiência',
     action: 'Instalar',
     short: 'App',
+  },
+  myMangas: {
+    title: 'Meus Mangás',
+    tabs: { reading: 'Lendo', favorites: 'Favoritos', completed: 'Completados', history: 'Histórico' },
+    empty: {
+      reading: 'Você ainda não tem mangás lendo.',
+      favorites: 'Você não tem mangás favoritos ainda.',
+      completed: 'Você não completou nenhum mangá.',
+      history: 'Não há histórico de leitura ainda.',
+    },
+    progress: 'Cap. {chapter} · Pág. {page}',
+  },
+  myNovels: {
+    title: 'Minhas Novelas',
+    tabs: { reading: 'Lendo', favorites: 'Favoritos', completed: 'Completados', history: 'Histórico' },
+    empty: {
+      reading: 'Você ainda não tem novelas lendo.',
+      favorites: 'Você não tem novelas favoritas ainda.',
+      completed: 'Você não completou nenhuma novela.',
+      history: 'Não há histórico de leitura ainda.',
+    },
+    progress: 'Cap. {chapter}',
   },
   notify: {
     newEpisode: 'Novo episódio de {title} disponível',

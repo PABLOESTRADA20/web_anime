@@ -32,39 +32,51 @@ export function useAdmin() {
   return { isAdmin, loading, checkAdmin, bootstrapAdmin }
 }
 
-export function useModeration() {
-  const [episodes, setEpisodes] = useState([])
+function useModerationTable(table) {
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase.from('community_episodes').select('*').order('created_at', { ascending: false })
+    const { data, error: err } = await supabase.from(table).select('*').order('created_at', { ascending: false })
     if (err) {
       setError(err.message)
-      setEpisodes([])
+      setItems([])
     } else {
-      setEpisodes(data || [])
+      setItems(data || [])
     }
     setLoading(false)
-  }, [])
+  }, [table])
 
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
 
   async function updateStatus(id, status) {
-    const { error } = await supabase.from('community_episodes').update({ status }).eq('id', id)
+    const { error } = await supabase.from(table).update({ status }).eq('id', id)
     if (error) throw error
-    setEpisodes((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
+    setItems((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
   }
 
-  async function removeEpisode(id) {
-    const { error } = await supabase.from('community_episodes').delete().eq('id', id)
+  async function removeItem(id) {
+    const { error } = await supabase.from(table).delete().eq('id', id)
     if (error) throw error
-    setEpisodes((prev) => prev.filter((e) => e.id !== id))
+    setItems((prev) => prev.filter((e) => e.id !== id))
   }
 
-  return { episodes, loading, error, refetch: fetchAll, updateStatus, removeEpisode }
+  return { items, loading, error, refetch: fetchAll, updateStatus, removeItem }
+}
+
+export function useModeration() {
+  return useModerationTable('community_episodes')
+}
+
+export function useMangaModeration() {
+  return useModerationTable('community_manga_chapters')
+}
+
+export function useNovelModeration() {
+  return useModerationTable('community_novel_chapters')
 }

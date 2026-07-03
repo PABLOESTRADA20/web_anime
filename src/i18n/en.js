@@ -15,6 +15,8 @@ export default {
     novels: 'Novels',
     activity: 'Activity',
     collections: 'Collections',
+    myMangas: 'My Mangas',
+    myNovels: 'My Novels',
     admin: 'Admin',
     userMenu: 'User menu',
     viewAll: 'View all results →',
@@ -806,6 +808,28 @@ export default {
     desc: 'Add to your home screen for the best experience',
     action: 'Install',
     short: 'App',
+  },
+  myMangas: {
+    title: 'My Mangas',
+    tabs: { reading: 'Reading', favorites: 'Favorites', completed: 'Completed', history: 'History' },
+    empty: {
+      reading: 'No mangas in your reading list yet.',
+      favorites: 'No favorite mangas yet.',
+      completed: 'No mangas completed yet.',
+      history: 'No reading history yet.',
+    },
+    progress: 'Ch. {chapter} · Pg. {page}',
+  },
+  myNovels: {
+    title: 'My Novels',
+    tabs: { reading: 'Reading', favorites: 'Favorites', completed: 'Completed', history: 'History' },
+    empty: {
+      reading: 'No novels in your reading list yet.',
+      favorites: 'No favorite novels yet.',
+      completed: 'No novels completed yet.',
+      history: 'No reading history yet.',
+    },
+    progress: 'Ch. {chapter}',
   },
   notify: {
     newEpisode: 'New episode of {title} available',

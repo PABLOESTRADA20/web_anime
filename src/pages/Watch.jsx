@@ -3,6 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { parseEpisodeId } from '../lib/anivexa'
 import { getAnimeEpisodes, getWatchWithFallback } from '../lib/api'
+import { PROVIDER_LABELS, MIRURO_LABELS, AUTO_FALLBACK_ORDER } from '../lib/providers/registry'
 import { useI18n } from '../hooks/useI18n'
 
 import { getAnimeInfo } from '../lib/anilist'
@@ -231,25 +232,14 @@ function useKeyboardShortcuts(videoRef, onNextEpRef, setPlaybackRate) {
   }, [videoRef, onNextEpRef, setPlaybackRate])
 }
 
-const PROVIDER_NAMES = {
-  anikoto: 'AniKoto',
-  reanime: 'Reanime',
-  allmanga: 'AllManga',
-  animegg: 'AnimeGG',
-  anineko: 'AniNeko',
-  anidbapp: 'AniDB App',
-  animepahe: 'AnimePahe',
-}
+const PROVIDER_NAMES = { ...PROVIDER_LABELS }
 
-const MIRURO_NAMES = {
-  kiwi: 'Kiwi',
-  pewe: 'Pewe',
-  moo: 'Moo',
-  bee: 'Bee',
-  hop: 'Hop',
-  bonk: 'Bonk',
-  ally: 'Ally',
-}
+Object.assign(PROVIDER_NAMES, {
+  kenjitsu: 'Kenjitsu',
+  anivexa: 'Anivexa',
+  miruro: 'Miruro',
+  veranime: 'VerAnime',
+})
 
 const BACKEND_NAMES = {
   kenjitsu: 'Kenjitsu',
@@ -257,25 +247,6 @@ const BACKEND_NAMES = {
   miruro: 'Miruro',
   veranime: 'VerAnime',
 }
-
-const AUTO_FALLBACK_ORDER = [
-  'anikoto',
-  'reanime',
-  'allmanga',
-  'animegg',
-  'anineko',
-  'anidbapp',
-  'animepahe',
-  'miruro-kiwi',
-  'miruro-pewe',
-  'miruro-moo',
-  'miruro-bee',
-  'miruro-hop',
-  'miruro-bonk',
-  'miruro-ally',
-  'kenjitsu',
-  'animeflv',
-]
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
@@ -959,7 +930,7 @@ export default function Watch() {
         </div>
         <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
           <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Miruro</span>
-          {Object.entries(MIRURO_NAMES).map(([p, name]) => (
+          {Object.entries(MIRURO_LABELS).map(([p, name]) => (
             <button
               key={`miruro-${p}`}
               onClick={() => switchProvider(`miruro-${p}`)}
