@@ -125,17 +125,18 @@ export default function CommentSection({ anilistId, contentId, mediaType = 'anim
       setContent('')
       setRating(0)
       setCommentError('')
-    } catch {
-      setCommentError(t('comments.error'))
+    } catch (e) {
+      setCommentError(e.code === 'RATE_LIMIT' ? t('comments.rateLimit') : t('comments.error'))
     }
     setSending(false)
   }
 
   async function handleReply(parentId, replyContent) {
     try {
+      setCommentError('')
       await addComment(replyContent, null, parentId)
     } catch (e) {
-      console.error('Reply error:', e)
+      setCommentError(e.code === 'RATE_LIMIT' ? t('comments.rateLimit') : t('comments.error'))
     }
   }
 

@@ -258,6 +258,25 @@ const BACKEND_NAMES = {
   veranime: 'VerAnime',
 }
 
+const AUTO_FALLBACK_ORDER = [
+  'anikoto',
+  'reanime',
+  'allmanga',
+  'animegg',
+  'anineko',
+  'anidbapp',
+  'animepahe',
+  'miruro-kiwi',
+  'miruro-pewe',
+  'miruro-moo',
+  'miruro-bee',
+  'miruro-hop',
+  'miruro-bonk',
+  'miruro-ally',
+  'kenjitsu',
+  'animeflv',
+]
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const M3U8_PROXY = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/m3u8-proxy?url=` : null
 
@@ -709,11 +728,13 @@ export default function Watch() {
   )
 
   const switchProvider = useCallback(
-    (newProvider) => {
+    (newProvider, isFallback = false) => {
       if (!anilistId || !epNum) return
       const newAudio = newProvider === 'animeflv' ? 'latam' : audio
       const newId = `watch/${newProvider}/${anilistId}/${newAudio}/${newProvider}-${epNum}`
-      navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${epNum}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
+      let path = `/watch/${newId}?anilistId=${anilistId}&ep=${epNum}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`
+      if (isFallback) path += '&autoFallback=1'
+      navigate(path)
     },
     [anilistId, epNum, navigate, audio, title, image],
   )
@@ -1134,9 +1155,17 @@ export default function Watch() {
                   }
                 }}
                 onError={() => {
-                  if (selectedUrl) {
-                    toast(t('video.errorShort'), 'error', 5000)
+                  if (!selectedUrl) return
+                  if (!searchParams.get('autoFallback')) {
+                    const idx = AUTO_FALLBACK_ORDER.indexOf(provider)
+                    const nextProvider = idx >= 0 && idx < AUTO_FALLBACK_ORDER.length - 1 ? AUTO_FALLBACK_ORDER[idx + 1] : null
+                    if (nextProvider) {
+                      toast(t('video.switchingServer'), 'info', 3000)
+                      switchProvider(nextProvider, true)
+                      return
+                    }
                   }
+                  toast(t('video.errorShort'), 'error', 5000)
                 }}
               />
               {subtitles.length > 0 &&

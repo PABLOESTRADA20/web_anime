@@ -136,6 +136,7 @@ export default {
     loading: 'Carregando vídeo...',
     error: 'Não foi possível carregar o vídeo de nenhum provedor.',
     errorShort: 'Erro ao reproduzir vídeo. Tente outro provedor.',
+    switchingServer: 'Trocando de servidor...',
     retry: 'Tentar outro provedor',
     quality: 'Qualidade',
     server: 'Servidor',
@@ -619,6 +620,7 @@ export default {
     noComments: 'Nenhum comentário ainda. Seja o primeiro!',
     deleted: 'Comentário excluído',
     error: 'Erro ao enviar comentário',
+    rateLimit: 'Aguarde alguns segundos antes de comentar novamente',
   },
   reviews: {
     title: 'Resenhas',

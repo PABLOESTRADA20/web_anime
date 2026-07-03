@@ -76,7 +76,12 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
 
       const { data, error: err } = await supabase.from('comments').insert(insertData).select().single()
 
-      if (err) throw err
+      if (err) {
+        const isRateLimit = err.message?.includes('rate_limit') || err.hint === 'rate_limit_exceeded'
+        const rateErr = new Error(err.message)
+        rateErr.code = isRateLimit ? 'RATE_LIMIT' : 'UNKNOWN'
+        throw rateErr
+      }
       await fetchComments()
       return data
     } catch (e) {
