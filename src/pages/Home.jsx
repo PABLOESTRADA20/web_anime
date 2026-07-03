@@ -460,7 +460,7 @@ export default function Home() {
             }
             title={t('home.airingNow')}
             link="/schedule"
-            linkText={t('home.viewSchedule')}
+            linkText={t('home.viewMore')}
           />
         </FadeIn>
         {loading ? (
