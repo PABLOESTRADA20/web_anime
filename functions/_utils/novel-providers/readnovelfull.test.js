@@ -1,7 +1,16 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { readnovelfullProvider } from './readnovelfull'
 
-const SLUG = 'only-i-level-up'
+let SLUG
+
+beforeAll(async () => {
+  try {
+    const results = await readnovelfullProvider.search({ q: 'Crazy Leveling System' })
+    if (results.length > 0) SLUG = results[0].slug
+  } catch {
+    SLUG = 'crazy-leveling-system-v1'
+  }
+})
 
 describe('readnovelfullProvider', () => {
   describe('interface', () => {
@@ -14,16 +23,16 @@ describe('readnovelfullProvider', () => {
   })
 
   describe('search', () => {
-    it('encuentra Solo Leveling buscando "Solo Leveling"', async () => {
-      const results = await readnovelfullProvider.search({ q: 'Solo Leveling' })
+    it('encuentra resultados para "Crazy Leveling System"', async () => {
+      const results = await readnovelfullProvider.search({ q: 'Crazy Leveling System' })
       expect(Array.isArray(results)).toBe(true)
       expect(results.length).toBeGreaterThanOrEqual(1)
-      expect(results.some((r) => r.slug === SLUG)).toBe(true)
     })
 
     it('retorna array vacío para query sin resultados', async () => {
       const results = await readnovelfullProvider.search({ q: 'xyz123nonexistent999' })
       expect(Array.isArray(results)).toBe(true)
+      expect(results.length).toBe(0)
     })
   })
 
@@ -60,6 +69,7 @@ describe('readnovelfullProvider', () => {
 
     it('cada capítulo tiene number, title, path', async () => {
       const chapters = await readnovelfullProvider.chapters({ slug: SLUG })
+      expect(chapters.length).toBeGreaterThan(0)
       const ch = chapters[0]
       expect(typeof ch.number).toBe('number')
       expect(typeof ch.title).toBe('string')
@@ -68,19 +78,19 @@ describe('readnovelfullProvider', () => {
   })
 
   describe('chapterContent', () => {
-    it('retorna contenido del capítulo 1', async () => {
-      const content = await readnovelfullProvider.chapterContent({
-        path: `${SLUG}/chapter-1-prologue.html`,
-      })
+    it('retorna contenido del primer capítulo', async () => {
+      const chapters = await readnovelfullProvider.chapters({ slug: SLUG })
+      const ch = chapters.find((c) => c.number === 1) || chapters[0]
+      const content = await readnovelfullProvider.chapterContent({ path: ch.path })
       expect(content.title).toBeTruthy()
       expect(content.content).toBeTruthy()
       expect(content.content.length).toBeGreaterThan(100)
     })
 
-    it('retorna contenido del capítulo final (270)', async () => {
-      const content = await readnovelfullProvider.chapterContent({
-        path: `${SLUG}/chapter-270-end-v1.html`,
-      })
+    it('retorna contenido del capítulo final', async () => {
+      const chapters = await readnovelfullProvider.chapters({ slug: SLUG })
+      const lastCh = chapters[chapters.length - 1]
+      const content = await readnovelfullProvider.chapterContent({ path: lastCh.path })
       expect(content.title).toBeTruthy()
       expect(content.content.length).toBeGreaterThan(100)
     })

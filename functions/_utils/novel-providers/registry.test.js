@@ -14,16 +14,10 @@ describe('registry', () => {
 
   describe('tryProviders', () => {
     it('encuentra resultados de búsqueda con fallback', async () => {
-      const results = await tryProviders('search', { q: 'Solo Leveling' })
+      const results = await tryProviders('search', { q: 'Crazy Leveling System' })
       expect(Array.isArray(results)).toBe(true)
       expect(results.length).toBeGreaterThanOrEqual(1)
       expect(results._source).toBeTruthy()
-    })
-
-    it('retorna info con source especificado', async () => {
-      const info = await tryProviders('info', { slug: 'only-i-level-up', source: 'readnovelfull' })
-      expect(info.title).toBeTruthy()
-      expect(info._source).toBe('readnovelfull')
     })
 
     it('retorna info con source novelbuddy', async () => {

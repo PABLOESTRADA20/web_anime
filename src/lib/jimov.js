@@ -121,7 +121,7 @@ export async function getTioAnimeServers(slug, epNum) {
       url: s.file_url || s.url,
       quality: 'auto',
       server: s.name,
-      referer: 'https://tioanime.com/',
+      referer: import.meta.env.VITE_TIOANIME_REFERER || 'https://tioanime.com/',
       type: detectSourceType(s.url),
     }))
 
@@ -141,7 +141,7 @@ export async function getMonosChinosServers(episodeSlug) {
       url: s.url,
       quality: 'auto',
       server: s.name,
-      referer: 'https://monoschinos.st/',
+      referer: import.meta.env.VITE_MONOSCHINOS_REFERER || 'https://monoschinos.st/',
       type: detectSourceType(s.url),
     }))
 

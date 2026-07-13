@@ -1,6 +1,6 @@
 const PROXY = '/api/proxy?url='
 
-const KENJITSU_BASE = 'https://kenjitsu.vercel.app/api'
+const KENJITSU_BASE = import.meta.env.VITE_KENJITSU_URL || 'https://kenjitsu.vercel.app/api'
 
 async function fetchJSON(url) {
   const res = await fetch(PROXY + encodeURIComponent(url))

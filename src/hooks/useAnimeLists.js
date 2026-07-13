@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 const VAPID_PUBLIC_KEY = 'BM8M-xS2XiyO9jufJKUVNFpGHKl155PT4GYXzIBKPWu65bQDW1FX82mMTp3v5n3bGz1BlwoBxdMH7XKZNv53CU'
@@ -15,6 +15,11 @@ export function useAnimeLists() {
   const { user } = useAuth()
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
 
   const ensurePushSub = useCallback(async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return
@@ -48,11 +53,21 @@ export function useAnimeLists() {
   }, [])
 
   const fetchLists = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('anime_lists').select('*').eq('user_id', user.id).order('updated_at', { ascending: false })
-    setLists(data || [])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/anime/lists', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setLists(data || [])
+    } catch {
+      setLists([])
+    }
     setLoading(false)
-  }, [user])
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -65,20 +80,28 @@ export function useAnimeLists() {
 
   async function setListStatus(anilistId, title, image, status) {
     if (!user) return
+    const token = await getToken()
+    if (!token) return
     const existing = lists.find((l) => l.anilist_id === anilistId)
     if (existing) {
       if (existing.status === status) {
-        await supabase.from('anime_lists').delete().eq('id', existing.id)
+        await fetch('/api/anime/lists', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ anilist_id: anilistId }),
+        })
       } else {
-        await supabase.from('anime_lists').update({ status, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        await fetch('/api/anime/lists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ anilist_id: anilistId, title, image, status }),
+        })
       }
     } else {
-      await supabase.from('anime_lists').insert({
-        user_id: user.id,
-        anilist_id: anilistId,
-        title,
-        image,
-        status,
+      await fetch('/api/anime/lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId, title, image, status }),
       })
     }
     if (status === 'watching') ensurePushSub()

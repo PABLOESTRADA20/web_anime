@@ -188,7 +188,7 @@ async function tryKenjitsuAnimepahe(anilistId, epNum, audio = 'sub') {
   }
 
   const srcData = srcResult.value
-  const referer = srcData.headers?.Referer || 'https://kwik.cx/'
+  const referer = srcData.headers?.Referer || (import.meta.env.VITE_KWIK_REFERER || 'https://kwik.cx/')
   const sources = srcData.data.sources.map((s) => ({
     url: s.url,
     quality: s.quality || 'auto',

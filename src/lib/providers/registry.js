@@ -31,7 +31,7 @@ async function tryKenjitsuWatch(anilistId, epNum, audio) {
     const srcResult = await getAnimepaheSources(episode.episodeId, version)
     if (!srcResult?.data?.sources?.length) return null
 
-    const referer = srcResult.headers?.Referer || 'https://kwik.cx/'
+    const referer = srcResult.headers?.Referer || (import.meta.env.VITE_KWIK_REFERER || 'https://kwik.cx/')
     const sources = srcResult.data.sources.map((s) => ({
       url: s.url,
       quality: s.quality || 'auto',

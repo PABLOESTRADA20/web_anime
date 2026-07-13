@@ -1,5 +1,5 @@
 const PROXY = '/api/proxy?url='
-const BASE = 'https://www.veranime.lat'
+const BASE = import.meta.env.VITE_VERANIME_URL || 'https://www.veranime.lat'
 
 async function fetchText(url) {
   const res = await fetch(PROXY + encodeURIComponent(url))

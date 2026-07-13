@@ -4,7 +4,7 @@ const SITE_NAME = 'AnimeVerse'
 const DEFAULT_DESC =
   'AnimeVerse — tu plataforma para ver anime y leer manga online. Descubre las últimas novedades, populares y en emisión.'
 const DEFAULT_IMAGE = '/og-default.png'
-const BASE_URL = 'https://anime-app-e8p.pages.dev'
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://anime-app-e8p.pages.dev'
 
 export default function SeoHead({ title, description, image, url, type = 'website' }) {
   const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — Anime y manga online`

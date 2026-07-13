@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import SeoHead from '../components/SeoHead'
 import EmptyState from '../components/EmptyState'
 import { useI18n } from '../hooks/useI18n'
@@ -29,18 +28,11 @@ export default function Activity() {
   const [filter, setFilter] = useState('all')
 
   useEffect(() => {
-    if (!isSupabaseReady()) {
-      setLoading(false)
-      return
-    }
     let cancelled = false
-    supabase
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(async ({ data }) => {
-        if (!cancelled) setReviews(await attachUserEmails(data || []))
+    fetch('/api/reviews?limit=50')
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled) setReviews(json.data || [])
       })
       .catch(() => {})
       .finally(() => {
@@ -81,7 +73,7 @@ export default function Activity() {
       ) : (
         <div className="space-y-3">
           {filtered.map((r) => {
-            const email = r.user?.email?.split('@')[0] || 'Anónimo'
+            const email = r.user_email?.split('@')[0] || 'Anónimo'
             return (
               <div key={r.id} className="p-4 rounded-2xl bg-surface/50 border border-white/5 hover:bg-surface-hover transition-colors">
                 <div className="flex items-center gap-2 mb-2">

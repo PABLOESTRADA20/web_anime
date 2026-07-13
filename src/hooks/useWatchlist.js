@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useWatchlist() {
@@ -7,12 +7,27 @@ export function useWatchlist() {
   const [watchlist, setWatchlist] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchWatchlist = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('watchlist').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    setWatchlist(data || [])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/anime/watchlist', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setWatchlist(data || [])
+    } catch {
+      setWatchlist([])
+    }
     setLoading(false)
-  }, [user])
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -25,15 +40,20 @@ export function useWatchlist() {
 
   async function toggleWatchlist(anilistId, title, image) {
     if (!user) return
+    const token = await getToken()
+    if (!token) return
     const existing = watchlist.find((w) => w.anilist_id === anilistId)
     if (existing) {
-      await supabase.from('watchlist').delete().eq('id', existing.id)
+      await fetch('/api/anime/watchlist', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId }),
+      })
     } else {
-      await supabase.from('watchlist').insert({
-        user_id: user.id,
-        anilist_id: anilistId,
-        title,
-        image,
+      await fetch('/api/anime/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId, title, image }),
       })
     }
     await fetchWatchlist()

@@ -1,6 +1,6 @@
 import { getCached, setCache } from './cache.js'
 
-const ANILIST_API = 'https://graphql.anilist.co'
+const ANILIST_API = import.meta.env.VITE_ANILIST_API || 'https://graphql.anilist.co'
 
 interface PageInfo {
   hasNextPage: boolean

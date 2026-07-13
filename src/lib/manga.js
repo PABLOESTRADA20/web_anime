@@ -1,7 +1,7 @@
 import { getCached, setCache } from './cache.js'
 
 const MANGADEX_API = '/api/mangadex'
-const MANGADEX_CDN = 'https://uploads.mangadex.org'
+const MANGADEX_CDN = import.meta.env.VITE_MANGADEX_CDN || 'https://uploads.mangadex.org'
 const RATE_LIMIT_MS = 250
 let lastRequestTime = 0
 const mdIdCache = new Map()
@@ -85,7 +85,7 @@ const GET_ANILIST_MANGA_TITLE = `
 
 async function fetchAnilistTitles(anilistId) {
   try {
-    const res = await fetch('https://graphql.anilist.co', {
+    const res = await fetch(import.meta.env.VITE_ANILIST_API || 'https://graphql.anilist.co', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ query: GET_ANILIST_MANGA_TITLE, variables: { id: anilistId } }),

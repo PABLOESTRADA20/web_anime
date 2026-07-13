@@ -1,16 +1,31 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useHistory() {
   const { user } = useAuth()
   const [history, setHistory] = useState([])
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchHistory = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('history').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(50)
-    setHistory(data || [])
-  }, [user])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/anime/history', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setHistory(data || [])
+    } catch {
+      setHistory([])
+    }
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -22,35 +37,29 @@ export function useHistory() {
 
   const saveProgress = useCallback(
     async (anilistId, episodeNumber, title, image, episodeId, progress, duration) => {
-      if (!user || !isSupabaseReady()) return
-      const { data: existing } = await supabase
-        .from('history')
-        .select('id, progress, duration')
-        .eq('user_id', user.id)
-        .eq('anilist_id', anilistId)
-        .eq('episode_number', episodeNumber)
-        .maybeSingle()
-
-      if (existing) {
-        const update = { updated_at: new Date().toISOString() }
-        if (progress !== undefined) update.progress = progress
-        if (duration !== undefined) update.duration = duration
-        await supabase.from('history').update(update).eq('id', existing.id)
-      } else {
-        await supabase.from('history').insert({
-          user_id: user.id,
-          anilist_id: anilistId,
-          episode_number: episodeNumber,
-          title,
-          image,
-          episode_id: episodeId,
-          progress: progress || 0,
-          duration: duration || 0,
+      if (!user) return
+      const token = await getToken()
+      if (!token) return
+      try {
+        await fetch('/api/anime/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            anilist_id: anilistId,
+            episode_number: episodeNumber,
+            title,
+            image,
+            episode_id: episodeId,
+            progress: progress ?? 0,
+            duration: duration ?? 0,
+          }),
         })
+        fetchHistory()
+      } catch {
+        /* silent */
       }
-      fetchHistory()
     },
-    [user, fetchHistory],
+    [user, getToken, fetchHistory],
   )
 
   return { history, saveProgress }

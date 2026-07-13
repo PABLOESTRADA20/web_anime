@@ -1,4 +1,4 @@
-const HOST = 'https://readnovelfull.com'
+const HOST = (typeof process !== 'undefined' && process.env.NOVEL_READNOVELFULL_HOST) || 'https://readnovelfull.com'
 
 async function fetchPage(url, extraHeaders = {}, timeoutMs = 10000) {
   const controller = new AbortController()
@@ -20,51 +20,26 @@ async function fetchPage(url, extraHeaders = {}, timeoutMs = 10000) {
   }
 }
 
-async function getNovelId(slug) {
-  const html = await fetchPage(`${HOST}/${slug}-novel.html`)
-  const match = html.match(/data-novel-id="(\d+)"/i)
-  return match ? match[1] : null
-}
-
-async function fetchAllChapters(slug) {
-  const novelId = await getNovelId(slug)
-  if (!novelId) throw new Error('No se pudo obtener el ID de la novela')
-  const html = await fetchPage(`${HOST}/ajax/chapter-archive?novelId=${novelId}`, {
-    'X-Requested-With': 'XMLHttpRequest',
-    Accept: '*/*',
-  })
-  const chapters = []
-  const links = [...html.matchAll(/<a[^>]*href="(\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
-  links.forEach(([, href, titleHtml]) => {
-    const title = titleHtml.replace(/<[^>]+>/g, '').trim()
-    const numMatch = href.match(/chapter-(\d+)/i)
-    const number = numMatch ? parseInt(numMatch[1], 10) : 0
-    const path = href.startsWith('/') ? href.slice(1) : href
-    chapters.push({ number, title, path })
-  })
-  return chapters.sort((a, b) => a.number - b.number)
-}
-
 export const readnovelfullProvider = {
   async search({ q }) {
-    const html = await fetchPage(`${HOST}/novel-list/search?keyword=${encodeURIComponent(q)}`)
+    const html = await fetchPage(`${HOST}/ajax/search-novel?keyword=${encodeURIComponent(q)}`, {
+      'X-Requested-With': 'XMLHttpRequest',
+    })
     const results = []
     const seen = new Set()
-    const mainMatch = html.match(/col-novel-main[^>]*>([\s\S]*?)col-sidebar/i)
-    if (mainMatch) {
-      const items = [...mainMatch[1].matchAll(/<a[^>]*href="(\/([a-z0-9-]+)-novel\.html)"[^>]*>([\s\S]*?)<\/a>/gi)]
-      for (const [, href, slug, titleHtml] of items) {
-        if (seen.has(slug)) continue
-        seen.add(slug)
-        const title = titleHtml.replace(/<[^>]+>/g, '').trim()
-        results.push({ slug, title, url: `${HOST}${href}` })
-      }
+    const items = [...html.matchAll(/<a[^>]*href="\/([a-z0-9-]+\.html)"[^>]*>([^<]+)<\/a>/gi)]
+    for (const [, href, title] of items) {
+      if (href.includes('search')) continue
+      const slug = href.replace(/\.html$/, '')
+      if (seen.has(slug)) continue
+      seen.add(slug)
+      results.push({ slug, title: title.trim(), url: `${HOST}/${href}` })
     }
     return results
   },
 
   async info({ slug }) {
-    const html = await fetchPage(`${HOST}/${slug}-novel.html`)
+    const html = await fetchPage(`${HOST}/${slug}.html`)
     const cover = html.match(/<div class="book">[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>/i)
     const title = html.match(/<h3 class="title">([\s\S]*?)<\/h3>/i)
     const desc = html.match(/<div[^>]*class="desc-text[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
@@ -105,7 +80,24 @@ export const readnovelfullProvider = {
   },
 
   async chapters({ slug }) {
-    return await fetchAllChapters(slug)
+    const html = await fetchPage(`${HOST}/${slug}.html`)
+    const idMatch = html.match(/data-novel-id="(\d+)"/i)
+    if (!idMatch) throw new Error('No se pudo obtener el ID de la novela')
+    const novelId = idMatch[1]
+    const archHtml = await fetchPage(`${HOST}/ajax/chapter-archive?novelId=${novelId}`, {
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: '*/*',
+    })
+    const chapters = []
+    const links = [...archHtml.matchAll(/<a[^>]*href="(\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+    links.forEach(([, href, titleHtml]) => {
+      const title = titleHtml.replace(/<[^>]+>/g, '').trim()
+      const numMatch = href.match(/chapter-(\d+)/i)
+      const number = numMatch ? parseInt(numMatch[1], 10) : 0
+      const path = href.startsWith('/') ? href.slice(1) : href
+      chapters.push({ number, title, path })
+    })
+    return chapters.sort((a, b) => a.number - b.number)
   },
 
   async chapterContent({ path }) {

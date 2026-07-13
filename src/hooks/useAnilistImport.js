@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const ANILIST_API = 'https://graphql.anilist.co'
+const ANILIST_API = import.meta.env.VITE_ANILIST_API || 'https://graphql.anilist.co'
 
 const GET_USER_LISTS = `
   query ($userName: String) {

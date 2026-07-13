@@ -1,21 +1,31 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useMangaHistory() {
   const { user } = useAuth()
   const [mangaHistory, setMangaHistory] = useState([])
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchMangaHistory = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('manga_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(50)
-    setMangaHistory(data || [])
-  }, [user])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/manga/history', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setMangaHistory(data || [])
+    } catch {
+      setMangaHistory([])
+    }
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -26,29 +36,26 @@ export function useMangaHistory() {
   }, [user, fetchMangaHistory])
 
   async function saveChapterProgress(anilistId, chapterNumber, chapterId, title, image, page = 1) {
-    if (!user || !isSupabaseReady()) return
-    const { data: existing } = await supabase
-      .from('manga_history')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('anilist_id', anilistId)
-      .eq('chapter_number', chapterNumber)
-      .maybeSingle()
-
-    if (existing) {
-      await supabase.from('manga_history').update({ updated_at: new Date().toISOString(), page }).eq('id', existing.id)
-    } else {
-      await supabase.from('manga_history').insert({
-        user_id: user.id,
-        anilist_id: anilistId,
-        chapter_number: chapterNumber,
-        chapter_id: chapterId,
-        title,
-        image,
-        page,
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      await fetch('/api/manga/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          anilist_id: anilistId,
+          chapter_number: chapterNumber,
+          chapter_id: chapterId,
+          title,
+          image,
+          page,
+        }),
       })
+      fetchMangaHistory()
+    } catch {
+      /* silent */
     }
-    fetchMangaHistory()
   }
 
   function getLatestChapter(anilistId) {

@@ -1,54 +1,45 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useNovelHistory() {
   const { user } = useAuth()
   const [history, setHistory] = useState([])
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchHistory = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('novel_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(50)
-    setHistory(data || [])
-  }, [user])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/novel/history', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      const { data } = await res.json()
+      setHistory(data || [])
+    } catch { setHistory([]) }
+  }, [user, getToken])
 
   useEffect(() => {
-    if (!user) {
-      setHistory([])
-      return
-    }
+    if (!user) { setHistory([]); return }
     fetchHistory()
   }, [user, fetchHistory])
 
   async function saveProgress(novelSlug, chapterNumber, chapterTitle, novelTitle, cover, scrollPercent = 0) {
-    if (!user || !isSupabaseReady()) return
-    const { data: existing } = await supabase
-      .from('novel_history')
-      .select('id, scroll_percent')
-      .eq('user_id', user.id)
-      .eq('novel_slug', novelSlug)
-      .eq('chapter_number', chapterNumber)
-      .maybeSingle()
-    if (existing) {
-      const newScroll = Math.max(scrollPercent, existing.scroll_percent || 0)
-      await supabase.from('novel_history').update({ updated_at: new Date().toISOString(), scroll_percent: newScroll }).eq('id', existing.id)
-    } else {
-      await supabase.from('novel_history').insert({
-        user_id: user.id,
-        novel_slug: novelSlug,
-        chapter_number: chapterNumber,
-        chapter_title: chapterTitle,
-        novel_title: novelTitle,
-        cover,
-        scroll_percent: scrollPercent,
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      await fetch('/api/novel/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ novel_slug: novelSlug, chapter_number: chapterNumber, chapter_title: chapterTitle, novel_title: novelTitle, cover, scroll_percent: scrollPercent }),
       })
-    }
-    fetchHistory()
+      fetchHistory()
+    } catch { /* silent */ }
   }
 
   function getLatestChapter(novelSlug) {

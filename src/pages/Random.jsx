@@ -12,7 +12,7 @@ const RANDOM_QUERY = `
     }
   }`
 
-const ANILIST_API = 'https://graphql.anilist.co'
+const ANILIST_API = import.meta.env.VITE_ANILIST_API || 'https://graphql.anilist.co'
 
 export default function Random() {
   const { t } = useI18n()

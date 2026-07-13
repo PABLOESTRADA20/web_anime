@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anime-app",
+  "pages_build_output_dir": "dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "anime-app-db",
+      "database_id": "f3511e1d-c819-4cbe-bc47-5ae01a907530"
+    }
+  ]
+}

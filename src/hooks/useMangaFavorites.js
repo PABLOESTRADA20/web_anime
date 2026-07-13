@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useMangaFavorites() {
@@ -7,12 +7,27 @@ export function useMangaFavorites() {
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchFavorites = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('manga_favorites').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    setFavorites(data || [])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/manga/favorites', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setFavorites(data || [])
+    } catch {
+      setFavorites([])
+    }
     setLoading(false)
-  }, [user])
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -25,15 +40,20 @@ export function useMangaFavorites() {
 
   async function toggleFavorite(anilistId, title, image) {
     if (!user) return
+    const token = await getToken()
+    if (!token) return
     const existing = favorites.find((f) => f.anilist_id === anilistId)
     if (existing) {
-      await supabase.from('manga_favorites').delete().eq('id', existing.id)
+      await fetch('/api/manga/favorites', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId }),
+      })
     } else {
-      await supabase.from('manga_favorites').insert({
-        user_id: user.id,
-        anilist_id: anilistId,
-        title,
-        image,
+      await fetch('/api/manga/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId, title, image }),
       })
     }
     fetchFavorites()

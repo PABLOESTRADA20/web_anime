@@ -1,4 +1,6 @@
-const NOVELBIN_HOST = 'https://novelbin.com'
+const NOVELBIN_HOST = (typeof process !== 'undefined' && process.env.NOVEL_NOVELBIN_HOST) || 'https://novelbin.me'
+
+const HOST_ESCAPED = NOVELBIN_HOST.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
 
 async function fetchPage(url, timeoutMs = 10000) {
   const controller = new AbortController()
@@ -25,7 +27,7 @@ export const novelbinProvider = {
   async search({ q }) {
     const html = await fetchPage(`${NOVELBIN_HOST}/ajax/search-novel?keyword=${encodeURIComponent(q)}`)
     const results = []
-    const regex = /<a[^>]*href="(https:\/\/novelbin\.com\/b\/([^"]+))"[^>]*title="([^"]*)"[^>]*>/gi
+    const regex = new RegExp(`<a[^>]*href="(${HOST_ESCAPED}\\/b\\/([^"]+))"[^>]*title="([^"]*)"[^>]*>`, 'gi')
     let match
     while ((match = regex.exec(html)) !== null) {
       results.push({ slug: match[2], title: match[3].trim(), url: match[1] })
@@ -42,8 +44,8 @@ export const novelbinProvider = {
     )
     const infoMeta = html.match(/<ul class="info info-meta">([\s\S]*?)<\/ul>/i)
     const infoHtml = infoMeta ? infoMeta[1] : ''
-    const genres = [...infoHtml.matchAll(/<a[^>]*href="https:\/\/novelbin\.com\/genre\/([^"]+)"[^>]*>([^<]+)<\/a>/gi)].map((g) =>
-      g[2].trim(),
+    const genres = [...infoHtml.matchAll(new RegExp(`<a[^>]*href="${HOST_ESCAPED}\\/genre\\/([^"]+)"[^>]*>([^<]+)<\\/a>`, 'gi'))].map(
+      (g) => g[2].trim(),
     )
     const authorMatch = infoHtml.match(/<h3>Author:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)
     const statusMatch = infoHtml.match(/<h3>Status:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)
@@ -69,7 +71,7 @@ export const novelbinProvider = {
     const escapedSlug = slug.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
     const chapters = []
     const regex = new RegExp(
-      `<a[^>]*href="https://novelbin\\.com/b/${escapedSlug}/chapter-(\\d+)"[^>]*title="([^"]*)"[^>]*>[\\s\\S]*?<span[^>]*class="nchr-text[^"]*"[^>]*>([\\s\\S]*?)<\\/span>`,
+      `<a[^>]*href="${HOST_ESCAPED}\\/b\\/${escapedSlug}\\/chapter-(\\d+)"[^>]*title="([^"]*)"[^>]*>[\\s\\S]*?<span[^>]*class="nchr-text[^"]*"[^>]*>([\\s\\S]*?)<\\/span>`,
       'gi',
     )
     let match

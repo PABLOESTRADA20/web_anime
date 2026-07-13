@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useMangaLists() {
@@ -7,12 +7,27 @@ export function useMangaLists() {
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchLists = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('manga_lists').select('*').eq('user_id', user.id).order('updated_at', { ascending: false })
-    setLists(data || [])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/manga/lists', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setLists(data || [])
+    } catch {
+      setLists([])
+    }
     setLoading(false)
-  }, [user])
+  }, [user, getToken])
 
   useEffect(() => {
     if (!user) {
@@ -25,20 +40,28 @@ export function useMangaLists() {
 
   async function setListStatus(anilistId, title, image, status) {
     if (!user) return
+    const token = await getToken()
+    if (!token) return
     const existing = lists.find((l) => l.anilist_id === anilistId)
     if (existing) {
       if (existing.status === status) {
-        await supabase.from('manga_lists').delete().eq('id', existing.id)
+        await fetch('/api/manga/lists', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ anilist_id: anilistId }),
+        })
       } else {
-        await supabase.from('manga_lists').update({ status, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        await fetch('/api/manga/lists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ anilist_id: anilistId, title, image, status }),
+        })
       }
     } else {
-      await supabase.from('manga_lists').insert({
-        user_id: user.id,
-        anilist_id: anilistId,
-        title,
-        image,
-        status,
+      await fetch('/api/manga/lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ anilist_id: anilistId, title, image, status }),
       })
     }
     await fetchLists()

@@ -1,6 +1,6 @@
-const HOST = 'https://novelbuddy.com'
+const HOST = (typeof process !== 'undefined' && process.env.NOVEL_NOVELBUDDY_HOST) || 'https://novelbuddy.com'
 
-async function fetchPage(url, timeoutMs = 10000) {
+async function fetchPage(url, timeoutMs = 20000) {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(timeoutMs),
     headers: {

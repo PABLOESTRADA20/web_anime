@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useNovelFavorites() {
@@ -7,29 +7,38 @@ export function useNovelFavorites() {
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
+
   const fetchFavorites = useCallback(async () => {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase.from('novel_favorites').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    setFavorites(data || [])
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/novel/favorites', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      const { data } = await res.json()
+      setFavorites(data || [])
+    } catch { setFavorites([]) }
     setLoading(false)
-  }, [user])
+  }, [user, getToken])
 
   useEffect(() => {
-    if (!user) {
-      setFavorites([])
-      setLoading(false)
-      return
-    }
+    if (!user) { setFavorites([]); setLoading(false); return }
     fetchFavorites()
   }, [user, fetchFavorites])
 
   async function toggleFavorite(slug, title, cover) {
     if (!user) return
+    const token = await getToken()
+    if (!token) return
     const existing = favorites.find((f) => f.novel_slug === slug)
     if (existing) {
-      await supabase.from('novel_favorites').delete().eq('id', existing.id)
+      await fetch('/api/novel/favorites', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug }) })
     } else {
-      await supabase.from('novel_favorites').insert({ user_id: user.id, novel_slug: slug, title, cover })
+      await fetch('/api/novel/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug, title, cover }) })
     }
     fetchFavorites()
   }

@@ -1,52 +1,45 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useNovelRatings() {
   const { user } = useAuth()
   const userRef = useRef(user)
-  useEffect(() => {
-    userRef.current = user
-  }, [user])
+  useEffect(() => { userRef.current = user }, [user])
   const [ratings, setRatings] = useState({})
+
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token || null
+  }, [])
 
   const fetchRating = useCallback(async (slug) => {
     const currentUser = userRef.current
-    if (!currentUser || !isSupabaseReady()) return
+    if (!currentUser) return
+    const token = await getToken()
+    if (!token) return
     try {
-      const { data } = await supabase
-        .from('novel_ratings')
-        .select('rating')
-        .eq('user_id', currentUser.id)
-        .eq('novel_slug', slug)
-        .maybeSingle()
-      if (data) {
-        setRatings((prev) => ({ ...prev, [slug]: data.rating }))
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [])
+      const res = await fetch(`/api/novel/ratings?novel_slug=${encodeURIComponent(slug)}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      const { data } = await res.json()
+      if (data?.rating) setRatings((prev) => ({ ...prev, [slug]: data.rating }))
+    } catch { /* ignore */ }
+  }, [getToken])
 
   async function setRating(slug, rating) {
     const currentUser = userRef.current
     if (!currentUser) return
+    const token = await getToken()
+    if (!token) return
     const existing = ratings[slug]
     if (existing === rating) {
-      await supabase.from('novel_ratings').delete().eq('user_id', currentUser.id).eq('novel_slug', slug)
-      setRatings((prev) => {
-        const n = { ...prev }
-        delete n[slug]
-        return n
-      })
+      await fetch('/api/novel/ratings', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug }) })
+      setRatings((prev) => { const n = { ...prev }; delete n[slug]; return n })
     } else {
-      const { data } = await supabase
-        .from('novel_ratings')
-        .upsert({ user_id: currentUser.id, novel_slug: slug, rating }, { onConflict: 'user_id, novel_slug' })
-        .select('rating')
-        .maybeSingle()
-      if (data) {
-        setRatings((prev) => ({ ...prev, [slug]: data.rating }))
+      const res = await fetch('/api/novel/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug, rating }) })
+      if (res.ok) {
+        const { data } = await res.json()
+        if (data?.rating) setRatings((prev) => ({ ...prev, [slug]: data.rating }))
       }
     }
   }

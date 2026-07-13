@@ -1,73 +1,61 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
+import { useAuth } from './useAuth'
 
 export function useReviews(anilistId, mediaType = 'anime') {
+  const { user } = useAuth()
   const [reviews, setReviews] = useState([])
   const [userReview, setUserReview] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
   const fetchReviews = useCallback(async () => {
-    if (!isSupabaseReady()) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*, votes:review_votes(sum)')
-        .eq('anilist_id', anilistId)
-        .eq('media_type', mediaType)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      const withEmails = await attachUserEmails(data || [])
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const res = await fetch(`/api/reviews?anilist_id=${anilistId}&media_type=${mediaType}`)
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json()
+      const items = json.data || []
+      setReviews(items)
       if (user) {
-        const own = (withEmails || []).find((r) => r.user_id === user.id)
+        const own = items.find((r) => r.user_id === user.id)
         setUserReview(own || null)
       }
-
-      setReviews(withEmails)
     } catch (e) {
       console.error('Error fetching reviews:', e)
     }
     setLoading(false)
-  }, [anilistId, mediaType])
+  }, [anilistId, mediaType, user])
 
   useEffect(() => {
     fetchReviews()
   }, [fetchReviews])
 
   async function submitReview({ score, content, hasSpoilers }) {
-    if (!isSupabaseReady()) return
     setSubmitting(true)
-    if (userReview) {
-      const { error } = await supabase
-        .from('reviews')
-        .update({ score, content, has_spoilers: hasSpoilers, updated_at: new Date().toISOString() })
-        .eq('id', userReview.id)
-      if (error) throw error
-    } else {
-      const { error } = await supabase
-        .from('reviews')
-        .insert({ anilist_id: anilistId, media_type: mediaType, score, content, has_spoilers: hasSpoilers })
-      if (error) throw error
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anilist_id: anilistId,
+          media_type: mediaType,
+          score,
+          content,
+          has_spoilers: hasSpoilers,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      await fetchReviews()
+    } catch (e) {
+      console.error('Error submitting review:', e)
     }
-    await fetchReviews()
     setSubmitting(false)
   }
 
   async function deleteReview(id) {
-    if (!isSupabaseReady()) return
     try {
-      const { error } = await supabase.from('reviews').delete().eq('id', id)
-      if (error) throw error
+      const res = await fetch(`/api/reviews/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(await res.text())
       setUserReview(null)
       await fetchReviews()
     } catch (e) {
@@ -76,21 +64,16 @@ export function useReviews(anilistId, mediaType = 'anime') {
   }
 
   async function voteReview(reviewId, vote) {
-    if (!isSupabaseReady()) return
     try {
-      const { data: existing } = await supabase.from('review_votes').select('id, vote').eq('review_id', reviewId).single()
-
-      if (existing) {
-        if (existing.vote === vote) {
-          await supabase.from('review_votes').delete().eq('id', existing.id)
-        } else {
-          await supabase.from('review_votes').update({ vote }).eq('id', existing.id)
-        }
-      } else {
-        await supabase.from('review_votes').insert({ review_id: reviewId, vote })
-      }
-    } catch {
-      /* ignore unique violations */
+      const res = await fetch(`/api/reviews/${reviewId}/votes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vote }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      await fetchReviews()
+    } catch (e) {
+      console.error('Error voting:', e)
     }
   }
 

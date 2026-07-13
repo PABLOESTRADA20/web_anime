@@ -1,5 +1,5 @@
 const PROXY = '/api/proxy?url='
-const ANIMEFLV_API = 'https://animeflv.ahmedrangel.com/api'
+const ANIMEFLV_API = import.meta.env.VITE_ANIMEFLV_URL || 'https://animeflv.ahmedrangel.com/api'
 const FETCH_TIMEOUT = 10000
 const slugCache = new Map()
 

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady, attachUserEmails } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useComments(contentId, mediaType = 'anime', episodeNumber = null) {
@@ -9,48 +8,15 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
   const [error, setError] = useState(null)
 
   const fetchComments = useCallback(async () => {
-    if (!isSupabaseReady()) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     setError(null)
     try {
-      let query = supabase
-        .from('comments')
-        .select(
-          `
-          *,
-          likes:comment_likes ( count )
-        `,
-        )
-        .eq('anilist_id', typeof contentId === 'number' ? contentId : parseInt(contentId, 10))
-        .eq('media_type', mediaType)
-        .is('parent_id', null)
-
-      if (episodeNumber) {
-        query = query.eq('episode_number', episodeNumber)
-      }
-
-      const { data, error: err } = await query.order('created_at', { ascending: false })
-
-      if (err) throw err
-
-      const topWithEmails = await attachUserEmails(data || [])
-
-      // Fetch replies separately for each top-level comment
-      const commentsWithReplies = await Promise.all(
-        topWithEmails.map(async (comment) => {
-          const { data: replies } = await supabase
-            .from('comments')
-            .select('*')
-            .eq('parent_id', comment.id)
-            .order('created_at', { ascending: true })
-          return { ...comment, replies: await attachUserEmails(replies || []) }
-        }),
-      )
-
-      setComments(commentsWithReplies)
+      const params = new URLSearchParams({ anilist_id: String(contentId), media_type: mediaType })
+      if (episodeNumber) params.set('episode_number', String(episodeNumber))
+      const res = await fetch(`/api/comments?${params}`)
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json()
+      setComments(json.data || [])
     } catch (e) {
       setError(e.message)
     }
@@ -62,28 +28,34 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
   }, [fetchComments])
 
   async function addComment(content, rating = null, parentId = null) {
-    if (!user || !isSupabaseReady()) return
+    if (!user) return
     try {
-      const insertData = {
-        user_id: user.id,
+      const body = {
         anilist_id: typeof contentId === 'number' ? contentId : parseInt(contentId, 10),
         media_type: mediaType,
         content,
         rating,
         parent_id: parentId,
       }
-      if (episodeNumber) insertData.episode_number = episodeNumber
-
-      const { data, error: err } = await supabase.from('comments').insert(insertData).select().single()
-
-      if (err) {
-        const isRateLimit = err.message?.includes('rate_limit') || err.hint === 'rate_limit_exceeded'
-        const rateErr = new Error(err.message)
-        rateErr.code = isRateLimit ? 'RATE_LIMIT' : 'UNKNOWN'
-        throw rateErr
+      if (episodeNumber) body.episode_number = episodeNumber
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        if (json.code === 'RATE_LIMIT') {
+          const err = new Error(json.message || 'Rate limit exceeded')
+          err.code = 'RATE_LIMIT'
+          throw err
+        }
+        const err = new Error(json.error || 'Failed to add comment')
+        err.code = 'UNKNOWN'
+        throw err
       }
       await fetchComments()
-      return data
+      return json.data
     } catch (e) {
       setError(e.message)
       throw e
@@ -91,11 +63,10 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
   }
 
   async function deleteComment(commentId) {
-    if (!user || !isSupabaseReady()) return
+    if (!user) return
     try {
-      const { error: err } = await supabase.from('comments').delete().eq('id', commentId).eq('user_id', user.id)
-
-      if (err) throw err
+      const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(await res.text())
       await fetchComments()
     } catch (e) {
       setError(e.message)
@@ -103,20 +74,10 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
   }
 
   async function toggleLike(commentId) {
-    if (!user || !isSupabaseReady()) return
+    if (!user) return
     try {
-      const { data: existing } = await supabase
-        .from('comment_likes')
-        .select('id')
-        .eq('comment_id', commentId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (existing) {
-        await supabase.from('comment_likes').delete().eq('id', existing.id)
-      } else {
-        await supabase.from('comment_likes').insert({ user_id: user.id, comment_id: commentId })
-      }
+      const res = await fetch(`/api/comments/${commentId}/likes`, { method: 'POST' })
+      if (!res.ok) throw new Error(await res.text())
       await fetchComments()
     } catch (e) {
       setError(e.message)
