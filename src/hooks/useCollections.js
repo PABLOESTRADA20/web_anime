@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useCollections() {
@@ -8,13 +7,17 @@ export function useCollections() {
   const [loading, setLoading] = useState(true)
 
   const fetchCollections = useCallback(async () => {
-    if (!user || !isSupabaseReady()) {
+    if (!user) {
       setCollections([])
       setLoading(false)
       return
     }
-    const { data } = await supabase.from('collections').select('*').eq('user_id', user.id).order('updated_at', { ascending: false })
-    setCollections(data || [])
+    try {
+      const res = await fetch('/api/collections')
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setCollections(json.data || [])
+    } catch { /* ignore */ }
     setLoading(false)
   }, [user])
 
@@ -24,31 +27,32 @@ export function useCollections() {
 
   async function createCollection(name, description = '', isPublic = true) {
     if (!user) throw new Error('Debes iniciar sesión')
-    const { data, error } = await supabase
-      .from('collections')
-      .insert({ user_id: user.id, name, description, is_public: isPublic })
-      .select()
-      .single()
-    if (error) throw error
-    setCollections((prev) => [data, ...prev])
-    return data
+    const res = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, is_public: isPublic }),
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const json = await res.json()
+    setCollections((prev) => [json.data, ...prev])
+    return json.data
   }
 
   async function updateCollection(id, updates) {
-    const { data, error } = await supabase
-      .from('collections')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    setCollections((prev) => prev.map((c) => (c.id === id ? data : c)))
-    return data
+    const res = await fetch(`/api/collections/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const json = await res.json()
+    setCollections((prev) => prev.map((c) => (c.id === id ? json.data : c)))
+    return json.data
   }
 
   async function deleteCollection(id) {
-    const { error } = await supabase.from('collections').delete().eq('id', id)
-    if (error) throw error
+    const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(await res.text())
     setCollections((prev) => prev.filter((c) => c.id !== id))
   }
 
@@ -60,17 +64,17 @@ export function useCollectionItems(collectionId) {
   const [loading, setLoading] = useState(true)
 
   const fetchItems = useCallback(async () => {
-    if (!collectionId || !isSupabaseReady()) {
+    if (!collectionId) {
       setItems([])
       setLoading(false)
       return
     }
-    const { data } = await supabase
-      .from('collection_items')
-      .select('*')
-      .eq('collection_id', collectionId)
-      .order('added_at', { ascending: false })
-    setItems(data || [])
+    try {
+      const res = await fetch(`/api/collections/${collectionId}/items`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      const json = await res.json()
+      setItems(json.data || [])
+    } catch { /* ignore */ }
     setLoading(false)
   }, [collectionId])
 
@@ -79,25 +83,30 @@ export function useCollectionItems(collectionId) {
   }, [fetchItems])
 
   async function addItem(anilistId, mediaType, note = '') {
-    const { data, error } = await supabase
-      .from('collection_items')
-      .insert({ collection_id: collectionId, anilist_id: anilistId, media_type: mediaType, note })
-      .select()
-      .single()
-    if (error) throw error
-    setItems((prev) => [data, ...prev])
-    return data
+    const res = await fetch(`/api/collections/${collectionId}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anilist_id: anilistId, media_type: mediaType, note }),
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const json = await res.json()
+    setItems((prev) => [json.data, ...prev])
+    return json.data
   }
 
   async function removeItem(itemId) {
-    const { error } = await supabase.from('collection_items').delete().eq('id', itemId)
-    if (error) throw error
+    const res = await fetch(`/api/collections/${collectionId}/items/${itemId}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(await res.text())
     setItems((prev) => prev.filter((i) => i.id !== itemId))
   }
 
   async function updateNote(itemId, note) {
-    const { error } = await supabase.from('collection_items').update({ note }).eq('id', itemId)
-    if (error) throw error
+    const res = await fetch(`/api/collections/${collectionId}/items/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    })
+    if (!res.ok) throw new Error(await res.text())
     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, note } : i)))
   }
 

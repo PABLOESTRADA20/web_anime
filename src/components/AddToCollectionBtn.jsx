@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useCollections } from '../hooks/useCollections'
 import { useToast } from './Toast'
@@ -32,14 +31,13 @@ export default function AddToCollectionBtn({ anilistId, mediaType }) {
       const map = {}
       await Promise.all(
         collections.map(async (c) => {
-          const { data } = await supabase
-            .from('collection_items')
-            .select('id')
-            .eq('collection_id', c.id)
-            .eq('anilist_id', anilistId)
-            .eq('media_type', mediaType)
-            .maybeSingle()
-          map[c.id] = !!data
+          try {
+            const res = await fetch(`/api/collections/${c.id}/items?anilist_id=${anilistId}&media_type=${mediaType}`)
+            if (res.ok) {
+              const json = await res.json()
+              map[c.id] = !!json.data
+            }
+          } catch { /* ignore */ }
         }),
       )
       setMembership(map)
@@ -53,15 +51,17 @@ export default function AddToCollectionBtn({ anilistId, mediaType }) {
     setAdding((prev) => ({ ...prev, [collId]: true }))
     try {
       if (membership[collId]) {
-        await supabase.from('collection_items').delete().eq('collection_id', collId).eq('anilist_id', anilistId).eq('media_type', mediaType)
+        const res = await fetch(`/api/collections/${collId}/items?anilist_id=${anilistId}&media_type=${mediaType}&delete=1`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Error al eliminar')
         setMembership((prev) => ({ ...prev, [collId]: false }))
         toast.success('Eliminado de la colección')
       } else {
-        await supabase.from('collection_items').insert({
-          collection_id: collId,
-          anilist_id: anilistId,
-          media_type: mediaType,
+        const res = await fetch(`/api/collections/${collId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ anilist_id: anilistId, media_type: mediaType }),
         })
+        if (!res.ok) throw new Error(await res.text())
         setMembership((prev) => ({ ...prev, [collId]: true }))
         toast.success('Agregado a la colección')
       }

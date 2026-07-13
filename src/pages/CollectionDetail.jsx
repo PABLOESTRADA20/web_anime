@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../hooks/useI18n'
 import { useCollectionItems } from '../hooks/useCollections'
@@ -18,13 +17,10 @@ export default function CollectionDetail() {
   const { items, loading: itemsLoading, removeItem } = useCollectionItems(id)
 
   useEffect(() => {
-    if (!id || !isSupabaseReady()) return
-    supabase
-      .from('collections')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data }) => setCollection(data))
+    if (!id) return
+    fetch(`/api/collections/${id}`)
+      .then((res) => res.json())
+      .then((json) => setCollection(json.data))
       .catch(() => {})
       .finally(() => setCollLoading(false))
   }, [id])
