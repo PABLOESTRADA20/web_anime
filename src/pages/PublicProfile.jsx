@@ -31,7 +31,7 @@ export default function PublicProfile() {
     async function load() {
       try {
         const [profileRes, historyRes, listsRes, reviewsRes, mangaRes] = await Promise.allSettled([
-          supabase.from('user_profiles').select('*').eq('id', id).single(),
+          fetch(`/api/profile?id=${encodeURIComponent(id)}`).then((r) => r.json()),
           supabase.from('history').select('*').eq('user_id', id).order('updated_at', { ascending: false }).limit(20),
           supabase.from('anime_lists').select('*').eq('user_id', id),
           fetch(`/api/reviews?user_id=${encodeURIComponent(id)}&limit=10`)
@@ -43,7 +43,7 @@ export default function PublicProfile() {
         let bio = ''
         let avatarUrl = null
         let website = ''
-        if (profileRes.status === 'fulfilled' && profileRes.value.data) {
+        if (profileRes.status === 'fulfilled' && profileRes.value?.data) {
           displayName = profileRes.value.data.display_name || 'AnimeVerse User'
           bio = profileRes.value.data.bio || ''
           avatarUrl = profileRes.value.data.avatar_url

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 export function useFollows(targetUserId) {
@@ -10,27 +9,28 @@ export function useFollows(targetUserId) {
   const [loading, setLoading] = useState(true)
 
   const fetchCounts = useCallback(async () => {
-    if (!targetUserId || !isSupabaseReady()) return
-    const [followerRes, followingRes] = await Promise.all([
-      supabase.from('user_follows').select('id', { count: 'exact', head: true }).eq('following_id', targetUserId),
-      supabase.from('user_follows').select('id', { count: 'exact', head: true }).eq('follower_id', targetUserId),
-    ])
-    setFollowerCount(followerRes.count ?? 0)
-    setFollowingCount(followingRes.count ?? 0)
+    if (!targetUserId) return
+    try {
+      const res = await fetch(`/api/follows?target_id=${encodeURIComponent(targetUserId)}`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setFollowerCount(data.followerCount ?? 0)
+      setFollowingCount(data.followingCount ?? 0)
+      setIsFollowing(data.isFollowing ?? false)
+    } catch { /* ignore */ }
   }, [targetUserId])
 
   const checkFollow = useCallback(async () => {
-    if (!user || !targetUserId || !isSupabaseReady()) {
+    if (!user || !targetUserId) {
       setLoading(false)
       return
     }
-    const { data } = await supabase
-      .from('user_follows')
-      .select('id')
-      .eq('follower_id', user.id)
-      .eq('following_id', targetUserId)
-      .maybeSingle()
-    setIsFollowing(!!data)
+    try {
+      const res = await fetch(`/api/follows?target_id=${encodeURIComponent(targetUserId)}`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setIsFollowing(data.isFollowing ?? false)
+    } catch { /* ignore */ }
     setLoading(false)
   }, [user, targetUserId])
 
@@ -43,16 +43,20 @@ export function useFollows(targetUserId) {
 
   async function follow() {
     if (!user || !targetUserId) throw new Error('Debes iniciar sesión')
-    const { error } = await supabase.from('user_follows').insert({ follower_id: user.id, following_id: targetUserId })
-    if (error) throw error
+    const res = await fetch('/api/follows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_id: targetUserId }),
+    })
+    if (!res.ok) throw new Error(await res.text())
     setIsFollowing(true)
     setFollowerCount((prev) => prev + 1)
   }
 
   async function unfollow() {
     if (!user || !targetUserId) throw new Error('Debes iniciar sesión')
-    const { error } = await supabase.from('user_follows').delete().eq('follower_id', user.id).eq('following_id', targetUserId)
-    if (error) throw error
+    const res = await fetch(`/api/follows?target_id=${encodeURIComponent(targetUserId)}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error(await res.text())
     setIsFollowing(false)
     setFollowerCount((prev) => Math.max(0, prev - 1))
   }
@@ -65,12 +69,16 @@ export function useFollowedUsers() {
   const [followedIds, setFollowedIds] = useState([])
 
   const fetchFollowed = useCallback(async () => {
-    if (!user || !isSupabaseReady()) {
+    if (!user) {
       setFollowedIds([])
       return
     }
-    const { data } = await supabase.from('user_follows').select('following_id').eq('follower_id', user.id)
-    setFollowedIds(data?.map((f) => f.following_id) || [])
+    try {
+      const res = await fetch('/api/follows')
+      if (!res.ok) throw new Error('Failed to fetch')
+      const { data } = await res.json()
+      setFollowedIds(data || [])
+    } catch { /* ignore */ }
   }, [user])
 
   useEffect(() => {

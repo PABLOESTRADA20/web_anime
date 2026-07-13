@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 import { ACHIEVEMENTS, xpProgress, levelFromXp } from '../lib/achievements'
 
@@ -19,18 +18,24 @@ export function useGamification() {
       return
     }
     setLoading(true)
-    Promise.all([
-      supabase.from('user_profiles').select('xp, level').eq('id', user.id).single(),
-      supabase.from('user_achievements').select('achievement_id, unlocked_at').eq('user_id', user.id),
-    ])
-      .then(([profileRes, achRes]) => {
-        if (profileRes.data) {
-          setProfile(profileRes.data)
+    fetch('/api/profile')
+      .then((res) => res.json())
+      .then((json) => {
+        const data = json.data
+        if (data && data.xp !== undefined) {
+          setProfile({ xp: data.xp, level: data.level })
         } else {
-          supabase.from('user_profiles').upsert({ id: user.id, xp: 0, level: 1 }).then()
+          fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ensure: true }),
+          }).then((r) => r.json()).then((j) => {
+            const p = j.data
+            if (p) setProfile({ xp: p.xp ?? 0, level: p.level ?? 1 })
+          })
           setProfile({ xp: 0, level: 1 })
         }
-        setAchievements(achRes.data || [])
+        setAchievements(data?.achievements || [])
       })
       .catch(() => {})
       .finally(() => {
@@ -42,22 +47,25 @@ export function useGamification() {
   const addXp = useCallback(
     async (amount, reason) => {
       if (!user || !amount) return null
-      const { data: current } = await supabase.from('user_profiles').select('xp, level').eq('id', user.id).single()
-      const oldXp = current?.xp ?? profile?.xp ?? 0
+      const oldXp = profile?.xp ?? 0
       const newXp = Math.max(0, oldXp + amount)
       const newLevel = levelFromXp(newXp)
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .update({ xp: newXp, level: newLevel, xp_updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .select('xp, level')
-        .single()
-      if (!error && data) {
-        setProfile(data)
-      } else {
+      try {
+        const res = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ xp: amount }),
+        })
+        if (res.ok) {
+          const { data } = await res.json()
+          if (data) setProfile(data)
+        } else {
+          setProfile((p) => (p ? { ...p, xp: newXp, level: newLevel } : p))
+        }
+      } catch {
         setProfile((p) => (p ? { ...p, xp: newXp, level: newLevel } : p))
       }
-      const leveledUp = newLevel > (current?.level ?? 1)
+      const leveledUp = newLevel > (profile?.level ?? 1)
       return { xp: newXp, level: newLevel, leveledUp, reason }
     },
     [user, profile],
@@ -73,18 +81,27 @@ export function useGamification() {
         if (unlockedIds.has(ach.id)) continue
         const earned = checkEarned(ach.id, stats)
         if (earned) {
-          const { error } = await supabase.from('user_achievements').insert({ user_id: user.id, achievement_id: ach.id })
-          if (!error) {
-            newlyUnlocked.push(ach)
-            unlockedIds.add(ach.id)
-            addXp(ach.xp, `achievement:${ach.id}`)
-          }
+          try {
+            const res = await fetch('/api/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ achievement_id: ach.id }),
+            })
+            if (res.ok) {
+              newlyUnlocked.push(ach)
+              unlockedIds.add(ach.id)
+              addXp(ach.xp, `achievement:${ach.id}`)
+            }
+          } catch { /* ignore */ }
         }
       }
 
       if (newlyUnlocked.length > 0) {
-        const { data } = await supabase.from('user_achievements').select('achievement_id, unlocked_at').eq('user_id', user.id)
-        setAchievements(data || [])
+        try {
+          const res = await fetch('/api/profile')
+          const json = await res.json()
+          setAchievements(json.data?.achievements || [])
+        } catch { /* ignore */ }
       }
 
       return newlyUnlocked
