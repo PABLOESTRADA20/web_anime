@@ -29,8 +29,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_ANIVEXA_URL: ${{ secrets.VITE_ANIVEXA_URL }}
-          VITE_CONSUMET_URL: ${{ secrets.VITE_CONSUMET_URL }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_EXTERNAL_PROXY_URL: ${{ secrets.VITE_EXTERNAL_PROXY_URL }}
 
       - name: Deploy to Cloudflare Pages
         run: npx wrangler@4 pages deploy dist --project-name anime-app --branch main --d1 DB=anime-app-db
