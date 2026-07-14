@@ -2,6 +2,8 @@ import { isCloudflareBlock, isLikelySubtitle } from './subtitles.js'
 
 const CLOUDFLARE_PROXY = '/api/proxy?url='
 
+const EXTERNAL_PROXY = import.meta.env.VITE_EXTERNAL_PROXY_URL || null
+
 const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=` : null
 
 const PUBLIC_PROXIES = import.meta.env.VITE_PROXY_FALLBACKS
@@ -88,16 +90,22 @@ export async function fetchSubtitle(url, referer) {
 
   const proxies = []
   const refParam = referer ? `&referer=${encodeURIComponent(referer)}` : ''
+  const originParam = `&origin=${encodeURIComponent(window.location.origin)}`
 
-  // 1. Cloudflare proxy with referer (best chance for CDN subtitles)
-  proxies.push(() => fetchViaFullUrl(CLOUDFLARE_PROXY + encodeURIComponent(url) + refParam))
+  // 1. Cloudflare proxy with referer + origin (best chance for CDN subtitles)
+  proxies.push(() => fetchViaFullUrl(CLOUDFLARE_PROXY + encodeURIComponent(url) + refParam + originParam))
 
   // 2. Try without referer but through Cloudflare proxy
   if (referer) {
     proxies.push(() => fetchViaFullUrl(CLOUDFLARE_PROXY + encodeURIComponent(url)))
   }
 
-  // 3. Supabase CORS proxy
+  // 3. External proxy (non-Cloudflare IP)
+  if (EXTERNAL_PROXY) {
+    proxies.push(() => fetchViaFullUrl(EXTERNAL_PROXY + encodeURIComponent(url) + refParam + originParam))
+  }
+
+  // 4. Supabase CORS proxy
   if (CORS_PROXY) {
     proxies.push(() => fetchViaFullUrl(CORS_PROXY + encodeURIComponent(url) + refParam))
   }

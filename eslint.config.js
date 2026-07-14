@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', '.wrangler', 'supabase/functions']),
+  globalIgnores(['dist', '.wrangler', 'supabase/functions', 'external-proxy']),
   {
     files: ['vite.config.js'],
     languageOptions: { globals: { process: 'readonly' } },

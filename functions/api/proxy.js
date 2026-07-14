@@ -57,6 +57,7 @@ export async function onRequest(context) {
   const url = new URL(request.url)
   const target = url.searchParams.get('url')
   const referer = url.searchParams.get('referer') || ''
+  const originParam = url.searchParams.get('origin') || ''
 
   if (!target) {
     return new Response(JSON.stringify({ error: 'Missing url parameter' }), {
@@ -83,7 +84,12 @@ export async function onRequest(context) {
     Accept: 'text/vtt, text/plain, */*',
     'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
   }
-  if (referer) headers['Referer'] = referer
+  if (referer) {
+    headers['Referer'] = referer
+    headers['Origin'] = new URL(referer).origin
+  } else if (originParam) {
+    headers['Origin'] = originParam
+  }
 
   try {
     const res = await fetch(target, { headers })

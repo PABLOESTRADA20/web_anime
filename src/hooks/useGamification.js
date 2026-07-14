@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 import { ACHIEVEMENTS, xpProgress, levelFromXp } from '../lib/achievements'
 
 export function useGamification() {
@@ -18,30 +19,36 @@ export function useGamification() {
       return
     }
     setLoading(true)
-    fetch('/api/profile')
-      .then((res) => res.json())
-      .then((json) => {
-        const data = json.data
-        if (data && data.xp !== undefined) {
-          setProfile({ xp: data.xp, level: data.level })
-        } else {
-          fetch('/api/profile', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ensure: true }),
-          }).then((r) => r.json()).then((j) => {
-            const p = j.data
-            if (p) setProfile({ xp: p.xp ?? 0, level: p.level ?? 1 })
-          })
-          setProfile({ xp: 0, level: 1 })
-        }
-        setAchievements(data?.achievements || [])
-      })
-      .catch(() => {})
-      .finally(() => {
-        setLoading(false)
-        initialLoadDone.current = true
-      })
+    ;(async () => {
+      const token = await getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      fetch('/api/profile', { headers })
+        .then((res) => res.json())
+        .then((json) => {
+          const data = json.data
+          if (data && data.xp !== undefined) {
+            setProfile({ xp: data.xp, level: data.level })
+          } else {
+            fetch('/api/profile', {
+              method: 'PUT',
+              headers: { ...headers, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ensure: true }),
+            })
+              .then((r) => r.json())
+              .then((j) => {
+                const p = j.data
+                if (p) setProfile({ xp: p.xp ?? 0, level: p.level ?? 1 })
+              })
+            setProfile({ xp: 0, level: 1 })
+          }
+          setAchievements(data?.achievements || [])
+        })
+        .catch(() => {})
+        .finally(() => {
+          setLoading(false)
+          initialLoadDone.current = true
+        })
+    })()
   }, [user])
 
   const addXp = useCallback(
@@ -51,9 +58,10 @@ export function useGamification() {
       const newXp = Math.max(0, oldXp + amount)
       const newLevel = levelFromXp(newXp)
       try {
+        const token = await getToken()
         const res = await fetch('/api/profile', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ xp: amount }),
         })
         if (res.ok) {
@@ -82,9 +90,10 @@ export function useGamification() {
         const earned = checkEarned(ach.id, stats)
         if (earned) {
           try {
+            const token = await getToken()
             const res = await fetch('/api/profile', {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
               body: JSON.stringify({ achievement_id: ach.id }),
             })
             if (res.ok) {
@@ -92,16 +101,21 @@ export function useGamification() {
               unlockedIds.add(ach.id)
               addXp(ach.xp, `achievement:${ach.id}`)
             }
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
 
       if (newlyUnlocked.length > 0) {
         try {
-          const res = await fetch('/api/profile')
+          const token = await getToken()
+          const res = await fetch('/api/profile', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
           const json = await res.json()
           setAchievements(json.data?.achievements || [])
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       return newlyUnlocked
