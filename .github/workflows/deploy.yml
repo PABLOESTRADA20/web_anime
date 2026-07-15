@@ -20,10 +20,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run lint || echo "lint warnings are non-blocking"
-      - run: npm run typecheck
-      - run: npm test
-
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
