@@ -120,7 +120,7 @@ export default function Home() {
     ;(async () => {
       try {
         const genres = await getUserGenreProfile(user.id)
-        if (ac.signal.aborted || genres.length === 0) {
+        if (ac.signal.aborted || (genres || []).length === 0) {
           setRecsLoading(false)
           return
         }
@@ -153,7 +153,7 @@ export default function Home() {
     ;(async () => {
       try {
         const genres = await getUserGenreProfile(user.id)
-        if (controller.signal.aborted || genres.length === 0) {
+        if (controller.signal.aborted || (genres || []).length === 0) {
           setAiRecsLoading(false)
           return
         }
@@ -310,7 +310,7 @@ export default function Home() {
         </section>
       )}
 
-      {user && (recommendations.length > 0 || recsLoading) && (
+      {user && ((recommendations || []).length > 0 || recsLoading) && (
         <section className="mb-12">
           <FadeIn>
             <SectionHeader
@@ -340,7 +340,7 @@ export default function Home() {
         </section>
       )}
 
-      {user && (aiRecs.length > 0 || aiRecsLoading) && (
+      {user && ((aiRecs || []).length > 0 || aiRecsLoading) && (
         <section className="mb-12">
           <FadeIn>
             <SectionHeader
@@ -525,7 +525,7 @@ export default function Home() {
         </FadeIn>
         {recentLoading ? (
           <GridSkeleton count={6} />
-        ) : recentChapters.length === 0 ? (
+        ) : (recentChapters || []).length === 0 ? (
           <EmptyState message={t('home.noRecentChapters')} />
         ) : (
           <FadeInStagger>
