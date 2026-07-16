@@ -6,9 +6,13 @@ const EXTERNAL_PROXY = import.meta.env.VITE_EXTERNAL_PROXY_URL || null
 
 const CORS_PROXY = import.meta.env.VITE_SUPABASE_URL ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cors-proxy?url=` : null
 
-const PUBLIC_PROXIES = import.meta.env.VITE_PROXY_FALLBACKS
-  ? JSON.parse(import.meta.env.VITE_PROXY_FALLBACKS)
-  : ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']
+let PUBLIC_PROXIES = ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']
+try {
+  const raw = import.meta.env.VITE_PROXY_FALLBACKS
+  if (raw) PUBLIC_PROXIES = JSON.parse(raw)
+} catch {
+  /* invalid JSON, use defaults */
+}
 
 let proxyCache = new Map()
 const PROXY_CACHE_TTL = 600000

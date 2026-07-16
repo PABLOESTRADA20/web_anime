@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useComments(contentId, mediaType = 'anime', episodeNumber = null) {
   const { user } = useAuth()
@@ -29,6 +30,7 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
 
   async function addComment(content, rating = null, parentId = null) {
     if (!user) return
+    const token = await getToken()
     try {
       const body = {
         anilist_id: typeof contentId === 'number' ? contentId : parseInt(contentId, 10),
@@ -40,7 +42,7 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
       if (episodeNumber) body.episode_number = episodeNumber
       const res = await fetch('/api/comments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
       })
       const json = await res.json()
@@ -64,8 +66,12 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
 
   async function deleteComment(commentId) {
     if (!user) return
+    const token = await getToken()
     try {
-      const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error(await res.text())
       await fetchComments()
     } catch (e) {
@@ -75,8 +81,12 @@ export function useComments(contentId, mediaType = 'anime', episodeNumber = null
 
   async function toggleLike(commentId) {
     if (!user) return
+    const token = await getToken()
     try {
-      const res = await fetch(`/api/comments/${commentId}/likes`, { method: 'POST' })
+      const res = await fetch(`/api/comments/${commentId}/likes`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (!res.ok) throw new Error(await res.text())
       await fetchComments()
     } catch (e) {

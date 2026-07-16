@@ -94,7 +94,7 @@ export default function Activity() {
                 <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">{r.content}</p>
                 <div className="mt-2">
                   <Link to={`/anime/${r.anilist_id}`} className="text-[10px] text-neon-cyan hover:underline">
-                    {t('anime.episode')} {r.anilist_id} →
+                    {t('anime.episode')} {r.episode_number ? r.episode_number : r.anilist_id} →
                   </Link>
                 </div>
               </div>
