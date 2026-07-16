@@ -851,4 +851,9 @@ export default {
     reviewVote: '{user} votó tu reseña de {title}',
     weeklyDigest: 'Resumen semanal: {count} nuevos episodios',
   },
+  footer: {
+    privacy: 'Privacidad',
+    terms: 'Términos',
+    contact: 'Contacto / Reportar',
+  },
 }

@@ -42,6 +42,9 @@ const Collections = lazy(() => import('./pages/Collections'))
 const CollectionDetail = lazy(() => import('./pages/CollectionDetail'))
 const MyMangas = lazy(() => import('./pages/MyMangas'))
 const MyNovels = lazy(() => import('./pages/MyNovels'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const Terms = lazy(() => import('./pages/Terms'))
+const Dmca = lazy(() => import('./pages/Dmca'))
 
 function RouteGuard({ children }) {
   return (
@@ -298,6 +301,30 @@ export default function App() {
                       element={
                         <RouteGuard>
                           <CollectionDetail />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/privacy"
+                      element={
+                        <RouteGuard>
+                          <Privacy />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/terms"
+                      element={
+                        <RouteGuard>
+                          <Terms />
+                        </RouteGuard>
+                      }
+                    />
+                    <Route
+                      path="/dmca"
+                      element={
+                        <RouteGuard>
+                          <Dmca />
                         </RouteGuard>
                       }
                     />

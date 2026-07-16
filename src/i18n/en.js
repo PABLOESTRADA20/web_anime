@@ -841,4 +841,9 @@ export default {
     reviewVote: '{user} voted on your review of {title}',
     weeklyDigest: 'Weekly digest: {count} new episodes',
   },
+  footer: {
+    privacy: 'Privacy',
+    terms: 'Terms',
+    contact: 'Contact / Report',
+  },
 }
