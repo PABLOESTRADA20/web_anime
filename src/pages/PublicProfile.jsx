@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase, isSupabaseReady } from '../lib/supabase'
+
 import SeoHead from '../components/SeoHead'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -25,18 +25,17 @@ export default function PublicProfile() {
   const [followActionLoading, setFollowActionLoading] = useState(false)
 
   useEffect(() => {
-    if (!id || !isSupabaseReady()) return
+    if (!id) return
     let cancelled = false
 
     async function load() {
       try {
         const [profileRes, historyRes, listsRes, reviewsRes, mangaRes] = await Promise.allSettled([
           fetch(`/api/profile?id=${encodeURIComponent(id)}`).then((r) => r.json()),
-          supabase.from('history').select('*').eq('user_id', id).order('updated_at', { ascending: false }).limit(20),
-          supabase.from('anime_lists').select('*').eq('user_id', id),
-          fetch(`/api/reviews?user_id=${encodeURIComponent(id)}&limit=10`)
-            .then((res) => res.json()),
-          supabase.from('manga_history').select('*').eq('user_id', id).order('updated_at', { ascending: false }).limit(20),
+          fetch(`/api/anime/history?user_id=${encodeURIComponent(id)}`).then((r) => r.json()),
+          fetch(`/api/anime/lists?user_id=${encodeURIComponent(id)}`).then((r) => r.json()),
+          fetch(`/api/reviews?user_id=${encodeURIComponent(id)}&limit=10`).then((r) => r.json()),
+          fetch(`/api/manga/history?user_id=${encodeURIComponent(id)}`).then((r) => r.json()),
         ])
 
         let displayName = 'AnimeVerse User'

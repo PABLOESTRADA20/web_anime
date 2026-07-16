@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useHistory() {
   const { user } = useAuth()
   const [history, setHistory] = useState([])
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchHistory = useCallback(async () => {
     if (!user) return
@@ -25,7 +20,7 @@ export function useHistory() {
     } catch {
       setHistory([])
     }
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -59,7 +54,7 @@ export function useHistory() {
         /* silent */
       }
     },
-    [user, getToken, fetchHistory],
+    [user, fetchHistory],
   )
 
   return { history, saveProgress }

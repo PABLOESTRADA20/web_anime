@@ -1,4 +1,3 @@
-import { supabase } from './supabase'
 import { gql } from './anilist'
 
 const RECOMMENDATION_QUERY = `
@@ -37,18 +36,23 @@ function normalizeRec(item) {
   }
 }
 
+async function fetchAnilistIds(endpoint, userId) {
+  try {
+    const res = await fetch(`/api/anime/${endpoint}?user_id=${userId}`)
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.data || []).map((d) => d.anilist_id).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 export async function getUserGenreProfile(userId) {
   if (!userId) return []
 
-  const anilistIds = new Set()
-
-  const tables = ['anime_lists', 'anime_favorites', 'anime_ratings', 'watchlist', 'history']
-  await Promise.all(
-    tables.map(async (table) => {
-      const { data } = await supabase.from(table).select('anilist_id').eq('user_id', userId)
-      if (data) data.forEach((d) => anilistIds.add(d.anilist_id))
-    }),
-  )
+  const endpoints = ['lists', 'favorites', 'ratings', 'watchlist', 'history']
+  const results = await Promise.all(endpoints.map((ep) => fetchAnilistIds(ep, userId)))
+  const anilistIds = new Set(results.flat())
 
   if (anilistIds.size === 0) return []
 
@@ -96,15 +100,9 @@ export async function getUserGenreProfile(userId) {
 
 export async function getUserInteractionIds(userId) {
   if (!userId) return new Set()
-  const ids = new Set()
-  const tables = ['anime_lists', 'anime_favorites', 'anime_ratings', 'watchlist', 'history']
-  await Promise.all(
-    tables.map(async (table) => {
-      const { data } = await supabase.from(table).select('anilist_id').eq('user_id', userId)
-      if (data) data.forEach((d) => ids.add(d.anilist_id))
-    }),
-  )
-  return ids
+  const endpoints = ['lists', 'favorites', 'ratings', 'watchlist', 'history']
+  const results = await Promise.all(endpoints.map((ep) => fetchAnilistIds(ep, userId)))
+  return new Set(results.flat())
 }
 
 export async function getAiRecommendations(genres, lang = 'es', count = 6) {

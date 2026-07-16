@@ -1,5 +1,5 @@
 import { verifyAuth, corsHeaders, handleOptions } from '../../../_middleware'
-import { query, queryOne, execute } from '../../../_db'
+import { queryOne, execute } from '../../../_db'
 
 export async function onRequest(context) {
   const { request, env, params } = context
@@ -13,12 +13,18 @@ export async function onRequest(context) {
   const collection = await queryOne(env.DB, 'SELECT * FROM collections WHERE id = ?', [collectionId])
 
   if (!collection) {
-    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders(), 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+    })
   }
 
   if (method === 'GET') {
     if (!collection.is_public && (!user || collection.user_id !== user.id)) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders(), 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+      })
     }
     return new Response(JSON.stringify({ data: collection }), {
       headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
@@ -26,7 +32,10 @@ export async function onRequest(context) {
   }
 
   if (!user || collection.user_id !== user.id) {
-    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders(), 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+    })
   }
 
   if (method === 'PUT') {
@@ -47,5 +56,8 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: corsHeaders() })
   }
 
-  return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers: { ...corsHeaders(), 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+    status: 405,
+    headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
+  })
 }

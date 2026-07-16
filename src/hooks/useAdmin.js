@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useAdmin() {
   const { user } = useAuth()
@@ -8,12 +8,29 @@ export function useAdmin() {
   const [loading, setLoading] = useState(true)
 
   const checkAdmin = useCallback(async () => {
-    if (!user || !isSupabaseReady()) {
+    if (!user) {
       setLoading(false)
       return
     }
-    const { data } = await supabase.from('admin_users').select('id').eq('user_id', user.id).maybeSingle()
-    setIsAdmin(!!data)
+    try {
+      const token = await getToken()
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      const res = await fetch('/api/admin/check', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setIsAdmin(false)
+        setLoading(false)
+        return
+      }
+      const json = await res.json()
+      setIsAdmin(!!json.data?.is_admin)
+    } catch {
+      setIsAdmin(false)
+    }
     setLoading(false)
   }, [user])
 
@@ -22,11 +39,15 @@ export function useAdmin() {
   }, [checkAdmin])
 
   async function bootstrapAdmin() {
-    if (!user || !isSupabaseReady()) throw new Error('Debes iniciar sesión')
-    const { data, error } = await supabase.from('admin_users').insert({ user_id: user.id }).select().single()
-    if (error) throw error
+    if (!user) throw new Error('Debes iniciar sesión')
+    const token = await getToken()
+    if (!token) throw new Error('Debes iniciar sesión')
+    const res = await fetch('/api/admin/bootstrap', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error('Failed to bootstrap admin')
     setIsAdmin(true)
-    return data
   }
 
   return { isAdmin, loading, checkAdmin, bootstrapAdmin }
@@ -40,12 +61,26 @@ function useModerationTable(table) {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error: err } = await supabase.from(table).select('*').order('created_at', { ascending: false })
-    if (err) {
-      setError(err.message)
+    try {
+      const token = await getToken()
+      if (!token) {
+        setError('Not authenticated')
+        setLoading(false)
+        return
+      }
+      const res = await fetch(`/api/admin/moderation?table=${table}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setError('Failed to fetch')
+        setItems([])
+      } else {
+        const json = await res.json()
+        setItems(json.data || [])
+      }
+    } catch (e) {
+      setError(e.message)
       setItems([])
-    } else {
-      setItems(data || [])
     }
     setLoading(false)
   }, [table])
@@ -55,14 +90,26 @@ function useModerationTable(table) {
   }, [fetchAll])
 
   async function updateStatus(id, status) {
-    const { error } = await supabase.from(table).update({ status }).eq('id', id)
-    if (error) throw error
+    const token = await getToken()
+    if (!token) throw new Error('Not authenticated')
+    const res = await fetch(`/api/admin/moderation?table=${table}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, status }),
+    })
+    if (!res.ok) throw new Error('Failed to update')
     setItems((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
   }
 
   async function removeItem(id) {
-    const { error } = await supabase.from(table).delete().eq('id', id)
-    if (error) throw error
+    const token = await getToken()
+    if (!token) throw new Error('Not authenticated')
+    const res = await fetch(`/api/admin/moderation?table=${table}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) throw new Error('Failed to delete')
     setItems((prev) => prev.filter((e) => e.id !== id))
   }
 

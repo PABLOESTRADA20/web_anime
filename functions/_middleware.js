@@ -6,15 +6,16 @@ export async function verifyAuth(request, env) {
   if (!token) return null
 
   try {
-    const res = await fetch(
-      `${env.SUPABASE_URL}/auth/v1/user`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apiKey: env.SUPABASE_ANON_KEY,
-        },
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apiKey: env.SUPABASE_ANON_KEY,
       },
-    )
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
     if (!res.ok) return null
     const user = await res.json()
     return { id: user.id, email: user.email }

@@ -1,3 +1,4 @@
+/* global process */
 const NOVELBIN_HOST = (typeof process !== 'undefined' && process.env.NOVEL_NOVELBIN_HOST) || 'https://novelbin.me'
 
 const HOST_ESCAPED = NOVELBIN_HOST.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')
@@ -44,8 +45,8 @@ export const novelbinProvider = {
     )
     const infoMeta = html.match(/<ul class="info info-meta">([\s\S]*?)<\/ul>/i)
     const infoHtml = infoMeta ? infoMeta[1] : ''
-    const genres = [...infoHtml.matchAll(new RegExp(`<a[^>]*href="${HOST_ESCAPED}\\/genre\\/([^"]+)"[^>]*>([^<]+)<\\/a>`, 'gi'))].map(
-      (g) => g[2].trim(),
+    const genres = [...infoHtml.matchAll(new RegExp(`<a[^>]*href="${HOST_ESCAPED}\\/genre\\/([^"]+)"[^>]*>([^<]+)<\\/a>`, 'gi'))].map((g) =>
+      g[2].trim(),
     )
     const authorMatch = infoHtml.match(/<h3>Author:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)
     const statusMatch = infoHtml.match(/<h3>Status:<\/h3>\s*<a[^>]*>([\s\S]*?)<\/a>/i)

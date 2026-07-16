@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { getToken } from '../lib/auth'
 
 const ANILIST_API = import.meta.env.VITE_ANILIST_API || 'https://graphql.anilist.co'
 
@@ -70,10 +70,8 @@ export function useAnilistImport() {
       const lists = json.data?.MediaListCollection?.lists || []
       if (!lists.length) throw new Error('No se encontraron listas públicas para este usuario')
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error('Debes iniciar sesión')
+      const token = await getToken()
+      if (!token) throw new Error('Debes iniciar sesión')
 
       const counts = { watching: 0, plan_to_watch: 0, completed: 0, dropped: 0, paused: 0 }
 
@@ -85,22 +83,18 @@ export function useAnilistImport() {
           const media = entry.media
           if (!media?.id) continue
 
-          const { error: upsertError } = await supabase.from('anime_lists').upsert(
-            {
-              user_id: session.user.id,
+          const upsertRes = await fetch('/api/anime/lists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
               anilist_id: media.id,
               title: media.title?.romaji || media.title?.english || '',
               image: media.coverImage?.large || null,
               status,
-              score: entry.score || null,
-              updated_at: new Date().toISOString(),
-            },
-            {
-              onConflict: 'user_id, anilist_id',
-            },
-          )
+            }),
+          })
 
-          if (!upsertError) counts[status]++
+          if (upsertRes.ok) counts[status]++
         }
       }
 

@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useMangaHistory() {
   const { user } = useAuth()
   const [mangaHistory, setMangaHistory] = useState([])
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchMangaHistory = useCallback(async () => {
     if (!user) return
@@ -25,7 +20,7 @@ export function useMangaHistory() {
     } catch {
       setMangaHistory([])
     }
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
     if (!user) {

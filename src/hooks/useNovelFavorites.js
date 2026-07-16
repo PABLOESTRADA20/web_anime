@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useNovelFavorites() {
   const { user } = useAuth()
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchFavorites = useCallback(async () => {
     if (!user) return
@@ -21,12 +16,18 @@ export function useNovelFavorites() {
       if (!res.ok) throw new Error()
       const { data } = await res.json()
       setFavorites(data || [])
-    } catch { setFavorites([]) }
+    } catch {
+      setFavorites([])
+    }
     setLoading(false)
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
-    if (!user) { setFavorites([]); setLoading(false); return }
+    if (!user) {
+      setFavorites([])
+      setLoading(false)
+      return
+    }
     fetchFavorites()
   }, [user, fetchFavorites])
 
@@ -36,9 +37,17 @@ export function useNovelFavorites() {
     if (!token) return
     const existing = favorites.find((f) => f.novel_slug === slug)
     if (existing) {
-      await fetch('/api/novel/favorites', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug }) })
+      await fetch('/api/novel/favorites', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ novel_slug: slug }),
+      })
     } else {
-      await fetch('/api/novel/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug, title, cover }) })
+      await fetch('/api/novel/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ novel_slug: slug, title, cover }),
+      })
     }
     fetchFavorites()
   }

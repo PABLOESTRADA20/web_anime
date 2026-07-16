@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useNovelLists() {
   const { user } = useAuth()
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchLists = useCallback(async () => {
     if (!user) return
@@ -21,12 +16,18 @@ export function useNovelLists() {
       if (!res.ok) throw new Error()
       const { data } = await res.json()
       setLists(data || [])
-    } catch { setLists([]) }
+    } catch {
+      setLists([])
+    }
     setLoading(false)
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
-    if (!user) { setLists([]); setLoading(false); return }
+    if (!user) {
+      setLists([])
+      setLoading(false)
+      return
+    }
     fetchLists()
   }, [user, fetchLists])
 
@@ -37,12 +38,24 @@ export function useNovelLists() {
     const existing = lists.find((l) => l.novel_slug === slug)
     if (existing) {
       if (existing.status === status) {
-        await fetch('/api/novel/lists', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug }) })
+        await fetch('/api/novel/lists', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ novel_slug: slug }),
+        })
       } else {
-        await fetch('/api/novel/lists', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug, title, cover, status }) })
+        await fetch('/api/novel/lists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ novel_slug: slug, title, cover, status }),
+        })
       }
     } else {
-      await fetch('/api/novel/lists', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ novel_slug: slug, title, cover, status }) })
+      await fetch('/api/novel/lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ novel_slug: slug, title, cover, status }),
+      })
     }
     await fetchLists()
   }

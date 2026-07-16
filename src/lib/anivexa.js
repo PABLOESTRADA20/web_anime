@@ -1,3 +1,5 @@
+import { isSpanishSub } from '../utils/subtitles'
+
 const PROXY = '/api/proxy?url='
 const BASE = import.meta.env.VITE_ANIVEXA_URL || 'https://anivexa-api.vercel.app'
 const FETCH_TIMEOUT = 10000
@@ -60,15 +62,7 @@ function detectSpanishAudio(watchData) {
 }
 
 function hasSpanishSubs(subtitles) {
-  return subtitles.some((s) => {
-    const lang = (s.language || s.lang || s.srclang || '').toLowerCase()
-    const file = (s.file || s.url || s.src || '').toLowerCase()
-    const label = (s.label || s.name || '').toLowerCase()
-    if (lang === 'es' || lang === 'spa') return true
-    if (/spanish|español|espanol|latino|castellano/.test(label)) return true
-    if (/es\.|spanish\.|spa-|_es\./.test(file)) return true
-    return false
-  })
+  return subtitles.some(isSpanishSub)
 }
 
 export function normalizeStreams(watchData) {

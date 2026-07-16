@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseReady } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 const DEFAULTS = {
   new_episode: true,
@@ -16,12 +16,28 @@ export function useNotificationPreferences() {
   const [loading, setLoading] = useState(true)
 
   const fetchPrefs = useCallback(async () => {
-    if (!user || !isSupabaseReady()) {
+    if (!user) {
       setLoading(false)
       return
     }
-    const { data } = await supabase.from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle()
-    setPrefs(data || null)
+    try {
+      const token = await getToken()
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      const res = await fetch('/api/notification-preferences', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setLoading(false)
+        return
+      }
+      const json = await res.json()
+      setPrefs(json.data || null)
+    } catch {
+      setPrefs(null)
+    }
     setLoading(false)
   }, [user])
 
@@ -30,23 +46,33 @@ export function useNotificationPreferences() {
   }, [fetchPrefs])
 
   async function ensurePrefs() {
-    if (!user || !isSupabaseReady()) return
-    const { data } = await supabase
-      .from('notification_preferences')
-      .upsert({ user_id: user.id }, { onConflict: 'user_id', ignoreDuplicates: true })
-      .select()
-      .single()
-    if (data) setPrefs(data)
-    return data
+    if (!user) return
+    const token = await getToken()
+    if (!token) return
+    const res = await fetch('/api/notification-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      setPrefs(json.data)
+    }
   }
 
   async function updatePref(key, value) {
-    if (!user || !isSupabaseReady()) throw new Error('Not authenticated')
-    const updates = { user_id: user.id, [key]: value, updated_at: new Date().toISOString() }
-    const { data, error } = await supabase.from('notification_preferences').upsert(updates, { onConflict: 'user_id' }).select().single()
-    if (error) throw error
-    setPrefs(data)
-    return data
+    if (!user) throw new Error('Not authenticated')
+    const token = await getToken()
+    if (!token) throw new Error('Not authenticated')
+    const res = await fetch('/api/notification-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ [key]: value }),
+    })
+    if (!res.ok) throw new Error('Failed to update preferences')
+    const json = await res.json()
+    setPrefs(json.data)
+    return json.data
   }
 
   const merged = { ...DEFAULTS, ...(prefs || {}) }

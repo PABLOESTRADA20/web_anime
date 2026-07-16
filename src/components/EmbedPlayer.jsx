@@ -31,6 +31,7 @@ const EMBED_PROVIDERS = {
   voe: { pattern: /voe\.sx/i, embed: (url) => url },
   filemoon: { pattern: /filemoon\.sx/i, embed: (url) => url.replace('/d/', '/e/') },
   vidguard: { pattern: /vgfplay|vidguard/i, embed: (url) => url },
+  jkanime: { pattern: /jkanime\.net\/jkplayer/i, embed: (url) => url },
 }
 
 function getEmbedUrl(url) {

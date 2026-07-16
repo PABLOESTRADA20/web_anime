@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useNovelHistory() {
   const { user } = useAuth()
   const [history, setHistory] = useState([])
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchHistory = useCallback(async () => {
     if (!user) return
@@ -20,11 +15,16 @@ export function useNovelHistory() {
       if (!res.ok) throw new Error()
       const { data } = await res.json()
       setHistory(data || [])
-    } catch { setHistory([]) }
-  }, [user, getToken])
+    } catch {
+      setHistory([])
+    }
+  }, [user])
 
   useEffect(() => {
-    if (!user) { setHistory([]); return }
+    if (!user) {
+      setHistory([])
+      return
+    }
     fetchHistory()
   }, [user, fetchHistory])
 
@@ -36,10 +36,19 @@ export function useNovelHistory() {
       await fetch('/api/novel/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ novel_slug: novelSlug, chapter_number: chapterNumber, chapter_title: chapterTitle, novel_title: novelTitle, cover, scroll_percent: scrollPercent }),
+        body: JSON.stringify({
+          novel_slug: novelSlug,
+          chapter_number: chapterNumber,
+          chapter_title: chapterTitle,
+          novel_title: novelTitle,
+          cover,
+          scroll_percent: scrollPercent,
+        }),
       })
       fetchHistory()
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }
 
   function getLatestChapter(novelSlug) {

@@ -1,3 +1,4 @@
+/* global process */
 const HOST = (typeof process !== 'undefined' && process.env.NOVEL_NOVELBUDDY_HOST) || 'https://novelbuddy.com'
 
 async function fetchPage(url, timeoutMs = 20000) {

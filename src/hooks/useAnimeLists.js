@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
+import { getToken } from '../lib/auth'
 import { useAuth } from './useAuth'
 
 const VAPID_PUBLIC_KEY = 'BM8M-xS2XiyO9jufJKUVNFpGHKl155PT4GYXzIBKPWu65bQDW1FX82mMTp3v5n3bGz1BlwoBxdMH7XKZNv53CU'
@@ -16,11 +16,6 @@ export function useAnimeLists() {
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
-
   const ensurePushSub = useCallback(async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return
     if (Notification.permission !== 'granted') return
@@ -33,19 +28,17 @@ export function useAnimeLists() {
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         })
       }
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session) {
-        await supabase.from('push_subscriptions').upsert(
-          {
-            user_id: session.user.id,
+      const token = await getToken()
+      if (token) {
+        await fetch('/api/push-subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
             endpoint: sub.endpoint,
             p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))),
             auth: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth')))),
-          },
-          { onConflict: 'user_id, endpoint' },
-        )
+          }),
+        })
       }
     } catch {
       /* push not available */
@@ -67,7 +60,7 @@ export function useAnimeLists() {
       setLists([])
     }
     setLoading(false)
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
     if (!user) {

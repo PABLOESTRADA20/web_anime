@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useAnimeRatings() {
   const { user } = useAuth()
@@ -9,11 +9,6 @@ export function useAnimeRatings() {
     userRef.current = user
   }, [user])
   const [ratings, setRatings] = useState({})
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchRating = useCallback(async (anilistId) => {
     const currentUser = userRef.current
@@ -32,7 +27,7 @@ export function useAnimeRatings() {
     } catch {
       /* ignore */
     }
-  }, [getToken])
+  }, [])
 
   async function setRating(anilistId, rating) {
     const currentUser = userRef.current

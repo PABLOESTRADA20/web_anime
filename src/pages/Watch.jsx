@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { parseEpisodeId } from '../lib/anivexa'
 import { getAnimeEpisodes, getWatchWithFallback } from '../lib/api'
-import { PROVIDER_LABELS, MIRURO_LABELS, AUTO_FALLBACK_ORDER } from '../lib/providers/registry'
+import { PROVIDER_LABELS, AUTO_FALLBACK_ORDER } from '../lib/providers/registry'
 import { useI18n } from '../hooks/useI18n'
 
 import { getAnimeInfo } from '../lib/anilist'
@@ -30,6 +30,7 @@ import ShareButton from '../components/ShareButton'
 import Breadcrumbs from '../components/Breadcrumbs'
 import { useGamification } from '../hooks/useGamification'
 import { XP_VALUES } from '../lib/achievements'
+import { getToken } from '../lib/auth'
 
 function useHls(videoRef, url, useCache, proxyFallbackUrl) {
   const hlsRef = useRef(null)
@@ -235,16 +236,12 @@ function useKeyboardShortcuts(videoRef, onNextEpRef, setPlaybackRate) {
 const PROVIDER_NAMES = { ...PROVIDER_LABELS }
 
 Object.assign(PROVIDER_NAMES, {
-  kenjitsu: 'Kenjitsu',
   anivexa: 'Anivexa',
-  miruro: 'Miruro',
   veranime: 'VerAnime',
 })
 
 const BACKEND_NAMES = {
-  kenjitsu: 'Kenjitsu',
   anivexa: 'Anivexa',
-  miruro: 'Miruro',
   veranime: 'VerAnime',
 }
 
@@ -318,14 +315,45 @@ export default function Watch() {
   const [audioOptions, setAudioOptions] = useState(null)
   const [detectingAudio, setDetectingAudio] = useState(true)
   const audioFallbackRef = useRef(null)
+  const prefsLoadedRef = useRef(false)
 
   const parsed = parseEpisodeId(episodeId)
   const anilistId = parsed?.anilistId || searchParams.get('anilistId')
   const epNum = parsed?.epNum || parseInt(searchParams.get('ep'), 10)
-  const provider = parsed?.provider || searchParams.get('provider') || 'kenjitsu'
+  const provider = parsed?.provider || searchParams.get('provider') || 'anikoto'
   const audio = parsed?.audio || 'sub'
 
   const effectiveAudio = selectedLanguage || audio
+
+  async function syncLangPrefsFromAPI() {
+    try {
+      const token = await getToken()
+      if (!token) return null
+      const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) return null
+      const { data } = await res.json()
+      if (data?.preferred_audio) localStorage.setItem('preferred_audio', data.preferred_audio)
+      if (data?.preferred_subtitle_lang) localStorage.setItem('preferred_subtitle_lang', data.preferred_subtitle_lang)
+      return { preferred_audio: data?.preferred_audio, preferred_subtitle_lang: data?.preferred_subtitle_lang }
+    } catch {
+      return null
+    }
+  }
+
+  async function saveLangPrefToAPI(type, value) {
+    try {
+      const token = await getToken()
+      if (!token) return
+      const body = type === 'audio' ? { preferred_audio: value } : { preferred_subtitle_lang: value }
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+    } catch {
+      /* silent */
+    }
+  }
 
   const title = searchParams.get('title') || ''
   const image = searchParams.get('image') || ''
@@ -340,10 +368,16 @@ export default function Watch() {
   }, [anilistId, epNum, party])
 
   useEffect(() => {
-    setShowSelector(true)
     setSelectedLanguage(null)
     setAudioOptions(null)
     setDetectingAudio(true)
+    prefsLoadedRef.current = false
+    const saved = localStorage.getItem('preferred_audio')
+    if (saved) {
+      setShowSelector(false)
+    } else {
+      setShowSelector(true)
+    }
   }, [anilistId, epNum])
 
   useEffect(() => {
@@ -365,6 +399,25 @@ export default function Watch() {
         if (!cancelled) {
           setAudioOptions(options)
           setDetectingAudio(false)
+          const saved = localStorage.getItem('preferred_audio')
+          if (saved && options[saved]?.available) {
+            setSelectedLanguage(saved)
+            setShowSelector(false)
+          }
+          if (!prefsLoadedRef.current) {
+            prefsLoadedRef.current = true
+            syncLangPrefsFromAPI().then((prefs) => {
+              if (prefs && !cancelled) {
+                if (prefs.preferred_audio && options[prefs.preferred_audio]?.available) {
+                  setSelectedLanguage(prefs.preferred_audio)
+                  setShowSelector(false)
+                }
+                if (prefs.preferred_subtitle_lang) {
+                  localStorage.setItem('preferred_subtitle_lang', prefs.preferred_subtitle_lang)
+                }
+              }
+            })
+          }
         }
       })
       .catch(() => {
@@ -457,15 +510,21 @@ export default function Watch() {
   }, [anilistId, provider, epNum, effectiveAudio, showSelector, selectedLanguage, audio, t])
 
   useEffect(() => {
-    if (subtitles.length === 0 || audioType === 'latam') {
+    if (subtitles.length === 0) {
       setActiveSubtitle(-1)
       return
     }
+    const savedLang = localStorage.getItem('preferred_subtitle_lang')
+    let preferred = 0
+    if (savedLang) {
+      const idx = subtitles.findIndex((s) => (s.language || s.lang || s.srclang || '').toLowerCase().startsWith(savedLang.toLowerCase()))
+      if (idx >= 0) preferred = idx
+    }
     const esIndex = subtitles.findIndex(isSpanishSub)
-    const preferred = esIndex >= 0 ? esIndex : 0
+    if (preferred === 0 && esIndex >= 0) preferred = esIndex
     setActiveSubtitle(preferred)
-    if (esIndex < 0) {
-      toast(t('audio.noSpanishSubs', { lang: subtitleLangLabel(subtitles[0]).toLowerCase() }), 'info', 4000)
+    if (esIndex < 0 && preferred === 0) {
+      toast(t('audio.noSpanishSubs', { lang: subtitleLangLabel(subtitles[preferred]).toLowerCase() }), 'info', 4000)
     }
   }, [subtitles, toast, audioType, t])
 
@@ -590,6 +649,14 @@ export default function Watch() {
 
   function selectSubtitleTrack(trackIndex) {
     setActiveSubtitle(trackIndex)
+    const sub = subtitles[trackIndex]
+    if (sub) {
+      const lang = sub.language || sub.lang || sub.srclang || ''
+      if (lang) {
+        localStorage.setItem('preferred_subtitle_lang', lang)
+        saveLangPrefToAPI('subtitle', lang)
+      }
+    }
     const video = videoRef.current
     if (!video) return
     for (let i = 0; i < video.textTracks.length; i++) {
@@ -693,7 +760,8 @@ export default function Watch() {
     }
   }, [subtitles, sources, toast, locale, localeNames, t])
 
-  const hasNativeSub = locale === 'es' ? subtitles.some(isSpanishSub) : subtitles.some((s) => (s.language || '').toLowerCase() === locale)
+  const hasNativeSub =
+    locale === 'es' ? subtitles.some(isSpanishSub) : subtitles.some((s) => (s.language || '').toLowerCase().startsWith(locale))
   const englishSubIdx = subtitles.findIndex(
     (s) => (s.language || '').toLowerCase() === 'en' || (s.label || '').toLowerCase().includes('english'),
   )
@@ -713,6 +781,8 @@ export default function Watch() {
   function switchAudio(newAudio) {
     if (!anilistId || !epNum) return
     setSelectedLanguage(null)
+    localStorage.setItem('preferred_audio', newAudio)
+    saveLangPrefToAPI('audio', newAudio)
     const newId = `watch/${provider}/${anilistId}/${newAudio}/${provider}-${epNum}`
     navigate(`/watch/${newId}?anilistId=${anilistId}&ep=${epNum}&title=${encodeURIComponent(title)}&image=${encodeURIComponent(image)}`)
   }
@@ -771,6 +841,8 @@ export default function Watch() {
         onSelect={(lang) => {
           setSelectedLanguage(lang)
           setShowSelector(false)
+          localStorage.setItem('preferred_audio', lang)
+          saveLangPrefToAPI('audio', lang)
         }}
       />
     )
@@ -929,32 +1001,16 @@ export default function Watch() {
           ))}
         </div>
         <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
-          <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Miruro</span>
-          {Object.entries(MIRURO_LABELS).map(([p, name]) => (
-            <button
-              key={`miruro-${p}`}
-              onClick={() => switchProvider(`miruro-${p}`)}
-              disabled={loading}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                provider === `miruro-${p}`
-                  ? 'bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30'
-                  : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
-              }`}>
-              {name}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
-          <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Backends</span>
+          <span className="text-[10px] text-text-secondary/50 shrink-0 self-center font-mono mr-1">Backup</span>
           <button
-            onClick={() => switchProvider('kenjitsu')}
+            onClick={() => switchProvider('jkanime')}
             disabled={loading}
             className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-              provider === 'kenjitsu'
+              provider === 'jkanime'
                 ? 'bg-accent/10 text-accent border-accent/30'
                 : 'bg-surface text-text-secondary border-white/10 hover:text-text-primary hover:border-white/20'
             }`}>
-            Kenjitsu
+            JKanime
           </button>
         </div>
         <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">

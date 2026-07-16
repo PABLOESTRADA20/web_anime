@@ -1,18 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useAnimeFavorites() {
   const { user } = useAuth()
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
-
-  const fetch = useCallback(async () => {
+  const fetchFavorites = useCallback(async () => {
     if (!user) return
     const token = await getToken()
     if (!token) return
@@ -27,7 +22,7 @@ export function useAnimeFavorites() {
       setFavorites([])
     }
     setLoading(false)
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -35,8 +30,8 @@ export function useAnimeFavorites() {
       setLoading(false)
       return
     }
-    fetch()
-  }, [user, fetch])
+    fetchFavorites()
+  }, [user, fetchFavorites])
 
   async function toggleFavorite(anilistId, title, image) {
     if (!user) return
@@ -56,7 +51,7 @@ export function useAnimeFavorites() {
         body: JSON.stringify({ anilist_id: anilistId, title, image }),
       })
     }
-    await fetch()
+    await fetchFavorites()
   }
 
   function isFavorite(anilistId) {

@@ -1,3 +1,4 @@
+/* global process */
 const HOST = (typeof process !== 'undefined' && process.env.NOVEL_READNOVELFULL_HOST) || 'https://readnovelfull.com'
 
 async function fetchPage(url, extraHeaders = {}, timeoutMs = 10000) {

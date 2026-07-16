@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { getToken } from '../lib/auth'
 
 export function useMangaLists() {
   const { user } = useAuth()
   const [lists, setLists] = useState([])
   const [loading, setLoading] = useState(true)
-
-  const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
-  }, [])
 
   const fetchLists = useCallback(async () => {
     if (!user) return
@@ -27,7 +22,7 @@ export function useMangaLists() {
       setLists([])
     }
     setLoading(false)
-  }, [user, getToken])
+  }, [user])
 
   useEffect(() => {
     if (!user) {
