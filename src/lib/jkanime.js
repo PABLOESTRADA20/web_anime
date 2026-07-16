@@ -50,15 +50,29 @@ export async function getEpisodeSources(slug, epNum) {
   const sources = []
   const downloadServers = []
 
+  const iframeRegex = /<iframe[^>]+src="([^"]+)"[^>]*>/g
+
   const videoMatch = html.match(/var\s+video\s*=\s*\[([\s\S]*?)\];/)
   if (videoMatch) {
-    const iframeRegex = /<iframe[^>]+src="([^"]+)"[^>]*>/g
     let m
     let idx = 0
     while ((m = iframeRegex.exec(videoMatch[1])) !== null) {
       const label = idx === 0 ? 'Desu' : idx === 1 ? 'Magi' : `Player ${idx + 1}`
       sources.push({ url: m[1].replace(/^\/\//, 'https://'), type: 'iframe', quality: label })
       idx++
+    }
+  }
+
+  if (!sources.length) {
+    const assignRegex = /video\[\d+\]\s*=\s*'([^']+)';/g
+    const iframeSrcRegex = /<iframe[^>]+src="([^"]+)"/
+    let m
+    while ((m = assignRegex.exec(html)) !== null) {
+      const inner = m[1]
+      const sm = inner.match(iframeSrcRegex)
+      if (sm) {
+        sources.push({ url: sm[1].replace(/^\/\//, 'https://'), type: 'iframe', quality: `Player ${sources.length + 1}` })
+      }
     }
   }
 
