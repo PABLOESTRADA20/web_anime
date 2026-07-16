@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "anime-app",
+  "account_id": "8f8f9db043d3a2032fff18ab18ade54d",
   "pages_build_output_dir": "dist",
   "d1_databases": [
     {
