@@ -169,11 +169,12 @@ export default function Home() {
     return () => controller.abort()
   }, [user, locale])
 
-  const recentHistory = useMemo(() => history.slice(0, 8), [history])
+  const recentHistory = useMemo(() => (history || []).slice(0, 8), [history])
 
   const spanishAvailable = useMemo(() => {
     const seen = new Set()
-    return [...trending, ...popular, ...airing]
+    const all = [].concat(trending || [], popular || [], airing || [])
+    return all
       .filter((a) => a.title_es && (a.anilistId || a.id) && !seen.has(a.anilistId || a.id) && seen.add(a.anilistId || a.id))
       .slice(0, 12)
   }, [trending, popular, airing])
@@ -184,9 +185,9 @@ export default function Home() {
       <SeoHead />
       <Hero />
 
-      {user && (recentHistory.length > 0 || mangaHistory.length > 0) && (
+      {user && ((recentHistory?.length || 0) > 0 || (mangaHistory?.length || 0) > 0) && (
         <section className="mb-12 space-y-8">
-          {recentHistory.length > 0 && (
+          {(recentHistory?.length || 0) > 0 && (
             <FadeIn>
               <div>
                 <SectionHeader
@@ -206,7 +207,7 @@ export default function Home() {
                   linkText={t('home.viewMore')}
                 />
                 <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
-                  {recentHistory.map((item) => {
+                  {(recentHistory || []).map((item) => {
                     const pct = progressPct(item)
                     return (
                       <Link
@@ -257,7 +258,7 @@ export default function Home() {
             </FadeIn>
           )}
 
-          {mangaHistory.length > 0 && (
+          {(mangaHistory?.length || 0) > 0 && (
             <FadeIn>
               <div>
                 <SectionHeader
@@ -276,7 +277,7 @@ export default function Home() {
                   linkText={t('home.seeAll')}
                 />
                 <div className="space-y-2">
-                  {mangaHistory.slice(0, 8).map((item) => (
+                  {(mangaHistory || []).slice(0, 8).map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center gap-4 p-3 rounded-xl bg-surface hover:bg-surface-hover transition-all duration-300 group border border-transparent hover:border-primary/20 card-hover">
@@ -328,7 +329,7 @@ export default function Home() {
           ) : (
             <FadeInStagger>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {recommendations.map((a, i) => (
+                {(recommendations || []).map((a, i) => (
                   <FadeIn key={a.anilistId || a.id}>
                     <AnimeCard anime={a} index={i} glow="accent" />
                   </FadeIn>
@@ -363,7 +364,7 @@ export default function Home() {
           ) : (
             <FadeInStagger>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {aiRecs.map((rec, i) => (
+                {(aiRecs || []).map((rec, i) => (
                   <FadeIn key={rec.title + i}>
                     <div className="p-4 rounded-xl bg-surface border border-neon-cyan/10 hover:border-neon-cyan/30 transition-all card-hover">
                       <div className="flex items-start justify-between mb-2">
@@ -407,7 +408,7 @@ export default function Home() {
         ) : (
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {trending.slice(0, 12).map((a, i) => (
+              {(trending || []).slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
                   <AnimeCard anime={a} index={i} glow="accent" />
                 </FadeIn>
@@ -435,7 +436,7 @@ export default function Home() {
         ) : (
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {popular.slice(0, 12).map((a, i) => (
+              {(popular || []).slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
                   <AnimeCard anime={a} index={i} glow="anime" />
                 </FadeIn>
@@ -468,7 +469,7 @@ export default function Home() {
         ) : (
           <FadeInStagger>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {airing.slice(0, 12).map((a, i) => (
+              {(airing || []).slice(0, 12).map((a, i) => (
                 <FadeIn key={a.anilistId}>
                   <AnimeCard anime={a} index={i} glow="manga" />
                 </FadeIn>
@@ -478,7 +479,7 @@ export default function Home() {
         )}
       </section>
 
-      {spanishAvailable.length > 0 && (
+      {(spanishAvailable || []).length > 0 && (
         <section className="mb-12">
           <FadeIn>
             <SectionHeader
