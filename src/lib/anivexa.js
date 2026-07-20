@@ -1,19 +1,31 @@
 import { isSpanishSub } from '../utils/subtitles'
 
-const PROXY = '/api/proxy?url='
 const BASE = import.meta.env.VITE_ANIVEXA_URL || 'https://anivexa-api.vercel.app'
 const FETCH_TIMEOUT = 10000
 
 async function fetchJSON(url, signal) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
+  const combinedSignal = signal ? combineAbortSignals(signal, controller.signal) : controller.signal
   try {
-    const res = await fetch(PROXY + encodeURIComponent(url), { signal: signal || controller.signal })
+    const res = await fetch(url, { signal: combinedSignal })
     if (!res.ok) throw new Error(`Anivexa error ${res.status}`)
     return await res.json()
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+function combineAbortSignals(...signals) {
+  const controller = new AbortController()
+  for (const sig of signals) {
+    if (sig.aborted) {
+      controller.abort(sig.reason)
+      return controller.signal
+    }
+    sig.addEventListener('abort', () => controller.abort(sig.reason), { once: true })
+  }
+  return controller.signal
 }
 
 export async function getEpisodes(anilistId, signal) {

@@ -638,7 +638,7 @@ export default function Watch() {
       .catch(() => setEpisodesLoading(false))
   }, [anilistId, effectiveAudio, provider, showSelector])
 
-  const episodeList = episodesData ? episodesData.providerEpisodes || episodesData?.[provider]?.episodes?.[audio] || [] : []
+  const episodeList = episodesData?.providerEpisodes || []
   const sortedEps = [...episodeList].sort((a, b) => b.number - a.number)
   const currentEpIndex = sortedEps.findIndex((ep) => ep.number === epNum)
   const prevEp = currentEpIndex < sortedEps.length - 1 ? sortedEps[currentEpIndex + 1] : null

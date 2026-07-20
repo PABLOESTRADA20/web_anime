@@ -1,4 +1,3 @@
-const PROXY = '/api/proxy?url='
 const ANIMEFLV_API = import.meta.env.VITE_ANIMEFLV_URL || 'https://animeflv.ahmedrangel.com/api'
 const FETCH_TIMEOUT = 10000
 const slugCache = new Map()
@@ -7,7 +6,7 @@ async function fetchJSON(url) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
   try {
-    const res = await fetch(PROXY + encodeURIComponent(url), { signal: controller.signal })
+    const res = await fetch(url, { signal: controller.signal })
     if (!res.ok) return null
     return await res.json()
   } finally {
