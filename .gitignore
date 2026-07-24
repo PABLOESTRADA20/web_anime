@@ -15,6 +15,7 @@ dist-ssr
 run_migration.cjs
 
 .wrangler
+.opencode
 
 # Editor directories and files
 .vscode/*

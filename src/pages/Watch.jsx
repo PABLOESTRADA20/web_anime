@@ -389,7 +389,8 @@ export default function Watch() {
     audioFallbackRef.current = setTimeout(() => {
       if (!cancelled) {
         setDetectingAudio(false)
-        setSelectedLanguage('sub')
+        const saved = localStorage.getItem('preferred_audio')
+        setSelectedLanguage(saved || 'sub')
         setShowSelector(false)
       }
     }, 10000)

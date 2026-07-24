@@ -53,7 +53,7 @@ export function subtitleSrcLang(sub: SubtitleData): string {
   if (labelIncludes(sub, AR_PATTERNS)) return 'ar'
   if (labelIncludes(sub, KO_PATTERNS)) return 'ko'
   if (labelIncludes(sub, ZH_PATTERNS)) return 'zh'
-  return 'en'
+  return ''
 }
 
 export function isCloudflareBlock(text: string): boolean {
@@ -79,7 +79,7 @@ export function isSpanishSub(sub: SubtitleData): boolean {
   if (language === 'es' || language === 'spa') return true
   if (labelIncludes(sub, ES_PATTERNS)) return true
 
-  const filePatterns = ['es.', 'spanish.', 'espanol.', 'español.', 'latino.', 'spa-', '/es_', '.es_', 'sub.es', '_es.']
+  const filePatterns = ['/es', '-es.', '_es.', '.es_', 'español.', 'espanol.', 'spanish.', 'latino.', 'spa-', 'sub.es']
   if (filePatterns.some((p) => file.includes(p))) return true
 
   return false
