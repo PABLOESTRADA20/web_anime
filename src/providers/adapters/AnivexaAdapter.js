@@ -19,6 +19,8 @@ export default class AnivexaAdapter extends BaseAdapter {
       supportedAudio: ['sub', 'dub'],
       priority: 1,
       cacheTtl: 30000,
+      maxRetries: 1,
+      timeout: 8000,
     })
   }
 

@@ -4,6 +4,7 @@ import { getCached, setCache } from '../lib/cache'
 const DEFAULT_TIMEOUT = 10000
 const MAX_RETRIES = 2
 const BASE_DELAY = 1000
+const HTTP_ERROR_RE = /error (4\d\d|5\d\d)/
 
 let adapterLogs = []
 
@@ -103,6 +104,10 @@ export default class BaseAdapter {
 
         if (e.name === 'AbortError') {
           throw new ProviderTimeoutError(this.name, this.backend, this.timeout)
+        }
+
+        if (HTTP_ERROR_RE.test(e.message)) {
+          throw new ProviderError(`HTTP error definitivo: ${e.message}`, this.name, this.backend, e)
         }
 
         if (attempt < this.maxRetries) {
