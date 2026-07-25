@@ -79,7 +79,7 @@ export function isSpanishSub(sub: SubtitleData): boolean {
   if (language === 'es' || language === 'spa') return true
   if (labelIncludes(sub, ES_PATTERNS)) return true
 
-  const filePatterns = ['/es', '-es.', '_es.', '.es_', 'español.', 'espanol.', 'spanish.', 'latino.', 'spa-', 'sub.es']
+  const filePatterns = ['es.', '/es', '-es.', '_es.', '.es_', 'español.', 'espanol.', 'spanish.', 'latino.', 'spa-', 'sub.es']
   if (filePatterns.some((p) => file.includes(p))) return true
 
   return false

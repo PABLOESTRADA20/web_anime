@@ -370,6 +370,7 @@ export default {
     import: 'Import',
     importing: 'Importing...',
     importPlaceholder: 'AniList username...',
+    importResult: '+{watching} watching, +{planToWatch} plan to watch, +{completed} completed',
     notifications: 'Notifications',
     notificationsOn: 'Notifications on',
     notificationsOff: 'Enable notifications',

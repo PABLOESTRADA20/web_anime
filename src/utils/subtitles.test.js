@@ -33,8 +33,8 @@ describe('subtitleSrcLang', () => {
   it('detecta español por patrón', () => {
     expect(subtitleSrcLang({ label: 'Spanish' })).toBe('es')
   })
-  it('fallback a en', () => {
-    expect(subtitleSrcLang({ label: 'xyz' })).toBe('en')
+  it('fallback vacío si no hay match', () => {
+    expect(subtitleSrcLang({ label: 'xyz' })).toBe('')
   })
 })
 
