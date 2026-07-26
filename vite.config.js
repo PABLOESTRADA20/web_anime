@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
             options: { cacheName: 'anilist-api', expiration: { maxEntries: 100, maxAgeSeconds: 3600 } },
           },
           {
-            urlPattern: /^https:\/\/api\.anivexa\.com\/.*/i,
+            urlPattern: /^https:\/\/anivexa-api\.vercel\.app\/.*/i,
             handler: 'NetworkFirst',
             options: { cacheName: 'anivexa-api', expiration: { maxEntries: 50, maxAgeSeconds: 600 } },
           },
