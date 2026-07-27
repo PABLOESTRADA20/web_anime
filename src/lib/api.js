@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/react'
 import { providerManager } from '../providers/manager'
 import { searchAnime as anilistSearch, browseAnime as anilistBrowse, getTopAnimeList, getAnimeInfo as anilistGetInfo } from './anilist.js'
 import { getSpanishMetadata } from './animeflv.js'
@@ -33,7 +32,6 @@ export async function searchAnime(query, page = 1, filters = {}, signal) {
     return { data: normalizeList(res.data), hasNextPage: res.hasNextPage }
   } catch (e) {
     if (e.name === 'AbortError') throw e
-    Sentry.captureException(e, { tags: { context: 'searchAnime' } })
     return { data: [], hasNextPage: false }
   }
 }
@@ -42,8 +40,7 @@ export async function getTopAnime(category = 'trending', page = 1) {
   try {
     const res = await getTopAnimeList(category, page)
     return { data: normalizeList(res.data), hasNextPage: res.hasNextPage }
-  } catch (e) {
-    Sentry.captureException(e, { tags: { context: 'getTopAnime' } })
+  } catch {
     return { data: [], hasNextPage: false }
   }
 }
@@ -54,8 +51,7 @@ export async function getAnimeInfo(id) {
     const enriched = normalizeAnime(data)
     await tryEnrichSpanish(enriched)
     return { data: enriched }
-  } catch (e) {
-    Sentry.captureException(e, { tags: { context: 'getAnimeInfo', anilistId: String(id) } })
+  } catch {
     return { data: null }
   }
 }
@@ -104,10 +100,6 @@ export async function getWatchWithFallback(anilistId, preferredProvider, epNum, 
     const result = await providerManager.getWatch(anilistId, epNum, audio)
     return result
   } catch (e) {
-    Sentry.captureException(e, {
-      tags: { anilistId: String(anilistId), episode: epNum, context: 'allProvidersFailed' },
-      extra: { errors: e.errors?.map((er) => `${er.provider}: ${er.message}`) },
-    })
     e.providerErrors = e.errors || []
     throw e
   }

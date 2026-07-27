@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
-import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 
@@ -11,15 +10,6 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
-    ...(process.env.SENTRY_AUTH_TOKEN
-      ? [
-          sentryVitePlugin({
-            org: process.env.SENTRY_ORG || 'animeverse',
-            project: process.env.SENTRY_PROJECT || 'anime-app',
-            authToken: process.env.SENTRY_AUTH_TOKEN,
-          }),
-        ]
-      : []),
     ...(mode === 'analyze' ? [visualizer({ open: true, gzipSize: true, brotliSize: true })] : []),
     VitePWA({
       registerType: 'autoUpdate',
@@ -85,7 +75,6 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion'
           if (id.includes('node_modules/hls.js')) return 'vendor-hls'
           if (id.includes('node_modules/@supabase')) return 'vendor-supabase'
-          if (id.includes('node_modules/@sentry')) return 'vendor-sentry'
         },
       },
     },

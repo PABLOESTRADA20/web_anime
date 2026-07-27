@@ -1,6 +1,5 @@
 import { Component } from 'react'
 import { Link } from 'react-router-dom'
-import * as Sentry from '@sentry/react'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -10,10 +9,6 @@ export default class ErrorBoundary extends Component {
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error }
-  }
-
-  componentDidCatch(error, errorInfo) {
-    Sentry.captureException(error, { extra: errorInfo })
   }
 
   render() {
