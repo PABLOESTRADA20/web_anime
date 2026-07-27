@@ -70,6 +70,7 @@ async function tryEnrichSpanish(anime) {
 const ES_CONCURRENCY = 3
 
 export async function enrichAnimeBatch(list) {
+  if (!Array.isArray(list)) return []
   const queue = [...list]
   async function worker() {
     while (queue.length) {

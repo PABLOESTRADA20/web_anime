@@ -51,7 +51,8 @@ const SEASONS = ['WINTER', 'SPRING', 'SUMMER', 'FALL']
 
 export default function Seasonal() {
   const { t } = useI18n()
-  const [animeList, setAnimeList] = useState([])
+  const [rawList, setRawList] = useState([])
+  const animeList = rawList ?? []
   const [loading, setLoading] = useState(true)
   const [season, setSeason] = useState('')
   const [year, setYear] = useState(new Date().getFullYear())
@@ -67,12 +68,12 @@ export default function Seasonal() {
       .then((res) => {
         if (ac.signal.aborted) return
         const list = res.data || []
-        setAnimeList(list)
+        setRawList(list)
         setHasNext(res.hasNextPage || false)
         setLoading(false)
         enrichAnimeBatch(list)
           .then((enriched) => {
-            if (!ac.signal.aborted) setAnimeList(enriched)
+            if (!ac.signal.aborted) setRawList(enriched)
           })
           .catch(() => {})
       })
@@ -90,7 +91,7 @@ export default function Seasonal() {
     setLoading(true)
     try {
       const res = await getSeasonalAnime(season, year, next)
-      setAnimeList((prev) => [...prev, ...(res.data || [])])
+      setRawList((prev) => [...prev, ...(res.data || [])])
       setHasNext(res.hasNextPage || false)
       setPage(next)
     } catch {
