@@ -94,6 +94,7 @@ export async function enrichAnimeBatch(list) {
     }
   }
   await Promise.all(Array.from({ length: ES_CONCURRENCY }, () => worker()))
+  return list
 }
 
 export async function getWatchWithFallback(anilistId, preferredProvider, epNum, audio = 'sub') {

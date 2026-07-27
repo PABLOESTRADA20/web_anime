@@ -112,7 +112,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) {
-      setRecommendations([])
+      if (trending.length > 0) {
+        setRecommendations(trending.slice(0, 12))
+      }
       return
     }
     const ac = new AbortController()
@@ -310,7 +312,7 @@ export default function Home() {
         </section>
       )}
 
-      {user && ((recommendations || []).length > 0 || recsLoading) && (
+      {((recommendations || []).length > 0 || recsLoading) && (
         <section className="mb-12">
           <FadeIn>
             <SectionHeader
