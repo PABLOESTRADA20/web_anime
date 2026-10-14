@@ -3,6 +3,8 @@
 > Probando el parche de ARIA.
 
 > Segundo commit de ARIA en la misma rama.
+
+> Tercer intento.
 App de anime y manga online con múltiples proveedores, subtítulos en español, watch party, y recomendaciones personalizadas.
 
 ## Stack
