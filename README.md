@@ -1,5 +1,7 @@
 # AnimeVerse
 
+> Probando el parche de ARIA.
+
 App de anime y manga online con múltiples proveedores, subtítulos en español, watch party, y recomendaciones personalizadas.
 
 ## Stack
